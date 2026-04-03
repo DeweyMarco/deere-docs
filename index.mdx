@@ -1,6 +1,60 @@
 ---
-title: "Introduction"
-description: "Welcome to John Deere"
+title: "John Deere Developer Portal"
+description: "Build with John Deere APIs to connect, synchronize, and extend dealer and partner experiences."
+mode: "custom"
+---
 
+<div style={{ textAlign: "center", padding: "64px 24px 48px" }}>
+  <img src="/logo/john-deere.png" style={{ height: "72px", margin: "0 auto 32px" }} />
+  <h1 style={{ fontSize: "2.5rem", fontWeight: "700", marginBottom: "16px" }}>John Deere Developer Portal</h1>
+  <p style={{ fontSize: "1.2rem", color: "gray", maxWidth: "600px", margin: "0 auto 40px" }}>
+    Build with John Deere APIs to connect, synchronize, and extend dealer and partner experiences across the John Deere ecosystem.
+  </p>
+  <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+    <a href="/dealer_solutions/dealer_data_feed" style={{ background: "#367C2B", color: "white", padding: "12px 28px", borderRadius: "8px", fontWeight: "600", textDecoration: "none", fontSize: "1rem" }}>Get Started</a>
+    <a href="https://developer.deere.com" style={{ border: "1px solid #367C2B", color: "#367C2B", padding: "12px 28px", borderRadius: "8px", fontWeight: "600", textDecoration: "none", fontSize: "1rem" }}>Developer Portal</a>
+  </div>
+</div>
 
 ---
+
+## API Collections
+
+<CardGroup cols={2}>
+  <Card title="Dealer Solutions" icon="store" href="/dealer_solutions/dealer_data_feed">
+    APIs for John Deere dealers to synchronize product data, categories, and marketing content from Deere.com. Includes the Dealer Data Feed CoreMedia API.
+  </Card>
+  <Card title="Financial" icon="circle-dollar-to-slot" href="/financial/index">
+    Financial APIs for payment processing, financing options, and dealer financial reporting integrations.
+  </Card>
+  <Card title="Precision Tech" icon="satellite-dish" href="/precision_tech/index">
+    Precision agriculture APIs including telematics, field data, machine connectivity, and JDLink integrations.
+  </Card>
+  <Card title="Supply Chain" icon="truck" href="/supply_chain/index">
+    Supply chain APIs for parts ordering, inventory management, and logistics integrations.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+All John Deere APIs use **OAuth 2.0** with bearer tokens. Include your token in every request:
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+<Note>
+  Contact your John Deere partner representative to obtain API credentials and access to the sandbox environment.
+</Note>
+
+---
+
+## Base URL
+
+All APIs are served from:
+
+```
+https://developer.deere.com
+```

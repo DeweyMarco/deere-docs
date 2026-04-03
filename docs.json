@@ -2,12 +2,35 @@
     "$schema": "https://mintlify.com/docs.json",
     "name": "John Deere",
     "theme": "palm",
+    "logo": {
+      "light": "/logo/john-deere.png",
+      "dark": "/logo/john-deere.png",
+      "href": "/"
+    },
     "colors": {
-      "primary": "#000000",
-      "light": "#4ADE80",
-      "dark": "#15803D"
+      "primary": "#367C2B",
+      "light": "#FFDE00",
+      "dark": "#367C2B"
+    },
+    "api": {
+      "openapi": "openapi.json",
+      "playground": {
+        "display": "interactive"
+      },
+      "examples": {
+        "languages": ["bash"]
+      }
     },
     "navigation": {
+        "global": {
+            "anchors": [
+                {
+                    "anchor": "Home",
+                    "icon": "house",
+                    "href": "/"
+                }
+            ]
+        },
         "tabs": [
             {
                 "tab": "Dealer Solutions",
@@ -15,22 +38,11 @@
                 "pages": [
                     "dealer_solutions/dealer_data_feed",
                     {
-                        "group": "Dealer Data Feed",
-                        "expanded": false,
-                        "openapi": "openapi.json",
-                        "display": "interactive",
-                        "pages": [
-                            "GET /listVersionsv2",
-                            "GET /getVersionDetailsv2"
-                        ]
-                    },
-                    "dealer_solutions/financial",
-                    {
-                        "group": "Financial",
-                        "expanded": false,
+                        "group": "Dealer Data Feed API",
                         "openapi": "openapi.json",
                         "pages": [
-                            "financial/index"
+                            "GET /caas/v1/ddf/categories",
+                            "GET /caas/v1/ddf/products"
                         ]
                     }
                 ]

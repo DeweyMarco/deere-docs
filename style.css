@@ -1,0 +1,18 @@
+/* Target logo by all possible selectors */
+#nav-logo img,
+.nav-logo img,
+[id="nav-logo"] img,
+[class*="nav-logo"] img {
+  height: 48px !important;
+  width: auto !important;
+  max-height: none !important;
+}
+
+#nav-logo,
+.nav-logo,
+[id="nav-logo"],
+[class*="nav-logo"] {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}

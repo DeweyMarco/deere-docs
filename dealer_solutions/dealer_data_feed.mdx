@@ -1,35 +1,122 @@
 ---
 title: "Dealer Data Feed"
-description: "The Dealer Data Feed (DDF) CoreMedia APIs enable John Deere Dealers to effortlessly access and synchronize comprehensive product information from the John Deere New Websites using RESTful APIs. "
+description: "CoreMedia APIs that enable John Deere Dealers to access and synchronize comprehensive product information from John Deere New Websites."
 ---
 
-<Card title="Card title" href="/components/columns">
-  This integration ensures that dealer websites consistently display the most current product and marketing details available on Deere.com . By utilizing these APIs, dealers can keep their digital presence accurate and up-to-date, improving both operational efficiency and customer experience.
-  Currently, the APIs expose endpoints for Product Categories and detailed Product Information, including specifications, features, and benefits. Additional marketing content—such as digital assets, brochures, offers, and delta-based data retrieval—will be introduced incrementally to support evolving business needs.
-</Card>
+## Overview
 
-# Endpoints
+The Dealer Data Feed (DDF) CoreMedia APIs enable John Deere Dealers to effortlessly access and synchronize comprehensive product information from the John Deere New Websites using RESTful APIs.
 
-## Retrieve all product categories
+This integration ensures that dealer websites consistently display the most current product and marketing details available on Deere.com. By utilizing these APIs, dealers can keep their digital presence accurate and up-to-date, improving both operational efficiency and customer experience.
+
+<CardGroup cols={2}>
+  <Card title="Product Categories" icon="sitemap">
+    Fetch all product categories with optional hierarchical children up to 3 levels deep.
+  </Card>
+  <Card title="Product Information" icon="box">
+    Retrieve detailed product data including specifications, features, and benefits.
+  </Card>
+  <Card title="Digital Assets" icon="image">
+    Brochures, images, and marketing content — coming soon.
+  </Card>
+  <Card title="Delta Retrieval" icon="arrows-rotate">
+    Incremental data updates for efficient synchronization — coming soon.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+All DDF API requests require a valid OAuth 2.0 bearer token issued by John Deere's authorization server.
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+<Note>
+  Contact your John Deere partner representative to obtain API credentials and access to the sandbox environment.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://developer.deere.com
+```
+
+---
+
+## Endpoints
+
+### Retrieve all product categories
+
 Fetch all product categories with optional hierarchical children (up to 3 levels deep).
 
-GET
-/caas/v1/ddf/categories
+```
+GET /caas/v1/ddf/categories
+```
 
-<AccordionGroup>
-  <Accordion title="Parameters">
-  | Parameter       | Type    | Description                                                                | In    |
-  | --------------- | ------- | -------------------------------------------------------------------------- | ----- |
-  | locale          | string  | Language and region code for localized content (e.g., en_US, de_DE, fr_FR) | query |
-  | includeChildren | boolean | Include child categories in the response hierarchy (up to 3 levels deep)   | query |
-  </Accordion>
-  <Accordion title="Response Details">
-  | Field      | Type    | Description     |
-  | ---------- | ------- | --------------- |
-  | taxonomies | object  | Categories data |
-  </Accordion>
-  <Accordion title="Sample Response">
-  ```json
+<ParamField query="locale" type="string">
+  Language and region code for localized content. Examples: `en_US`, `de_DE`, `fr_FR`, `en_IE`.
+</ParamField>
+
+<ParamField query="includeChildren" type="boolean">
+  When `true`, includes child categories in the response hierarchy (up to 3 levels deep).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://developer.deere.com/caas/v1/ddf/categories?locale=en_US&includeChildren=true' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="taxonomies" type="object">
+  The root object containing category data.
+  <Expandable title="taxonomies">
+    <ResponseField name="categories" type="array">
+      List of top-level product categories.
+      <Expandable title="categories[]">
+        <ResponseField name="id" type="string">
+          Unique identifier for the category.
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Human-readable category name.
+        </ResponseField>
+        <ResponseField name="baseCode" type="string">
+          Internal base code for the category (e.g. `WG_products-and-solutions`).
+        </ResponseField>
+        <ResponseField name="canonicalPath" type="string">
+          Full canonical URL to the category on Deere.com.
+        </ResponseField>
+        <ResponseField name="externalPath" type="string">
+          Relative path used externally.
+        </ResponseField>
+        <ResponseField name="locale" type="string">
+          Locale the content is returned in.
+        </ResponseField>
+        <ResponseField name="isProduct" type="boolean">
+          Whether this category represents a product. Present on child nodes only.
+        </ResponseField>
+        <ResponseField name="children" type="array">
+          Nested child categories. Present only when `includeChildren=true`. Same shape as parent, up to 3 levels deep.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Sample response
+
+```json
+{
   "taxonomies": {
     "categories": [
       {
@@ -70,6 +157,45 @@ GET
       }
     ]
   }
-  ```
-  </Accordion>
-</AccordionGroup>
+}
+```
+
+---
+
+### Retrieve product information
+
+Retrieve detailed product data for a specific category, including specifications, features, and benefits.
+
+```
+GET /caas/v1/ddf/products
+```
+
+<ParamField query="categoryId" type="string" required>
+  The category ID to retrieve product information for.
+</ParamField>
+
+<ParamField query="locale" type="string">
+  Language and region code for localized content. Example: `en_US`.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://developer.deere.com/caas/v1/ddf/products?categoryId=183684&locale=en_US' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+---
+
+## Roadmap
+
+| Feature | Status |
+|---|---|
+| Product Categories | Available |
+| Product Information (specs, features, benefits) | Available |
+| Digital Assets (images, brochures) | Coming soon |
+| Offers and promotions | Coming soon |
+| Delta-based data retrieval | Coming soon |
