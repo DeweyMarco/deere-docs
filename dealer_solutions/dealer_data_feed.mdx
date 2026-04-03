@@ -1,0 +1,75 @@
+---
+title: "Dealer Data Feed"
+description: "The Dealer Data Feed (DDF) CoreMedia APIs enable John Deere Dealers to effortlessly access and synchronize comprehensive product information from the John Deere New Websites using RESTful APIs. "
+---
+
+<Card title="Card title" href="/components/columns">
+  This integration ensures that dealer websites consistently display the most current product and marketing details available on Deere.com . By utilizing these APIs, dealers can keep their digital presence accurate and up-to-date, improving both operational efficiency and customer experience.
+  Currently, the APIs expose endpoints for Product Categories and detailed Product Information, including specifications, features, and benefits. Additional marketing content—such as digital assets, brochures, offers, and delta-based data retrieval—will be introduced incrementally to support evolving business needs.
+</Card>
+
+# Endpoints
+
+## Retrieve all product categories
+Fetch all product categories with optional hierarchical children (up to 3 levels deep).
+
+GET
+/caas/v1/ddf/categories
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+  | Parameter       | Type    | Description                                                                | In    |
+  | --------------- | ------- | -------------------------------------------------------------------------- | ----- |
+  | locale          | string  | Language and region code for localized content (e.g., en_US, de_DE, fr_FR) | query |
+  | includeChildren | boolean | Include child categories in the response hierarchy (up to 3 levels deep)   | query |
+  </Accordion>
+  <Accordion title="Response Details">
+  | Field      | Type    | Description     |
+  | ---------- | ------- | --------------- |
+  | taxonomies | object  | Categories data |
+  </Accordion>
+  <Accordion title="Sample Response">
+  ```json
+  "taxonomies": {
+    "categories": [
+      {
+        "id": "34276",
+        "name": "Products and Solutions",
+        "baseCode": "WG_products-and-solutions",
+        "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions",
+        "externalPath": "/",
+        "locale": "en_IE",
+        "children": [
+          {
+            "id": "183684",
+            "name": "Technology Solutions",
+            "baseCode": "WG_technology-solutions",
+            "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/technology-solutions",
+            "externalPath": "/WG_technology-solutions",
+            "isProduct": false,
+            "locale": "en_IE"
+          },
+          {
+            "id": "183530",
+            "name": "Hay and Forage Equipment",
+            "baseCode": "WG_hay-and-forage-equipment",
+            "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/hay-and-forage-equipment",
+            "externalPath": "/WG_hay-and-forage-equipment",
+            "isProduct": false,
+            "locale": "en_IE"
+          }
+        ]
+      },
+      {
+        "id": "183138",
+        "name": "Engines and Drivetrain",
+        "baseCode": "WG_powertrain-solutions",
+        "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/engines-and-drivetrain",
+        "externalPath": "/WG_powertrain-solutions",
+        "locale": "en_IE"
+      }
+    ]
+  }
+  ```
+  </Accordion>
+</AccordionGroup>
