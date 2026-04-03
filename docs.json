@@ -14,7 +14,25 @@
                 "icon": "square-terminal",
                 "pages": [
                     "dealer_solutions/dealer_data_feed",
-                    "dealer_solutions/financial"
+                    {
+                        "group": "Dealer Data Feed",
+                        "expanded": false,
+                        "openapi": "openapi.json",
+                        "display": "interactive",
+                        "pages": [
+                            "GET /listVersionsv2",
+                            "GET /getVersionDetailsv2"
+                        ]
+                    },
+                    "dealer_solutions/financial",
+                    {
+                        "group": "Financial",
+                        "expanded": false,
+                        "openapi": "openapi.json",
+                        "pages": [
+                            "financial/index"
+                        ]
+                    }
                 ]
             },
             {
