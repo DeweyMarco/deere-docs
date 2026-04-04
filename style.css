@@ -1,18 +1,86 @@
-/* Target logo by all possible selectors */
-#nav-logo img,
-.nav-logo img,
-[id="nav-logo"] img,
-[class*="nav-logo"] img {
-  height: 48px !important;
-  width: auto !important;
-  max-height: none !important;
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+/* ── Font ─────────────────────────────────────────────── */
+body,
+html,
+p, li, td, th, span, label, input, textarea, select, button, a {
+  font-family: 'Libre Franklin', sans-serif !important;
+  letter-spacing: 0 !important;
 }
 
-#nav-logo,
-.nav-logo,
-[id="nav-logo"],
-[class*="nav-logo"] {
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
+h1, h2, h3, h4, h5, h6,
+[class*="heading"] {
+  font-family: 'Libre Franklin', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+}
+
+nav,
+[class*="nav"],
+[class*="sidebar"],
+[class*="tab"],
+[class*="anchor"] {
+  font-family: 'Libre Franklin', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+/* ── Sharp corners ───────────────────────────────────────
+   Mintlify sets --rounded-* (and related) theme tokens; components use them
+   with !important, which outranks `* { border-radius: 0 }`. Overriding the
+   tokens makes those rules compute to square corners. The universal rule
+   still catches simple border-radius without variables. */
+:root,
+html {
+  --rounded: 0px !important;
+  --rounded-sm: 0px !important;
+  --rounded-md: 0px !important;
+  --rounded-lg: 0px !important;
+  --rounded-xl: 0px !important;
+  --rounded-2xl: 0px !important;
+  --rounded-3xl: 0px !important;
+  --rounded-full: 0px !important;
+  --rounded-search: 0px !important;
+  --rounded-xt: 0px !important;
+  --radius: 0px !important;
+  --scrollbar-thumb-radius: 0px !important;
+  --scrollbar-track-radius: 0px !important;
+  --scrollbar-corner-radius: 0px !important;
+}
+
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+
+/* ── Home page content padding ────────────────────────── */
+.home-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 40px 64px;
+}
+
+/* ── Hero Get Started button ──────────────────────────── */
+.hero-get-started {
+  background: #367C2B;
+  color: white !important;
+  padding: 12px 28px;
+  font-weight: 700;
+  text-decoration: none !important;
+  font-size: 1rem;
+  display: inline-block;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hero-get-started:hover {
+  background: white !important;
+  color: #367C2B !important;
+}
+
+/* ── Nav logo ─────────────────────────────────────────── */
+.nav-logo img {
+  height: 20px !important;
+  width: auto !important;
 }

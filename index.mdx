@@ -4,33 +4,82 @@ description: "Build with John Deere APIs to connect, synchronize, and extend dea
 mode: "custom"
 ---
 
-<div style={{ textAlign: "center", padding: "64px 24px 48px" }}>
-  <img src="/logo/john-deere.png" style={{ height: "72px", margin: "0 auto 32px" }} />
-  <h1 style={{ fontSize: "2.5rem", fontWeight: "700", marginBottom: "16px" }}>John Deere Developer Portal</h1>
-  <p style={{ fontSize: "1.2rem", color: "gray", maxWidth: "600px", margin: "0 auto 40px" }}>
-    Build with John Deere APIs to connect, synchronize, and extend dealer and partner experiences across the John Deere ecosystem.
-  </p>
-  <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-    <a href="/dealer_solutions/dealer_data_feed" style={{ background: "#367C2B", color: "white", padding: "12px 28px", borderRadius: "8px", fontWeight: "600", textDecoration: "none", fontSize: "1rem" }}>Get Started</a>
-    <a href="https://developer.deere.com" style={{ border: "1px solid #367C2B", color: "#367C2B", padding: "12px 28px", borderRadius: "8px", fontWeight: "600", textDecoration: "none", fontSize: "1rem" }}>Developer Portal</a>
+<div style={{
+  position: "relative",
+  width: "100%",
+  minHeight: "480px",
+  display: "flex",
+  alignItems: "flex-end",
+  overflow: "hidden",
+  marginBottom: "48px"
+}}>
+  {/* Background image */}
+  <img
+    src="/images/homepage.png"
+    style={{
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      objectPosition: "center",
+      display: "block"
+    }}
+    alt=""
+  />
+  {/* Gradient overlay — darkens bottom-left for text legibility */}
+  <div style={{
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.1) 100%)"
+  }} />
+  {/* Content */}
+  <div style={{
+    position: "relative",
+    zIndex: 1,
+    padding: "48px 40px",
+    maxWidth: "680px"
+  }}>
+    <h1 style={{
+      fontSize: "2.6rem",
+      fontWeight: "800",
+      color: "#ffffff",
+      lineHeight: "1.1",
+      marginBottom: "14px",
+      letterSpacing: "-0.01em"
+    }}>
+      Forge The Future Of Smart Machinery
+    </h1>
+    <p style={{
+      fontSize: "1.05rem",
+      color: "rgba(255,255,255,0.82)",
+      marginBottom: "32px",
+      lineHeight: "1.6",
+      maxWidth: "520px"
+    }}>
+      Apply a world of data and efficient APIs to reshape the industry.
+    </p>
+    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+      <a href="/dealer_solutions/digital-marketing/dealer_data_feed" className="hero-get-started">Get Started</a>
+    </div>
   </div>
 </div>
 
----
+<div className="home-content">
 
 ## API Collections
 
 <CardGroup cols={2}>
-  <Card title="Dealer Solutions" icon="store" href="/dealer_solutions/dealer_data_feed">
+  <Card title="Dealer Solutions" icon="store" href="/dealer_solutions/digital-marketing/dealer_data_feed">
     APIs for John Deere dealers to synchronize product data, categories, and marketing content from Deere.com. Includes the Dealer Data Feed CoreMedia API.
   </Card>
-  <Card title="Financial" icon="circle-dollar-to-slot" href="/financial/index">
+  <Card title="Financial" icon="circle-dollar-to-slot" href="/financial/crm/index">
     Financial APIs for payment processing, financing options, and dealer financial reporting integrations.
   </Card>
-  <Card title="Precision Tech" icon="satellite-dish" href="/precision_tech/index">
+  <Card title="Precision Tech" icon="satellite-dish" href="/precision_tech/application/index">
     Precision agriculture APIs including telematics, field data, machine connectivity, and JDLink integrations.
   </Card>
-  <Card title="Supply Chain" icon="truck" href="/supply_chain/index">
+  <Card title="Supply Chain" icon="truck" href="/supply_chain/sourcing/index">
     Supply chain APIs for parts ordering, inventory management, and logistics integrations.
   </Card>
 </CardGroup>
@@ -58,3 +107,5 @@ All APIs are served from:
 ```
 https://developer.deere.com
 ```
+
+</div>

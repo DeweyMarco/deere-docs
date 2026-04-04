@@ -1,0 +1,414 @@
+---
+title: "Dealer Data Feed (Sunsetting)"
+description: "The legacy DDF API suite — 14 endpoints for accessing John Deere product data via ddf-api.deere.com. This API is being sunset; migrate to the new Dealer Data Feed."
+---
+
+<Warning>
+  This API is being sunset. Migrate to the [new Dealer Data Feed](/dealer_solutions/digital-marketing/dealer_data_feed), which provides updated CoreMedia-backed endpoints on `developer.deere.com`.
+</Warning>
+
+## Overview
+
+The legacy Dealer Data Feed (DDF) API enables John Deere dealers to fetch product information, media, pricing, taxonomy, and more from Deere.com via REST. All endpoints accept `POST` requests with a JSON body.
+
+---
+
+## Authentication
+
+All requests use **Okta OAuth 2.0** with the Client Credentials grant. Obtain your `Client ID` and `Client Secret` by onboarding through the John Deere Developer Portal.
+
+**Token request parameters:**
+
+| Field | Value |
+|---|---|
+| Grant Type | Client Credentials |
+| Client Authentication | Send client credentials in body |
+| Scope | _(leave blank)_ |
+
+```bash
+# Include the token in every request header
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+<Note>
+  Access tokens are valid for **1 hour**. You can reuse a token across multiple requests within that window.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://ddf-api.deere.com/mrkt/ddf/api
+```
+
+---
+
+## Endpoints
+
+### 1. Taxonomy
+
+Fetch the full product taxonomy as XML.
+
+```
+POST /taxonomy
+```
+
+**Request body:**
+
+```json
+{
+  "languageCode": "en",
+  "countryCode": "us"
+}
+```
+
+---
+
+### 2. Index JSON
+
+Fetch JSON representation of non-product pages (e.g. category landing pages).
+
+```
+POST /indexjson
+```
+
+**Request body:**
+
+```json
+{
+  "path": "/en_US/products-and-solutions/tractors",
+  "languageCode": "en",
+  "countryCode": "us"
+}
+```
+
+---
+
+### 3. Product JSON
+
+Fetch full product JSON including embedded fragment JSON for features, specifications, and accessories.
+
+```
+POST /productjson
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "languageCode": "en",
+  "countryCode": "us"
+}
+```
+
+---
+
+### 4. Carousel JSON
+
+Fetch the carousel fragment JSON for a specific product.
+
+```
+POST /carouseljson
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "languageCode": "en",
+  "countryCode": "us"
+}
+```
+
+---
+
+### 5. Modified Product List
+
+Fetch products modified within a specific date range. Useful for incremental sync.
+
+```
+POST /productlist
+```
+
+**Request body:**
+
+```json
+{
+  "startDate": "01-01-2024",
+  "endDate": "03-31-2024",
+  "languageCode": "en",
+  "countryCode": "us",
+  "status": "UPDATED"
+}
+```
+
+<ParamField body="startDate" type="string" required>
+  Start of the date range. Format: `MM-DD-YYYY`.
+</ParamField>
+
+<ParamField body="endDate" type="string" required>
+  End of the date range. Format: `MM-DD-YYYY`.
+</ParamField>
+
+<ParamField body="languageCode" type="string" required>
+  Language code, e.g. `en`.
+</ParamField>
+
+<ParamField body="countryCode" type="string" required>
+  Country code, e.g. `us`.
+</ParamField>
+
+<ParamField body="status" type="string">
+  Filter by change type. Must be `UPDATED` or `DELETED`. Omit to return both.
+</ParamField>
+
+**Response:** List of modified products with path, date, and status.
+
+---
+
+### 6. Media
+
+Fetch product or category images and videos.
+
+```
+POST /media
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "languageCode": "en",
+  "countryCode": "us",
+  "mediaType": "images"
+}
+```
+
+<ParamField body="sku" type="string">
+  Product SKU. Use either `sku` or `path`, not both.
+</ParamField>
+
+<ParamField body="path" type="string">
+  Category path. Use either `path` or `sku`, not both.
+</ParamField>
+
+<ParamField body="mediaType" type="string" required>
+  `images` or `videos`.
+</ParamField>
+
+---
+
+### 7. Component (Features / Specifications / Accessories)
+
+Fetch a specific component type for a product.
+
+```
+POST /component
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "countryCode": "us",
+  "languageCode": "en",
+  "component": "features"
+}
+```
+
+<ParamField body="component" type="string" required>
+  Component to retrieve: `features`, `specifications`, or `accessories`.
+</ParamField>
+
+---
+
+### 8. Product MetaData
+
+Fetch SEO metadata for a product as it appears on Deere.com.
+
+```
+POST /metadata
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "languageCode": "en",
+  "countryCode": "us"
+}
+```
+
+---
+
+### 9. Product Summary
+
+Fetch a product summary including overview, base code, model name and number, system value, and optional links.
+
+```
+POST /productsummary
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "countryCode": "us",
+  "languageCode": "en"
+}
+```
+
+---
+
+### 10. Product Price
+
+Fetch product pricing including currency, denomination label, and price disclaimer.
+
+```
+POST /productprice
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "countryCode": "us",
+  "languageCode": "en"
+}
+```
+
+---
+
+### 11. Product Disclaimer
+
+Fetch the product disclaimer text.
+
+```
+POST /productdisclaimer
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "countryCode": "us",
+  "languageCode": "en"
+}
+```
+
+---
+
+### 12. Link List
+
+Fetch the link list associated with a product.
+
+```
+POST /linklist
+```
+
+**Request body:**
+
+```json
+{
+  "sku": "8R410",
+  "countryCode": "us",
+  "languageCode": "en"
+}
+```
+
+---
+
+### 13. News
+
+Fetch the latest 20 news articles, events, or announcements from Deere.com.
+
+```
+POST /news
+```
+
+**Request body:**
+
+```json
+{
+  "type": "news",
+  "countryCode": "us",
+  "languageCode": "en"
+}
+```
+
+<ParamField body="type" type="string" required>
+  Content type to retrieve: `news`, `events`, or `articles`.
+</ParamField>
+
+**Response fields:** headline, description, link, publish date.
+
+---
+
+### 14. Model List
+
+Fetch model list data by category or industry.
+
+```
+POST /modellist
+```
+
+**Request body:**
+
+```json
+{
+  "languageCode": "en",
+  "countryCode": "us",
+  "categoryId": "en_us_tractors"
+}
+```
+
+<ParamField body="languageCode" type="string" required>
+  Language code, e.g. `en`.
+</ParamField>
+
+<ParamField body="countryCode" type="string" required>
+  Country code, e.g. `us`.
+</ParamField>
+
+<ParamField body="listOf" type="string">
+  Return a full list of all available industries or categories. Values: `industries` or `categories`.
+</ParamField>
+
+<ParamField body="categoryId" type="string">
+  Filter by category, e.g. `en_us_tractors`. Returns all products tagged to that category and sub-categories.
+</ParamField>
+
+<ParamField body="industry" type="string">
+  Filter by industry, e.g. `en_us_agriculture`. Omit to return all industries.
+</ParamField>
+
+---
+
+## Endpoint Summary
+
+| # | Endpoint | Description |
+|---|---|---|
+| 1 | `POST /taxonomy` | Full product taxonomy (XML) |
+| 2 | `POST /indexjson` | Non-product page JSON |
+| 3 | `POST /productjson` | Full product JSON with fragments |
+| 4 | `POST /carouseljson` | Carousel fragment JSON |
+| 5 | `POST /productlist` | Modified products in a date range |
+| 6 | `POST /media` | Product/category images and videos |
+| 7 | `POST /component` | Features, specifications, or accessories |
+| 8 | `POST /metadata` | Product SEO metadata |
+| 9 | `POST /productsummary` | Product summary and overview |
+| 10 | `POST /productprice` | Product pricing and currency |
+| 11 | `POST /productdisclaimer` | Product disclaimer text |
+| 12 | `POST /linklist` | Link list for a product |
+| 13 | `POST /news` | Latest news, events, and articles |
+| 14 | `POST /modellist` | Model list by category or industry |

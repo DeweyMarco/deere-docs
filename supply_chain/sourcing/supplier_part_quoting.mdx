@@ -1,0 +1,123 @@
+---
+title: "Supplier Part Quoting"
+description: "APIs to request quotes from a supplier and manage quote responses within the John Deere Total Cost Solution quoting application."
+---
+
+<Warning>
+  The original documentation at [developer.deere.com/dev-docs/supplier-part-quoting](https://developer.deere.com/dev-docs/supplier-part-quoting) is being sunset. This page is the preserved reference.
+</Warning>
+
+## Overview
+
+The Supplier Part Quoting API is utilized to request quotes from a supplier and includes the supplier's response to a quote. The Part Quoting APIs provide the same information available in the John Deere Total Cost Solution quoting application.
+
+Using the Part Quotes API, you can:
+
+<CardGroup cols={3}>
+  <Card title="Search for Quotes" icon="magnifying-glass">
+    Search for quotes by supplier number and status.
+  </Card>
+  <Card title="Retrieve Open Quotes" icon="file-lines">
+    Retrieve all open quotes for a given supplier.
+  </Card>
+  <Card title="Respond to Quotes" icon="reply">
+    Respond to quotes that only require a Grand Total Price.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Supply Chain API endpoints use the **OAuth 2.0 client credentials** grant type for authentication.
+
+### 1. Create an application on Developer.Deere.com
+
+When you create an application, it will be assigned a **Client Key** and **Client Secret**. You will sign all API requests with these credentials.
+
+### 2. Add a callback URL
+
+In the Security section of your application on Developer.Deere.com, define one or more Callback URLs (Redirect URI). Click **Add** to add more than one, then click **Save**.
+
+<Note>
+  While a redirect URI may not be needed in the client credentials OAuth flow, please add one to your application as part of our syncing process. You may use a local URI such as `https://localhost:9090/callback` as a placeholder.
+</Note>
+
+### 3. Call the OAuth 2 well-known URL
+
+```
+GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+```
+
+This URL contains the authorization and token endpoint, and the scopes required in subsequent steps.
+
+### 4. Acquire an access token
+
+```
+POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+```
+
+**Headers:**
+
+```
+Authorization: Basic MG9hY...
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+```
+
+**Body:**
+
+```
+grant_type=client_credentials&scope={customScope}&cache-control=no-cache
+```
+
+<Note>
+  The client ID and secret are placed in the HTTP `Authorization` header following [HTTP Basic Auth](https://datatracker.ietf.org/doc/html/rfc7617) rules — not in the POST body.
+</Note>
+
+**Response:**
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 43200,
+  "access_token": "eyJhbG[...]1LQ",
+  "scope": "customScope"
+}
+```
+
+<Warning>
+  The access token expires after **12 hours**. You must refresh it as needed.
+</Warning>
+
+### 5. Use the access token
+
+Include the access token in the `Authorization` header of all API requests:
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+---
+
+## Base URL
+
+```
+https://jdsn-quote-api-sandbox.deere.com/scs/quotesAPI
+```
+
+---
+
+## Endpoints
+
+<CardGroup cols={3}>
+  <Card title="GET /quotes" icon="play" href="/supply_chain/sourcing/api-reference/get-quotes">
+    Get quote numbers for a supplier
+  </Card>
+  <Card title="GET /quotes/{quoteNumber}" icon="play" href="/supply_chain/sourcing/api-reference/get-quote-by-number">
+    Get details for a quote number
+  </Card>
+  <Card title="POST /rfqs" icon="play" href="/supply_chain/sourcing/api-reference/create-rfq">
+    Register a new RFQ
+  </Card>
+</CardGroup>

@@ -1,0 +1,41 @@
+---
+title: "Update Paging Parameters (Feb 5, 2024)"
+---
+
+### What is changing?
+
+Precision Tech APIs utilized URI matrix parameters. This type of parameter is not widely supported by modern frameworks like OpenAPI Spec and various servers. The matrix params have transitioned to query params.
+
+| | Old | New |
+|-|-----|-----|
+| **Start** | `;start=0` | `?pageOffset=0` |
+| **Count** | `;count=100` | `?itemLimit=100` |
+
+**Example:**
+
+```
+Old: https://sandboxapi.deere.com/organizations;start=0;count=100
+New: https://sandboxapi.deere.com/organizations?pageOffset=0&itemLimit=100
+```
+
+### Key Dates
+
+| Date | Event |
+|------|-------|
+| Today | All systems will stop accepting matrix params. The API response will default to 10 records. |
+| June 1, 2024 | All calls including old matrix parameters will begin to fail. |
+
+---
+
+## Paging Header
+
+| | Old | New |
+|-|-----|-----|
+| **Header** | `No_Paging: true` | `x-deere-no-paging: true` |
+
+### Key Dates
+
+| Date | Event |
+|------|-------|
+| Today | APIs will no longer accept the old header. The default page size of 10 records will be returned if the old header is passed. |
+| June 1, 2024 | All calls including the old header will begin to fail. |

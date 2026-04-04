@@ -1,0 +1,29 @@
+---
+title: "Dealer Syndication: Parts Cart Integration to Dealers' Portal"
+description: "Learn how the Dealer Syndication Service enables customers to browse the John Deere Parts Catalog and route their cart back to their dealer's portal for checkout."
+---
+
+## Dealer Syndication Service: John Deere Parts Cart Integration to Dealers' Portal
+
+Known customers want to leverage their dealer's portal to purchase parts directly. With that need, customers go to the dealer's portal, view diagrams, and search for parts using the John Deere Parts Catalog. Once ready to buy, the customer adds parts to the John Deere Parts Catalog cart, clicks **Proceed to Checkout**, and is routed back to their dealer's portal to complete the purchase.
+
+John Deere Parts integrates with portal providers (such as Sedona, CDK, and Pape) to accomplish cart routing across both Swimlane A and Swimlane B flows.
+
+---
+
+## Integration Flows
+
+<Steps>
+  <Step title="Swimlane A — Dealer Website Customers">
+    Customers on dealer websites can click a link to navigate to the John Deere Parts Catalog, browse for parts, add them to a cart, and transfer the cart back to the originating website to view price, availability, and complete the order seamlessly.
+
+    **Dealer Selection:** John Deere Parts requires dealer selection to show price and availability. In Swimlane A, the dealer location is auto-selected based on the originating site and cannot be changed by the end user.
+
+    Customers can also return to the originating dealer page without performing a checkout — for example, if they couldn't find the part they were looking for.
+  </Step>
+  <Step title="Swimlane B — Direct John Deere Parts Navigation">
+    Portal dealer customers who navigate to John Deere Parts directly, create a shopping cart, and click checkout are directed to the corresponding dealer site to complete the ordering process.
+
+    This flow provides secure authentication over SSL to protect customer information and prevent unauthorized integrations with the John Deere Parts Catalog. IT owners of the dealer website wishing to integrate the Deere Parts Catalog into their site should use this documentation for technical guidance.
+  </Step>
+</Steps>

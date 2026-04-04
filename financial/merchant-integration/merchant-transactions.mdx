@@ -1,0 +1,424 @@
+---
+title: "Merchant Transactions API"
+description: "Submit and manage transactions for John Deere Financial revolving finance products including Multi-Use Account, PowerPlan, and JDFRP."
+---
+
+## Overview
+
+The Merchant Transactions API facilitates transaction processing and data integration for John Deere Financial merchants. It enables merchant Business Systems partnered with John Deere Financial to submit transactions for the following finance products:
+
+- Multi-Use Account (US)
+- Multi-Use Account (CAN)
+- PowerPlan
+- John Deere Financial Revolving Plan (JDFRP)
+
+<Note>
+  This API is intended for entities that provide Business Systems, ERP Systems, and/or CRM Systems connected with dealers and retailers who are registered as merchants offering one or more John Deere Financial revolving products.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Authorizations" icon="shield-check">
+    Reserve credit on a customer's account before a purchase is finalized.
+  </Card>
+  <Card title="Captures" icon="circle-check">
+    Consume a previously reserved authorization when a purchase is finalized or goods are delivered.
+  </Card>
+  <Card title="Purchases" icon="cart-shopping">
+    Combine authorization and capture in a single step for immediate transactions.
+  </Card>
+  <Card title="Credits & Payments" icon="arrow-rotate-left">
+    Process returns and accept customer payments at the merchant location.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Merchant Transactions API supports two OAuth 2.0 flows depending on your integration.
+
+### Three-Legged OAuth 2.0 (Authorization Code)
+
+Use this flow when acting on behalf of a user.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Your application will be assigned a **Client Key** and **Client Secret**. Add one or more Callback URLs (Redirect URIs) in the OAuth Profile section of your application. If callback URLs fail to sync, contact support — a 400 Bad Redirect error will occur during auth.
+  </Step>
+  <Step title="Discover OAuth endpoints">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+    Returns the authorization endpoint, token endpoint, and supported scopes.
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the authorization server with `response_type=code`, your `client_id`, `redirect_uri` (URL-encoded), `state`, and required scopes.
+
+    | Scope | Description |
+    |---|---|
+    | `offline_access` | Request a refresh token |
+
+    The user signs in with John Deere credentials and accepts the scope allowance screen. The server redirects back to your callback URL with the authorization code.
+  </Step>
+  <Step title="Exchange for an access token">
+    POST to the token endpoint with `grant_type=authorization_code`, the authorization code, and redirect URI. The access token expires after **12 hours**.
+  </Step>
+  <Step title="Call the API">
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+  <Step title="Refresh the access token">
+    Use `grant_type=refresh_token` before expiry. The refresh token expires after **365 days** of inactivity — if it expires, the user must re-authenticate from step 3.
+  </Step>
+</Steps>
+
+### Client Credentials (Machine-to-Machine)
+
+Use this flow for server-to-server integrations that don't require user context.
+
+```bash
+POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token' \
+  --header 'Authorization: Basic <base64(clientId:clientSecret)>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'grant_type=client_credentials&scope={customScope}'
+```
+
+</CodeGroup>
+
+<Note>
+  Pass the client ID and secret in the HTTP `Authorization` header using HTTP Basic Auth — not in the request body.
+</Note>
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 43200,
+  "access_token": "eyJhbG[...]1LQ",
+  "scope": "customScope"
+}
+```
+
+Tokens expire after **12 hours**. Refresh as needed.
+
+---
+
+## Base URL
+
+```
+https://sandbox-financial-api.deere.com
+```
+
+---
+
+## Transaction Flows
+
+### Authorization → Capture (two-step purchase)
+
+Use this when you need to reserve funds at order time and capture later (e.g., on shipment).
+
+```
+POST /merchants/transactions/authorizations   → reserve credit
+GET  /merchants/transactions/authorizations/{id}  → check status
+POST /merchants/transactions/captures         → finalize on delivery
+```
+
+### Direct Purchase (single-step)
+
+Use this for immediate point-of-sale transactions.
+
+```
+POST /merchants/transactions/purchases
+```
+
+### Returns & Corrections
+
+```
+POST   /merchants/transactions/credits        → issue a credit
+DELETE /merchants/transactions/credits/{id}   → void if not yet settled
+```
+
+### Customer Payments at Merchant Location
+
+```
+POST   /merchants/transactions/payments       → record payment
+DELETE /merchants/transactions/payments/{id}  → void if not yet settled
+```
+
+---
+
+## Endpoints
+
+### Authorizations
+
+#### Create an Authorization
+
+Reserve credit on a customer's account.
+
+```
+POST /merchants/transactions/authorizations
+```
+
+<ParamField body="accountNumber" type="string" required>
+  Customer's revolving account number.
+</ParamField>
+
+<ParamField body="merchantId" type="string" required>
+  Registered merchant identifier.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Amount to authorize in USD.
+</ParamField>
+
+<ParamField body="specialTermsOfferId" type="string">
+  ID of a special terms (promotional) offer to apply.
+</ParamField>
+
+<ParamField body="purchaseOrderNumber" type="string">
+  Merchant-assigned purchase order number for reference.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/authorizations">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Get Current Authorization Status
+
+```
+GET /merchants/transactions/authorizations/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the authorization.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /merchants/transactions/authorizations/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Cancel Approved Authorization
+
+```
+DELETE /merchants/transactions/authorizations/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the authorization to cancel.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /merchants/transactions/authorizations/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Captures
+
+#### Capture Approved Authorization
+
+Consume credit previously reserved on a credit line. Typically triggered when a purchase is finalized or product is shipped/delivered. A capture of an approved authorization is effectively a purchase.
+
+```
+POST /merchants/transactions/captures
+```
+
+<ParamField body="authorizationId" type="string" required>
+  ID of the approved authorization to capture.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Amount to capture. Must not exceed the authorized amount.
+</ParamField>
+
+<ParamField body="invoiceNumber" type="string">
+  Merchant invoice number associated with this capture.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/captures">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Credits
+
+#### Create Credit
+
+A credit is a return of purchase from a merchant to a customer, typically used for billing corrections or returns.
+
+```
+POST /merchants/transactions/credits
+```
+
+<ParamField body="accountNumber" type="string" required>
+  Customer's revolving account number.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Amount to credit back to the customer's account.
+</ParamField>
+
+<ParamField body="originalTransactionId" type="string">
+  ID of the original purchase or capture being credited.
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Reason for the credit (e.g., return, billing correction).
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/credits">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Cancel/Void Credit
+
+Cancel or void a credit. Only works if the credit has not yet been settled.
+
+```
+DELETE /merchants/transactions/credits/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the credit to cancel.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /merchants/transactions/credits/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Payments
+
+#### Create a Payment
+
+Records a payment made by a customer on their John Deere Financial account at the merchant location. John Deere Financial subsequently retrieves the value from the merchant and applies it to the customer's account.
+
+```
+POST /merchants/transactions/payments
+```
+
+<ParamField body="accountNumber" type="string" required>
+  Customer's revolving account number.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Payment amount in USD.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/payments">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Cancel/Void Payment
+
+Void or cancel a received payment. Only works for payments that have not yet been settled.
+
+```
+DELETE /merchants/transactions/payments/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the payment to void.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /merchants/transactions/payments/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Purchases
+
+#### Create a Purchase
+
+A purchase designates a portion of the customer's credit account as owed to John Deere Financial while John Deere Financial subsidizes the merchant. A purchase is effectively an authorization and capture in a single step.
+
+```
+POST /merchants/transactions/purchases
+```
+
+<ParamField body="accountNumber" type="string" required>
+  Customer's revolving account number.
+</ParamField>
+
+<ParamField body="merchantId" type="string" required>
+  Registered merchant identifier.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Purchase amount in USD.
+</ParamField>
+
+<ParamField body="specialTermsOfferId" type="string">
+  ID of a special terms (promotional) offer to apply.
+</ParamField>
+
+<ParamField body="invoiceNumber" type="string">
+  Merchant invoice number.
+</ParamField>
+
+<ParamField body="purchaseOrderNumber" type="string">
+  Merchant-assigned purchase order number.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/purchases">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Cancel/Void Purchase
+
+Cancels a previously approved purchase. Only works for purchases that have not yet been settled.
+
+```
+DELETE /merchants/transactions/purchases/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the purchase to cancel.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /merchants/transactions/purchases/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+#### Accept Bridge Offer
+
+Accepts a bridge offer for a purchase. A bridge offer may be presented in the purchase response when `bridgeOfferAvailable` is `true`.
+
+```
+POST /merchants/transactions/purchases/{id}/bridge-acceptance
+```
+
+<ParamField path="id" type="string" required>
+  Unique identifier of the purchase.
+</ParamField>
+
+<ParamField body="offerId" type="string" required>
+  ID of the bridge offer to accept.
+</ParamField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /merchants/transactions/purchases/{id}/bridge-acceptance">
+  Test this endpoint interactively with your access token.
+</Card>

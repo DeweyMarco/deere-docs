@@ -1,0 +1,240 @@
+---
+title: "Online Credit Application CRM API"
+description: "Retrieve credit application data submitted through the Online Credit Application system for use within your dealer CRM."
+---
+
+## Overview
+
+The Online Credit Application (OCA) Customer Relationship Manager (CRM) API allows John Deere dealers to retrieve credit application data that is submitted through the Online Credit Application system for use within their CRM. The purpose of the OCA CRM API is to allow Online Credit Application data to be retrieved by a dealer's business system to assist in the sales and follow up processes.
+
+<CardGroup cols={2}>
+  <Card title="Webhook Notifications" icon="bell">
+    John Deere Financial POSTs the application ID to your webhook endpoint when a customer submits an application.
+  </Card>
+  <Card title="Application Retrieval" icon="file-invoice-dollar">
+    Fetch full credit application details — applicant info, requested amount, and equipment of interest.
+  </Card>
+  <Card title="OAuth 2.0 Auth Code Flow" icon="lock">
+    Three-legged OAuth with the `dealerAccount` scope ensures only authorized dealer accounts can access their applications.
+  </Card>
+  <Card title="Account Hierarchy Validation" icon="sitemap">
+    The API validates that the requested application belongs within the authenticated dealer's account hierarchy.
+  </Card>
+</CardGroup>
+
+---
+
+## Overall Flow
+
+<Steps>
+  <Step title="Customer submits application">
+    A customer submits a credit application through the Online Credit Application system.
+  </Step>
+  <Step title="Set up your webhook">
+    Before going live, create an internet-accessible HTTP REST endpoint that accepts a `POST` request containing a JSON body with the application ID. Submit a support ticket to register the endpoint with John Deere Financial.
+  </Step>
+  <Step title="Receive webhook notification">
+    The OCA CRM API sends a `POST` to your webhook endpoint containing the `traceGuid` (application ID) of the new submission.
+  </Step>
+  <Step title="Authenticate">
+    Use the OAuth 2.0 Authorization Code flow to obtain an access token with the `dealerAccount` scope.
+  </Step>
+  <Step title="Retrieve application data">
+    Make a `GET` request to the CRM API with the application ID. The API validates your dealer account hierarchy and returns the full application.
+  </Step>
+</Steps>
+
+---
+
+## Webhook Setup
+
+Your webhook must be an internet-accessible HTTP REST endpoint that accepts `POST` requests.
+
+### Request format
+
+```json
+// Headers
+{
+  "Content-Type": "application/json",
+  "Accept": "application/json",
+  "x-api-key": "abcdefg123456"
+}
+
+// Body
+{
+  "traceGuid": "0afd5ca3-3b97-46c1-aadf-5b65bcb764a7"
+}
+```
+
+<Note>
+  John Deere Financial will provide you with an API key that will be included in the `x-api-key` header for every `POST` request. Validate this key to confirm the request is legitimate before processing it.
+</Note>
+
+Once your endpoint is ready, submit a ticket on the Support page to provide John Deere Financial with your static webhook URL.
+
+---
+
+## Authentication
+
+The OCA CRM API uses three-legged OAuth 2.0 (Authorization Code flow).
+
+### 1. Call the well-known URL
+
+```bash
+GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+```
+
+This returns the authorization endpoint, token endpoint, and supported scopes.
+
+### 2. Required scopes
+
+| Scope | Description |
+|---|---|
+| `offline_access` | Request a refresh token |
+| `dealerAccount` | Access the dealer account associated with the authenticated user |
+
+### 3. Acquire an authorization code
+
+Direct the user to the authorization server. Include `code` as the response type, along with your client ID, redirect URI, state, and required scopes. The redirect URI must be URL-encoded.
+
+<Note>
+  Log in using an X-ID attached to your TOG account so the API can access all applications submitted within your dealership. Contact your Dealership's Dealer Profile Administrator if you need to set up an X-ID.
+</Note>
+
+### 4. Exchange for an access token
+
+POST to the token endpoint with grant type `authorization_code`, your authorization code, and redirect URI. The access token expires after **12 hours**.
+
+### 5. Call the API
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+### 6. Refresh the access token
+
+Use the `refresh_token` grant type with your refresh token to obtain a new access token before it expires. The refresh token expires after **365 days** of inactivity. If it expires, the user must re-authenticate from step 2.
+
+Okta provides open-source libraries to simplify this flow: [github.com/okta](https://github.com/okta)
+
+---
+
+## Base URL
+
+```
+https://oca-crm-api-sandbox.deere.com/john-deere-financial/leads
+```
+
+---
+
+## Endpoints
+
+### Get credit application details
+
+Retrieve the full details of a submitted credit application by its ID. The API validates that the application belongs within the authenticated dealer's account hierarchy before returning data.
+
+```
+GET /applications/{applicationId}
+```
+
+<ParamField path="applicationId" type="string" required>
+  The unique GUID of the credit application. This is received in the `traceGuid` field of the webhook notification.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://oca-crm-api-sandbox.deere.com/john-deere-financial/leads/applications/0afd5ca3-3b97-46c1-aadf-5b65bcb764a7' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="applicationId" type="string">
+  Unique GUID for the credit application.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current application status. One of: `SUBMITTED`, `IN_REVIEW`, `APPROVED`, `DECLINED`, `CANCELLED`.
+</ResponseField>
+
+<ResponseField name="submittedAt" type="string">
+  ISO 8601 timestamp of when the application was submitted.
+</ResponseField>
+
+<ResponseField name="dealerAccountNumber" type="string">
+  Dealer account number associated with the application.
+</ResponseField>
+
+<ResponseField name="applicant" type="object">
+  Information about the credit applicant.
+  <Expandable title="applicant">
+    <ResponseField name="firstName" type="string">First name.</ResponseField>
+    <ResponseField name="lastName" type="string">Last name.</ResponseField>
+    <ResponseField name="email" type="string">Email address.</ResponseField>
+    <ResponseField name="phone" type="string">Phone number.</ResponseField>
+    <ResponseField name="address" type="object">
+      Mailing address.
+      <Expandable title="address">
+        <ResponseField name="street" type="string">Street address.</ResponseField>
+        <ResponseField name="city" type="string">City.</ResponseField>
+        <ResponseField name="state" type="string">State or province code.</ResponseField>
+        <ResponseField name="zip" type="string">Postal code.</ResponseField>
+        <ResponseField name="country" type="string">Country code (e.g. `US`).</ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="requestedAmount" type="number">
+  Amount of credit requested in USD.
+</ResponseField>
+
+<ResponseField name="equipmentOfInterest" type="array">
+  Equipment the applicant is interested in financing.
+  <Expandable title="equipmentOfInterest">
+    <ResponseField name="model" type="string">Equipment model name.</ResponseField>
+    <ResponseField name="category" type="string">Equipment category.</ResponseField>
+    <ResponseField name="quantity" type="integer">Number of units.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /applications/{applicationId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "applicationId": "0afd5ca3-3b97-46c1-aadf-5b65bcb764a7",
+  "status": "SUBMITTED",
+  "submittedAt": "2026-04-04T10:30:00Z",
+  "dealerAccountNumber": "D-123456",
+  "applicant": {
+    "firstName": "John",
+    "lastName": "Smith",
+    "email": "john.smith@example.com",
+    "phone": "555-555-5555",
+    "address": {
+      "street": "123 Farm Road",
+      "city": "Des Moines",
+      "state": "IA",
+      "zip": "50301",
+      "country": "US"
+    }
+  },
+  "requestedAmount": 75000.00,
+  "equipmentOfInterest": [
+    {
+      "model": "8R 410 Tractor",
+      "category": "Tractors",
+      "quantity": 1
+    }
+  ]
+}
+```

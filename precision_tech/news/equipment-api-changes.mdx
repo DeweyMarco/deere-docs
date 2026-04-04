@@ -1,0 +1,62 @@
+---
+title: "Equipment API Changes (Jun 3, 2024)"
+---
+
+<Info>
+  **June 3, 2024** — Please begin testing these new APIs as soon as possible. We will begin deprecating the existing APIs beginning January 2025.
+</Info>
+
+### What is changing?
+
+Currently John Deere offers public APIs that refer to "machines" and "implements" separately. Our goal is to combine these two resource types and other "equipment" related data resources into one public API offering and provide more flexibility for connected API applications to query for these resources in different ways and create non-John Deere managed machines in our system.
+
+These new Equipment APIs will enable clients and users the flexibility to gather more relevant information about these resources in their own way and contribute equipment with third party managed telematics devices. These new APIs will also let customers keep equipment in their org as long as they want and allow multiple organizations to utilize the same serial number.
+
+- The existing versions of our machine and implement APIs will be replaced with new equipment API endpoints.
+- The new endpoints will have a different base path, such as `https://equipmentapi.deere.com/isg/` instead of `https://sandboxapi.deere.com/platform/`. This new path will be used for both sandbox applications and production applications alike.
+- The request and response objects are also changing as we are introducing an updated schema for our equipment resource APIs. A variety of embeds and filters can be applied to some of these endpoints to slice and dice the data in different ways.
+- Equipment records can be retrieved with details such as connected devices and paired equipment so clients can understand what capabilities a machine currently has.
+- We are introducing the ability to add new equipment records in our system that may or may not utilize non-John Deere telematic devices.
+- We will be introducing public APIs for identifying the proper equipment make, type and model schema for use in contributing a piece of equipment.
+- For equipment creation, external clients will not require a serial number while creating a piece of equipment (machine or implement).
+- Equipment records can now be archived in organizations. The API query for equipment will support an `archived` filter parameter.
+
+### When is this changing?
+
+The new Equipment API endpoints are available now to begin testing. Clients should begin switching their code to call these new API endpoints and collect data from them.
+
+The existing machine and implement APIs will continue to work until sometime in early 2025. Your application should remove its dependency on these old API endpoints as soon as possible.
+
+John Deere Equipment applications and tools (such as [equipment.deere.com](https://equipment.deere.com)) will release the corresponding changes using the new API versions in September 2024.
+
+### What action do I need to take?
+
+All applications should begin migrating from the existing machine and implement endpoints to the new equipment API endpoints as soon as possible.
+
+**Endpoint mappings:**
+
+| Method | Existing Endpoint | New Endpoint |
+|--------|-------------------|--------------|
+| GET | `/organizations/{orgId}/machines` | `/equipment`* |
+| GET | `/machines/{id}` | `/equipment`* |
+| GET | `/organizations/{id}/implements` | `/equipment`* |
+| GET | `/implements/{id}` | `/equipment`* |
+
+\* These endpoints can retrieve equipment records with filter parameters such as `organizationIds`, equipment ID(s), or `serialNumbers` with a secondary filter of `category = 'machine'` or `'implement'`.
+
+**New endpoints:**
+
+| Method | Endpoint |
+|--------|----------|
+| GET | `/equipmentMakes` |
+| GET | `/equipmentTypes` |
+| GET | `/equipmentModels` |
+| POST | `/organizations/{orgId}/equipment` |
+| PUT | `/equipment/{id}` |
+
+### Key Dates
+
+| Date | Event |
+|------|-------|
+| June 3, 2024 | Equipment APIs released on developer.deere.com |
+| January 2025 | Old machine and implement APIs begin deprecation |

@@ -1,0 +1,577 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Merchant Incentives API",
+    "description": "Integration between external vendors and John Deere Financial revolving products to retrieve various Incentive Programs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox-financial-api.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a Refresh Token"
+            }
+          }
+        }
+      },
+      "OAuth2ClientCredentials": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "IncentiveProgram": {
+        "type": "object",
+        "properties": {
+          "incentiveId": {
+            "type": "string",
+            "description": "Unique identifier for the incentive program.",
+            "example": "INC-2024-001"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the incentive program.",
+            "example": "Spring Equipment Promotion"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the incentive program.",
+            "enum": ["ACTIVE", "EXPIRED", "PENDING"],
+            "example": "ACTIVE"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the incentive program begins.",
+            "example": "2024-03-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the incentive program ends.",
+            "example": "2024-05-31"
+          },
+          "merchantNumber": {
+            "type": "string",
+            "description": "Merchant number associated with this incentive.",
+            "example": "MER-123456"
+          }
+        }
+      },
+      "IncentiveDetail": {
+        "type": "object",
+        "properties": {
+          "incentiveId": {
+            "type": "string",
+            "description": "Unique identifier for the incentive program.",
+            "example": "INC-2024-001"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the incentive program.",
+            "example": "Spring Equipment Promotion"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the incentive program.",
+            "enum": ["ACTIVE", "EXPIRED", "PENDING"],
+            "example": "ACTIVE"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the incentive program begins.",
+            "example": "2024-03-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the incentive program ends.",
+            "example": "2024-05-31"
+          },
+          "merchantNumber": {
+            "type": "string",
+            "description": "Merchant number associated with this incentive.",
+            "example": "MER-123456"
+          },
+          "description": {
+            "type": "string",
+            "description": "Full description of the incentive program.",
+            "example": "0% APR for 48 months on select agricultural equipment purchases."
+          },
+          "apr": {
+            "type": "number",
+            "description": "Annual percentage rate for this incentive.",
+            "example": 0.0
+          },
+          "termMonths": {
+            "type": "integer",
+            "description": "Length of the incentive term in months.",
+            "example": 48
+          },
+          "minimumPurchaseAmount": {
+            "type": "number",
+            "description": "Minimum purchase amount required to qualify.",
+            "example": 5000.00
+          },
+          "eligibleProductTypes": {
+            "type": "array",
+            "description": "Types of products eligible for this incentive.",
+            "items": {
+              "type": "string"
+            },
+            "example": ["TRACTORS", "COMBINES", "SPRAYERS"]
+          }
+        }
+      },
+      "IncentiveProduct": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "description": "Unique product identifier.",
+            "example": "8R-410"
+          },
+          "cdmsId": {
+            "type": "string",
+            "description": "CDMS identifier for the product.",
+            "example": "CDMS-98765"
+          },
+          "gtin": {
+            "type": "string",
+            "description": "Global Trade Item Number (GTIN) for the product.",
+            "example": "00012345678905"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name.",
+            "example": "8R 410 Tractor"
+          },
+          "category": {
+            "type": "string",
+            "description": "Product category.",
+            "example": "TRACTORS"
+          },
+          "modelYear": {
+            "type": "integer",
+            "description": "Model year of the product.",
+            "example": 2024
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "The requested resource was not found."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/merchants/incentives/list": {
+      "get": {
+        "operationId": "getIncentivesList",
+        "summary": "Get Incentives Overview",
+        "description": "Returns a list of all Active Incentives Programs based on Merchant Number or combination of Merchant Number and CDMSId/GTIN/ProductId.",
+        "security": [
+          { "OAuth2AuthorizationCode": ["offline_access"] },
+          { "OAuth2ClientCredentials": [] }
+        ],
+        "parameters": [
+          {
+            "name": "merchantNumber",
+            "in": "query",
+            "required": true,
+            "description": "The merchant number to retrieve incentives for.",
+            "schema": {
+              "type": "string",
+              "example": "MER-123456"
+            }
+          },
+          {
+            "name": "cdmsId",
+            "in": "query",
+            "required": false,
+            "description": "CDMS identifier to filter incentives by a specific product.",
+            "schema": {
+              "type": "string",
+              "example": "CDMS-98765"
+            }
+          },
+          {
+            "name": "gtin",
+            "in": "query",
+            "required": false,
+            "description": "Global Trade Item Number (GTIN) to filter incentives by a specific product.",
+            "schema": {
+              "type": "string",
+              "example": "00012345678905"
+            }
+          },
+          {
+            "name": "productId",
+            "in": "query",
+            "required": false,
+            "description": "Product identifier to filter incentives for a specific product.",
+            "schema": {
+              "type": "string",
+              "example": "8R-410"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/list?merchantNumber=MER-123456' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved list of active incentive programs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incentives": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/IncentiveProgram" }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "Total number of active incentive programs returned.",
+                      "example": 2
+                    }
+                  }
+                },
+                "example": {
+                  "incentives": [
+                    {
+                      "incentiveId": "INC-2024-001",
+                      "name": "Spring Equipment Promotion",
+                      "status": "ACTIVE",
+                      "startDate": "2024-03-01",
+                      "endDate": "2024-05-31",
+                      "merchantNumber": "MER-123456"
+                    },
+                    {
+                      "incentiveId": "INC-2024-002",
+                      "name": "Summer Harvest Special",
+                      "status": "ACTIVE",
+                      "startDate": "2024-06-01",
+                      "endDate": "2024-08-31",
+                      "merchantNumber": "MER-123456"
+                    }
+                  ],
+                  "total": 2
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing required parameter.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "Required parameter 'merchantNumber' is missing."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No incentive programs found for the given merchant.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No active incentive programs found for merchant 'MER-123456'."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchants/incentives/{incentiveId}": {
+      "get": {
+        "operationId": "getIncentiveDetails",
+        "summary": "Get Incentive Details",
+        "description": "Returns incentive details for a given Incentive Id.",
+        "security": [
+          { "OAuth2AuthorizationCode": ["offline_access"] },
+          { "OAuth2ClientCredentials": [] }
+        ],
+        "parameters": [
+          {
+            "name": "incentiveId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the incentive program.",
+            "schema": {
+              "type": "string",
+              "example": "INC-2024-001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/INC-2024-001' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved incentive details.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncentiveDetail" },
+                "example": {
+                  "incentiveId": "INC-2024-001",
+                  "name": "Spring Equipment Promotion",
+                  "status": "ACTIVE",
+                  "startDate": "2024-03-01",
+                  "endDate": "2024-05-31",
+                  "merchantNumber": "MER-123456",
+                  "description": "0% APR for 48 months on select agricultural equipment purchases.",
+                  "apr": 0.0,
+                  "termMonths": 48,
+                  "minimumPurchaseAmount": 5000.00,
+                  "eligibleProductTypes": ["TRACTORS", "COMBINES", "SPRAYERS"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Incentive program not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No incentive program found for id 'INC-2024-001'."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchants/incentives/{incentiveId}/products": {
+      "get": {
+        "operationId": "getIncentiveProducts",
+        "summary": "Get Incentive Products",
+        "description": "Returns a list of products eligible for a given incentive program.",
+        "security": [
+          { "OAuth2AuthorizationCode": ["offline_access"] },
+          { "OAuth2ClientCredentials": [] }
+        ],
+        "parameters": [
+          {
+            "name": "incentiveId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the incentive program.",
+            "schema": {
+              "type": "string",
+              "example": "INC-2024-001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/INC-2024-001/products' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved eligible products for the incentive.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incentiveId": {
+                      "type": "string",
+                      "description": "The incentive program identifier.",
+                      "example": "INC-2024-001"
+                    },
+                    "products": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/IncentiveProduct" }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "Total number of eligible products returned.",
+                      "example": 3
+                    }
+                  }
+                },
+                "example": {
+                  "incentiveId": "INC-2024-001",
+                  "products": [
+                    {
+                      "productId": "8R-410",
+                      "cdmsId": "CDMS-98765",
+                      "gtin": "00012345678905",
+                      "name": "8R 410 Tractor",
+                      "category": "TRACTORS",
+                      "modelYear": 2024
+                    },
+                    {
+                      "productId": "S780",
+                      "cdmsId": "CDMS-11223",
+                      "gtin": "00012345678906",
+                      "name": "S780 Combine",
+                      "category": "COMBINES",
+                      "modelYear": 2024
+                    }
+                  ],
+                  "total": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Incentive program not found or has no eligible products.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No products found for incentive 'INC-2024-001'."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

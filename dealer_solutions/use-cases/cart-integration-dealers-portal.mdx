@@ -1,0 +1,32 @@
+---
+title: "Expert Services Integration for Dealer Service Departments"
+description: "Learn how to integrate Expert Services to enable dealer service departments with standardized jobs, checklists, and inspection workflows."
+---
+
+## Enabling Dealer's Service Department
+
+Expert Services is an application that allows dealers to adopt, modify, and manage jobs and checklists. John Deere has published jobs and checklists for many models of equipment and is authoring new content daily. This content is available for dealers to adopt and modify to meet the needs of their customers and their geography.
+
+Integrating with Expert Services provides many benefits to both the dealership and their customers. Utilizing a database of standard jobs like those found in Expert Services helps drive consistency for quoting service work for large dealer organizations. Each location has access to the same content and any updates made to content are reflected immediately.
+
+It also helps drive consistency in your inspection process. Having a detailed inspection that all technicians use across a dealer's organizations ensures that everyone is checking the same items and each customer is getting the same experience. Expert Services also integrates with the Expert App — a tool that enables technicians to execute inspections and potentially build a quote as they work through the inspection, speeding up the entire process for a service department.
+
+---
+
+## How to Integrate with Expert Services
+
+<Steps>
+  <Step title="Search for adopted jobs and checklists">
+    Use the Expert Services search endpoint to retrieve all jobs and checklists that a dealer has adopted or created and published, filtered by your desired parameters.
+  </Step>
+  <Step title="Retrieve detailed job or checklist data">
+    Once you have identified a job or checklist ID from the search results, fetch the full supplemental information needed to build out a work order.
+
+    - **Get a checklist by ID** — returns all supplemental information for a specific checklist
+    - **Get a job by ID** — returns all supplemental information for a specific job
+    - **Get jobs** — returns supplemental information for multiple jobs in a single API call
+  </Step>
+  <Step title="Build the work order in your portal">
+    Use the retrieved job and checklist data to populate a work order or service quote in your dealer portal, giving technicians a consistent, standardized workflow across all locations.
+  </Step>
+</Steps>

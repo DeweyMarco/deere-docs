@@ -1,0 +1,48 @@
+---
+title: "Monitor Sensor Readings in Operations Center"
+description: "Use the John Deere Asset APIs to send sensor measurements to the Operations Center map and notify farmers when readings cross thresholds."
+---
+
+## Monitor Sensor Readings in Operations Center
+
+Farmers want to bring all their data together in one place enabling faster decision making. The John Deere Asset APIs enables you to help make this a reality. Use the Asset endpoints to send sensor measurements to the Operations Center map. Pairing the sensor information with our notifications endpoints allows farmers to get push notifications when measurements cross thresholds they set in your software.
+
+This API endpoint is flexible and can be used to show readings for any type of device. Every time you update data associated with the device, customers will be able to see the updates and last updated timestamp. Do customers need to see more in-depth information about movement? No problem — this API supports location history. As your device moves and location is updated, users will see where the device has been.
+
+<Note>
+  The map iconography is based on the asset category sub-type you select when POSTing the data.
+</Note>
+
+---
+
+## How to Get Started
+
+Use this guide to create your first Asset that will become viewable in Operations Center, along with how to update and maintain those Assets.
+
+<Steps>
+  <Step title="Request the Asset Catalog">
+    Before creating an Asset, access the Asset Catalog to see the categories and types of Assets you are able to create.
+
+    The `assetSubType` determines the icon that will be associated with your new Asset in Operations Center. Use `OTHER` as the value of `assetSubType` when you want to create an Asset that does not fit the other categories and/or types.
+  </Step>
+  <Step title="Create an Asset">
+    This will create an Asset and generate a unique ID for it. For further details, follow the **Create an Asset (POST)** documentation.
+  </Step>
+  <Step title="Assign an Asset a Location">
+    This step is necessary to see the Asset on the map in Operations Center. If you do not add an Asset Location, the Asset will not be visible in Operations Center. For further details, follow the **Asset Location (POST)** documentation.
+  </Step>
+  <Step title="Update an Asset with Location and Data">
+    This step covers the ongoing updating of geolocation and measurements based on an existing Asset's output.
+
+    - An Asset is updated with an Asset Location POST containing a more recent timestamp. Updating an existing Asset Location is not possible — attempting to POST an Asset Location with the same timestamp will result in a `409 CONFLICT` response.
+    - POST a new Asset Location to move the Asset (by POSTing updated `geometry`) or to record new measurements (by POSTing updated `measurementData`).
+
+    For further details, follow the **Asset Location (POST)** documentation as in Step 3.
+  </Step>
+</Steps>
+
+---
+
+## Markdown Support
+
+Assets support a subset of Markdown's markup features. Find out more about Markdown support in the Operations Center documentation.

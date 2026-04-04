@@ -1,0 +1,259 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Online Credit Application CRM API",
+    "description": "API for John Deere dealers to retrieve credit application data submitted through the Online Credit Application system for use within their CRM.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://oca-crm-api-sandbox.deere.com/john-deere-financial/leads",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 authorization code flow. Requires the `dealerAccount` scope.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a Refresh Token",
+              "dealerAccount": "View dealer account associated with user"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Applicant": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "Applicant's first name.",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Applicant's last name.",
+            "example": "Smith"
+          },
+          "email": {
+            "type": "string",
+            "description": "Applicant's email address.",
+            "example": "john.smith@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Applicant's phone number.",
+            "example": "555-555-5555"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "street": { "type": "string", "example": "123 Farm Road" },
+              "city": { "type": "string", "example": "Des Moines" },
+              "state": { "type": "string", "example": "IA" },
+              "zip": { "type": "string", "example": "50301" },
+              "country": { "type": "string", "example": "US" }
+            }
+          }
+        }
+      },
+      "CreditApplication": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "description": "Unique GUID for the credit application.",
+            "example": "0afd5ca3-3b97-46c1-aadf-5b65bcb764a7"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the credit application.",
+            "example": "SUBMITTED",
+            "enum": ["SUBMITTED", "IN_REVIEW", "APPROVED", "DECLINED", "CANCELLED"]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the application was submitted.",
+            "example": "2026-04-04T10:30:00Z"
+          },
+          "dealerAccountNumber": {
+            "type": "string",
+            "description": "Dealer account number associated with the application.",
+            "example": "D-123456"
+          },
+          "applicant": {
+            "$ref": "#/components/schemas/Applicant"
+          },
+          "requestedAmount": {
+            "type": "number",
+            "format": "float",
+            "description": "Amount of credit requested in USD.",
+            "example": 75000.00
+          },
+          "equipmentOfInterest": {
+            "type": "array",
+            "description": "List of equipment the applicant is interested in financing.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": { "type": "string", "example": "8R 410 Tractor" },
+                "category": { "type": "string", "example": "Tractors" },
+                "quantity": { "type": "integer", "example": 1 }
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "The requested resource was not found."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/applications/{applicationId}": {
+      "get": {
+        "operationId": "getApplication",
+        "summary": "Get credit application details",
+        "description": "Retrieve the full details of a credit application submitted through the Online Credit Application system. The dealer's account number is validated against their account hierarchy using the supplied access token.",
+        "security": [{ "OAuth2": ["dealerAccount"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "The unique GUID of the credit application, received via webhook notification.",
+            "schema": {
+              "type": "string",
+              "example": "0afd5ca3-3b97-46c1-aadf-5b65bcb764a7"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://oca-crm-api-sandbox.deere.com/john-deere-financial/leads/applications/0afd5ca3-3b97-46c1-aadf-5b65bcb764a7' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved credit application details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditApplication"
+                },
+                "example": {
+                  "applicationId": "0afd5ca3-3b97-46c1-aadf-5b65bcb764a7",
+                  "status": "SUBMITTED",
+                  "submittedAt": "2026-04-04T10:30:00Z",
+                  "dealerAccountNumber": "D-123456",
+                  "applicant": {
+                    "firstName": "John",
+                    "lastName": "Smith",
+                    "email": "john.smith@example.com",
+                    "phone": "555-555-5555",
+                    "address": {
+                      "street": "123 Farm Road",
+                      "city": "Des Moines",
+                      "state": "IA",
+                      "zip": "50301",
+                      "country": "US"
+                    }
+                  },
+                  "requestedAmount": 75000.00,
+                  "equipmentOfInterest": [
+                    {
+                      "model": "8R 410 Tractor",
+                      "category": "Tractors",
+                      "quantity": 1
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The application does not belong to the dealer's account hierarchy.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Application does not belong to your dealer account hierarchy."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Application not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No application found with the provided ID."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

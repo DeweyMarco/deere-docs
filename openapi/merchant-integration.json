@@ -1,0 +1,228 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Merchant Customer Accounts API",
+    "description": "APIs that allow merchant Business Systems partnered with John Deere Financial to obtain revolving product customer account details.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox-financial-api.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2ClientCredentials": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SpecialTermsOffer": {
+        "type": "object",
+        "properties": {
+          "offerId": {
+            "type": "string",
+            "description": "Unique identifier for the special terms offer.",
+            "example": "ST-2024-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the special terms offer.",
+            "example": "0% APR for 12 months on qualifying purchases"
+          },
+          "expirationDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the offer expires.",
+            "example": "2024-12-31"
+          },
+          "minimumPurchaseAmount": {
+            "type": "number",
+            "description": "Minimum purchase amount required to qualify.",
+            "example": 500.00
+          }
+        }
+      },
+      "AccountCreditDetails": {
+        "type": "object",
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "The customer's revolving account number.",
+            "example": "1234567890"
+          },
+          "accountStatus": {
+            "type": "string",
+            "description": "Current status of the account.",
+            "enum": ["ACTIVE", "INACTIVE", "SUSPENDED", "CLOSED"],
+            "example": "ACTIVE"
+          },
+          "productType": {
+            "type": "string",
+            "description": "The revolving finance product type associated with the account.",
+            "enum": ["MULTI_USE_ACCOUNT", "POWER_PLAN", "JDFRP"],
+            "example": "MULTI_USE_ACCOUNT"
+          },
+          "creditLimit": {
+            "type": "number",
+            "description": "Total credit limit on the account.",
+            "example": 25000.00
+          },
+          "availableCredit": {
+            "type": "number",
+            "description": "Currently available credit balance.",
+            "example": 18500.00
+          },
+          "currentBalance": {
+            "type": "number",
+            "description": "Current outstanding balance on the account.",
+            "example": 6500.00
+          },
+          "regularTermsApr": {
+            "type": "number",
+            "description": "Annual percentage rate for regular (non-promotional) purchases.",
+            "example": 19.99
+          },
+          "specialTermsOffers": {
+            "type": "array",
+            "description": "Active special terms (promotional) offers available on the account.",
+            "items": {
+              "$ref": "#/components/schemas/SpecialTermsOffer"
+            }
+          },
+          "accountHolderName": {
+            "type": "string",
+            "description": "Name of the primary account holder.",
+            "example": "John Smith"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "The requested resource was not found."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/merchants/accounts/{accountNumber}": {
+      "get": {
+        "operationId": "getAccountCreditDetails",
+        "summary": "Get Account Credit Details",
+        "description": "Request to retrieve the regular and special terms credit account details for customers to consider this customer for a transaction. Applies to Multi-Use Account (US), PowerPlan, and John Deere Financial Revolving Plan (JDFRP).",
+        "security": [{ "OAuth2ClientCredentials": [] }],
+        "parameters": [
+          {
+            "name": "accountNumber",
+            "in": "path",
+            "required": true,
+            "description": "The customer's revolving account number.",
+            "schema": {
+              "type": "string",
+              "example": "1234567890"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/accounts/1234567890' \\\n  --header 'Accept: application/json' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved account credit details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountCreditDetails"
+                },
+                "example": {
+                  "accountNumber": "1234567890",
+                  "accountStatus": "ACTIVE",
+                  "productType": "MULTI_USE_ACCOUNT",
+                  "creditLimit": 25000.00,
+                  "availableCredit": 18500.00,
+                  "currentBalance": 6500.00,
+                  "regularTermsApr": 19.99,
+                  "specialTermsOffers": [
+                    {
+                      "offerId": "ST-2024-001",
+                      "description": "0% APR for 12 months on qualifying purchases",
+                      "expirationDate": "2024-12-31",
+                      "minimumPurchaseAmount": 500.00
+                    }
+                  ],
+                  "accountHolderName": "John Smith"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No account found for the provided account number."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

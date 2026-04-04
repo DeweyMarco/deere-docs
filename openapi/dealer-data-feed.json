@@ -1,0 +1,451 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer Data Feed API",
+    "description": "CoreMedia APIs that enable John Deere Dealers to access and synchronize comprehensive product information from John Deere New Websites.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://developer.deere.com",
+      "description": "Production"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "OAuth 2.0 bearer token issued by John Deere's authorization server."
+      }
+    },
+    "schemas": {
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the category.",
+            "example": "34276"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable category name.",
+            "example": "Products and Solutions"
+          },
+          "baseCode": {
+            "type": "string",
+            "description": "Internal base code for the category.",
+            "example": "WG_products-and-solutions"
+          },
+          "canonicalPath": {
+            "type": "string",
+            "description": "Full canonical URL to the category on Deere.com.",
+            "example": "https://www.deere.ie/en-ie/products-and-solutions"
+          },
+          "externalPath": {
+            "type": "string",
+            "description": "Relative path used externally.",
+            "example": "/"
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale the content is returned in.",
+            "example": "en_IE"
+          },
+          "isProduct": {
+            "type": "boolean",
+            "description": "Whether this category represents a product. Present on child nodes only.",
+            "example": false
+          },
+          "children": {
+            "type": "array",
+            "description": "Nested child categories. Present only when includeChildren=true. Up to 3 levels deep.",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            }
+          }
+        }
+      },
+      "CategoriesResponse": {
+        "type": "object",
+        "properties": {
+          "taxonomies": {
+            "type": "object",
+            "properties": {
+              "categories": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ProductSpec": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Specification name.",
+            "example": "Engine Power"
+          },
+          "value": {
+            "type": "string",
+            "description": "Specification value.",
+            "example": "250 hp"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measurement.",
+            "example": "hp"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique product identifier.",
+            "example": "8R-410"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name.",
+            "example": "8R 410 Tractor"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "ID of the parent category.",
+            "example": "183684"
+          },
+          "canonicalPath": {
+            "type": "string",
+            "description": "Full canonical URL for the product on Deere.com.",
+            "example": "https://www.deere.com/en/tractors/8r-series/8r-410/"
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale the content is returned in.",
+            "example": "en_US"
+          },
+          "features": {
+            "type": "array",
+            "description": "List of product features.",
+            "items": {
+              "type": "string"
+            },
+            "example": ["CommandPRO joystick", "AutoTrac guidance ready", "JDLink telematics"]
+          },
+          "specifications": {
+            "type": "array",
+            "description": "Technical specifications.",
+            "items": {
+              "$ref": "#/components/schemas/ProductSpec"
+            }
+          }
+        }
+      },
+      "ProductsResponse": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of products returned.",
+            "example": 12
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "The requested resource was not found."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/caas/v1/ddf/categories": {
+      "get": {
+        "operationId": "getCategories",
+        "summary": "Retrieve all product categories",
+        "description": "Fetch all product categories with optional hierarchical children up to 3 levels deep.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "description": "Language and region code for localized content.",
+            "schema": {
+              "type": "string",
+              "example": "en_US",
+              "enum": ["en_US", "en_IE", "en_GB", "de_DE", "fr_FR", "es_ES"]
+            }
+          },
+          {
+            "name": "includeChildren",
+            "in": "query",
+            "required": false,
+            "description": "Include child categories in the response hierarchy (up to 3 levels deep).",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://developer.deere.com/caas/v1/ddf/categories?locale=en_US&includeChildren=true' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved product categories.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoriesResponse"
+                },
+                "example": {
+                  "taxonomies": {
+                    "categories": [
+                      {
+                        "id": "34276",
+                        "name": "Products and Solutions",
+                        "baseCode": "WG_products-and-solutions",
+                        "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions",
+                        "externalPath": "/",
+                        "locale": "en_IE",
+                        "children": [
+                          {
+                            "id": "183684",
+                            "name": "Technology Solutions",
+                            "baseCode": "WG_technology-solutions",
+                            "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/technology-solutions",
+                            "externalPath": "/WG_technology-solutions",
+                            "isProduct": false,
+                            "locale": "en_IE"
+                          },
+                          {
+                            "id": "183530",
+                            "name": "Hay and Forage Equipment",
+                            "baseCode": "WG_hay-and-forage-equipment",
+                            "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/hay-and-forage-equipment",
+                            "externalPath": "/WG_hay-and-forage-equipment",
+                            "isProduct": false,
+                            "locale": "en_IE"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "183138",
+                        "name": "Engines and Drivetrain",
+                        "baseCode": "WG_powertrain-solutions",
+                        "canonicalPath": "https://www.deere.ie/en-ie/products-and-solutions/engines-and-drivetrain",
+                        "externalPath": "/WG_powertrain-solutions",
+                        "locale": "en_IE"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No categories found for the specified locale.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No categories found for locale 'en_US'."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/caas/v1/ddf/products": {
+      "get": {
+        "operationId": "getProducts",
+        "summary": "Retrieve product information",
+        "description": "Retrieve detailed product data for a specific category, including specifications, features, and benefits.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": true,
+            "description": "The category ID to retrieve product information for.",
+            "schema": {
+              "type": "string",
+              "example": "183684"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "description": "Language and region code for localized content.",
+            "schema": {
+              "type": "string",
+              "example": "en_US",
+              "enum": ["en_US", "en_IE", "en_GB", "de_DE", "fr_FR", "es_ES"]
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://developer.deere.com/caas/v1/ddf/products?categoryId=183684&locale=en_US' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved product information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductsResponse"
+                },
+                "example": {
+                  "products": [
+                    {
+                      "id": "8R-410",
+                      "name": "8R 410 Tractor",
+                      "categoryId": "183684",
+                      "canonicalPath": "https://www.deere.com/en/tractors/8r-series/8r-410/",
+                      "locale": "en_US",
+                      "features": [
+                        "CommandPRO joystick",
+                        "AutoTrac guidance ready",
+                        "JDLink telematics"
+                      ],
+                      "specifications": [
+                        { "name": "Engine Power", "value": "410", "unit": "hp" },
+                        { "name": "PTO Power", "value": "357", "unit": "hp" },
+                        { "name": "Wheelbase", "value": "118.1", "unit": "in" }
+                      ]
+                    }
+                  ],
+                  "total": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing required parameter.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "Required parameter 'categoryId' is missing."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No products found for the specified category.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No products found for categoryId '183684'."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

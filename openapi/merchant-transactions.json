@@ -1,0 +1,930 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Merchant Transactions API",
+    "description": "Facilitates transaction processing and data integration for John Deere Financial merchants. Supports Multi-Use Account (US), Multi-Use Account (CAN), PowerPlan, and John Deere Financial Revolving Plan.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox-financial-api.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 authorization code flow.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a Refresh Token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "TransactionStatus": {
+        "type": "string",
+        "enum": ["PENDING", "APPROVED", "DECLINED", "CANCELLED", "SETTLED", "VOIDED"],
+        "example": "APPROVED"
+      },
+      "ProductType": {
+        "type": "string",
+        "enum": ["MULTI_USE_ACCOUNT_US", "MULTI_USE_ACCOUNT_CAN", "POWER_PLAN", "JDFRP"],
+        "example": "MULTI_USE_ACCOUNT_US"
+      },
+      "AuthorizationRequest": {
+        "type": "object",
+        "required": ["accountNumber", "amount", "merchantId"],
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "Customer's revolving account number.",
+            "example": "1234567890"
+          },
+          "merchantId": {
+            "type": "string",
+            "description": "Registered merchant identifier.",
+            "example": "M-789012"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to authorize in USD.",
+            "example": 5000.00
+          },
+          "specialTermsOfferId": {
+            "type": "string",
+            "description": "ID of a special terms (promotional) offer to apply.",
+            "example": "ST-2024-001"
+          },
+          "purchaseOrderNumber": {
+            "type": "string",
+            "description": "Merchant-assigned purchase order number for reference.",
+            "example": "PO-20240401-001"
+          }
+        }
+      },
+      "AuthorizationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the authorization.",
+            "example": "auth-a1b2c3d4"
+          },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "accountNumber": { "type": "string", "example": "1234567890" },
+          "merchantId": { "type": "string", "example": "M-789012" },
+          "amount": { "type": "number", "example": 5000.00 },
+          "authorizedAmount": { "type": "number", "example": 5000.00 },
+          "specialTermsOfferId": { "type": "string", "example": "ST-2024-001" },
+          "purchaseOrderNumber": { "type": "string", "example": "PO-20240401-001" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-04-04T10:30:00Z" },
+          "expiresAt": { "type": "string", "format": "date-time", "example": "2026-04-11T10:30:00Z" }
+        }
+      },
+      "CaptureRequest": {
+        "type": "object",
+        "required": ["authorizationId", "amount"],
+        "properties": {
+          "authorizationId": {
+            "type": "string",
+            "description": "ID of the approved authorization to capture.",
+            "example": "auth-a1b2c3d4"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to capture. Must not exceed the authorized amount.",
+            "example": 5000.00
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "description": "Merchant invoice number associated with this capture.",
+            "example": "INV-2026-0042"
+          }
+        }
+      },
+      "CaptureResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "cap-e5f6g7h8" },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "authorizationId": { "type": "string", "example": "auth-a1b2c3d4" },
+          "amount": { "type": "number", "example": 5000.00 },
+          "invoiceNumber": { "type": "string", "example": "INV-2026-0042" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-04-04T11:00:00Z" }
+        }
+      },
+      "CreditRequest": {
+        "type": "object",
+        "required": ["accountNumber", "amount"],
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "Customer's revolving account number.",
+            "example": "1234567890"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to credit back to the customer's account.",
+            "example": 250.00
+          },
+          "originalTransactionId": {
+            "type": "string",
+            "description": "ID of the original purchase or capture being credited.",
+            "example": "cap-e5f6g7h8"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the credit (e.g., return, billing correction).",
+            "example": "Customer return"
+          }
+        }
+      },
+      "CreditResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "crd-i9j0k1l2" },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "accountNumber": { "type": "string", "example": "1234567890" },
+          "amount": { "type": "number", "example": 250.00 },
+          "originalTransactionId": { "type": "string", "example": "cap-e5f6g7h8" },
+          "reason": { "type": "string", "example": "Customer return" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-04-04T12:00:00Z" }
+        }
+      },
+      "PaymentRequest": {
+        "type": "object",
+        "required": ["accountNumber", "amount"],
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "Customer's revolving account number.",
+            "example": "1234567890"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Payment amount in USD.",
+            "example": 1000.00
+          }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "pay-m3n4o5p6" },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "accountNumber": { "type": "string", "example": "1234567890" },
+          "amount": { "type": "number", "example": 1000.00 },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-04-04T13:00:00Z" }
+        }
+      },
+      "PurchaseRequest": {
+        "type": "object",
+        "required": ["accountNumber", "amount", "merchantId"],
+        "properties": {
+          "accountNumber": {
+            "type": "string",
+            "description": "Customer's revolving account number.",
+            "example": "1234567890"
+          },
+          "merchantId": {
+            "type": "string",
+            "description": "Registered merchant identifier.",
+            "example": "M-789012"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Purchase amount in USD.",
+            "example": 8500.00
+          },
+          "specialTermsOfferId": {
+            "type": "string",
+            "description": "ID of a special terms (promotional) offer to apply.",
+            "example": "ST-2024-001"
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "description": "Merchant invoice number.",
+            "example": "INV-2026-0043"
+          },
+          "purchaseOrderNumber": {
+            "type": "string",
+            "description": "Merchant-assigned purchase order number.",
+            "example": "PO-20240401-002"
+          }
+        }
+      },
+      "PurchaseResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "pur-q7r8s9t0" },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "accountNumber": { "type": "string", "example": "1234567890" },
+          "merchantId": { "type": "string", "example": "M-789012" },
+          "amount": { "type": "number", "example": 8500.00 },
+          "specialTermsOfferId": { "type": "string", "example": "ST-2024-001" },
+          "invoiceNumber": { "type": "string", "example": "INV-2026-0043" },
+          "bridgeOfferAvailable": {
+            "type": "boolean",
+            "description": "Whether a bridge offer is available for this purchase.",
+            "example": false
+          },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2026-04-04T14:00:00Z" }
+        }
+      },
+      "BridgeAcceptanceRequest": {
+        "type": "object",
+        "required": ["offerId"],
+        "properties": {
+          "offerId": {
+            "type": "string",
+            "description": "ID of the bridge offer to accept.",
+            "example": "bridge-u1v2w3x4"
+          }
+        }
+      },
+      "BridgeAcceptanceResponse": {
+        "type": "object",
+        "properties": {
+          "purchaseId": { "type": "string", "example": "pur-q7r8s9t0" },
+          "offerId": { "type": "string", "example": "bridge-u1v2w3x4" },
+          "status": { "type": "string", "example": "ACCEPTED" },
+          "acceptedAt": { "type": "string", "format": "date-time", "example": "2026-04-04T14:30:00Z" }
+        }
+      },
+      "VoidResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "auth-a1b2c3d4" },
+          "status": { "$ref": "#/components/schemas/TransactionStatus" },
+          "cancelledAt": { "type": "string", "format": "date-time", "example": "2026-04-04T15:00:00Z" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "NOT_FOUND" },
+              "message": { "type": "string", "example": "The requested resource was not found." }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/merchants/transactions/authorizations": {
+      "post": {
+        "operationId": "createAuthorization",
+        "summary": "Create an Authorization",
+        "description": "Request to create a new Authorization, reserving credit on a customer's account.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthorizationRequest" },
+              "example": {
+                "accountNumber": "1234567890",
+                "merchantId": "M-789012",
+                "amount": 5000.00,
+                "specialTermsOfferId": "ST-2024-001",
+                "purchaseOrderNumber": "PO-20240401-001"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/authorizations' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"accountNumber\":\"1234567890\",\"merchantId\":\"M-789012\",\"amount\":5000.00}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authorization created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthorizationResponse" },
+                "example": {
+                  "id": "auth-a1b2c3d4",
+                  "status": "APPROVED",
+                  "accountNumber": "1234567890",
+                  "merchantId": "M-789012",
+                  "amount": 5000.00,
+                  "authorizedAmount": 5000.00,
+                  "specialTermsOfferId": "ST-2024-001",
+                  "purchaseOrderNumber": "PO-20240401-001",
+                  "createdAt": "2026-04-04T10:30:00Z",
+                  "expiresAt": "2026-04-11T10:30:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/authorizations/{id}": {
+      "get": {
+        "operationId": "getAuthorization",
+        "summary": "Get Current Authorization Status",
+        "description": "Request to retrieve the status of an existing Authorization.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the authorization.",
+            "schema": { "type": "string", "example": "auth-a1b2c3d4" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/authorizations/auth-a1b2c3d4' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthorizationResponse" },
+                "example": {
+                  "id": "auth-a1b2c3d4",
+                  "status": "APPROVED",
+                  "accountNumber": "1234567890",
+                  "merchantId": "M-789012",
+                  "amount": 5000.00,
+                  "authorizedAmount": 5000.00,
+                  "createdAt": "2026-04-04T10:30:00Z",
+                  "expiresAt": "2026-04-11T10:30:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Authorization not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "cancelAuthorization",
+        "summary": "Cancel approved Authorization",
+        "description": "Request to cancel an approved authorization.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the authorization to cancel.",
+            "schema": { "type": "string", "example": "auth-a1b2c3d4" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/authorizations/auth-a1b2c3d4' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization cancelled successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VoidResponse" },
+                "example": {
+                  "id": "auth-a1b2c3d4",
+                  "status": "CANCELLED",
+                  "cancelledAt": "2026-04-04T15:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Authorization not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Conflict — authorization cannot be cancelled in its current state.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/captures": {
+      "post": {
+        "operationId": "createCapture",
+        "summary": "Capture approved Authorization",
+        "description": "Consume credit previously reserved by an authorization. Typically triggered when a purchase is finalized or product is shipped/delivered. A capture of an approved authorization is effectively a purchase.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CaptureRequest" },
+              "example": {
+                "authorizationId": "auth-a1b2c3d4",
+                "amount": 5000.00,
+                "invoiceNumber": "INV-2026-0042"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/captures' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"authorizationId\":\"auth-a1b2c3d4\",\"amount\":5000.00,\"invoiceNumber\":\"INV-2026-0042\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Capture created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CaptureResponse" },
+                "example": {
+                  "id": "cap-e5f6g7h8",
+                  "status": "APPROVED",
+                  "authorizationId": "auth-a1b2c3d4",
+                  "amount": 5000.00,
+                  "invoiceNumber": "INV-2026-0042",
+                  "createdAt": "2026-04-04T11:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Authorization not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/credits": {
+      "post": {
+        "operationId": "createCredit",
+        "summary": "Create Credit",
+        "description": "A Credit is a return of purchase from a merchant to a customer, often used for billing corrections or returns.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreditRequest" },
+              "example": {
+                "accountNumber": "1234567890",
+                "amount": 250.00,
+                "originalTransactionId": "cap-e5f6g7h8",
+                "reason": "Customer return"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/credits' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"accountNumber\":\"1234567890\",\"amount\":250.00,\"originalTransactionId\":\"cap-e5f6g7h8\",\"reason\":\"Customer return\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Credit created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreditResponse" },
+                "example": {
+                  "id": "crd-i9j0k1l2",
+                  "status": "APPROVED",
+                  "accountNumber": "1234567890",
+                  "amount": 250.00,
+                  "originalTransactionId": "cap-e5f6g7h8",
+                  "reason": "Customer return",
+                  "createdAt": "2026-04-04T12:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/credits/{id}": {
+      "delete": {
+        "operationId": "cancelCredit",
+        "summary": "Cancel/Void Credit",
+        "description": "Cancel or void a credit. Only works if the credit has not yet been settled.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the credit to cancel.",
+            "schema": { "type": "string", "example": "crd-i9j0k1l2" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/credits/crd-i9j0k1l2' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit cancelled successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VoidResponse" },
+                "example": {
+                  "id": "crd-i9j0k1l2",
+                  "status": "VOIDED",
+                  "cancelledAt": "2026-04-04T15:30:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Credit not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Conflict — credit has already been settled and cannot be voided.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/payments": {
+      "post": {
+        "operationId": "createPayment",
+        "summary": "Create a Payment",
+        "description": "A payment request is used when a customer makes a payment on their John Deere Financial account at the merchant location. John Deere Financial subsequently retrieves the value from the merchant and applies it to the customer's account.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentRequest" },
+              "example": {
+                "accountNumber": "1234567890",
+                "amount": 1000.00
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/payments' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"accountNumber\":\"1234567890\",\"amount\":1000.00}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Payment created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentResponse" },
+                "example": {
+                  "id": "pay-m3n4o5p6",
+                  "status": "APPROVED",
+                  "accountNumber": "1234567890",
+                  "amount": 1000.00,
+                  "createdAt": "2026-04-04T13:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/payments/{id}": {
+      "delete": {
+        "operationId": "cancelPayment",
+        "summary": "Cancel/Void Payment",
+        "description": "Void or cancel a received payment. Only works for payments that have not yet been settled.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the payment to void.",
+            "schema": { "type": "string", "example": "pay-m3n4o5p6" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/payments/pay-m3n4o5p6' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment voided successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VoidResponse" },
+                "example": {
+                  "id": "pay-m3n4o5p6",
+                  "status": "VOIDED",
+                  "cancelledAt": "2026-04-04T16:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Payment not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Conflict — payment has already been settled and cannot be voided.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/purchases": {
+      "post": {
+        "operationId": "createPurchase",
+        "summary": "Create a Purchase",
+        "description": "A purchase designates a portion of the customer's credit account as owed to John Deere Financial while John Deere Financial subsidizes the merchant for the cost. A purchase is effectively an authorization and a subsequent capture of that authorization in a single step.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PurchaseRequest" },
+              "example": {
+                "accountNumber": "1234567890",
+                "merchantId": "M-789012",
+                "amount": 8500.00,
+                "specialTermsOfferId": "ST-2024-001",
+                "invoiceNumber": "INV-2026-0043",
+                "purchaseOrderNumber": "PO-20240401-002"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/purchases' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"accountNumber\":\"1234567890\",\"merchantId\":\"M-789012\",\"amount\":8500.00}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Purchase created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PurchaseResponse" },
+                "example": {
+                  "id": "pur-q7r8s9t0",
+                  "status": "APPROVED",
+                  "accountNumber": "1234567890",
+                  "merchantId": "M-789012",
+                  "amount": 8500.00,
+                  "specialTermsOfferId": "ST-2024-001",
+                  "invoiceNumber": "INV-2026-0043",
+                  "bridgeOfferAvailable": false,
+                  "createdAt": "2026-04-04T14:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/purchases/{id}": {
+      "delete": {
+        "operationId": "cancelPurchase",
+        "summary": "Cancel/Void Purchase",
+        "description": "Cancels a purchase that was previously approved. Only works for purchases that have not yet been settled.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the purchase to cancel.",
+            "schema": { "type": "string", "example": "pur-q7r8s9t0" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/purchases/pur-q7r8s9t0' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase cancelled successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VoidResponse" },
+                "example": {
+                  "id": "pur-q7r8s9t0",
+                  "status": "VOIDED",
+                  "cancelledAt": "2026-04-04T16:30:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Purchase not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Conflict — purchase has already been settled and cannot be voided.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/merchants/transactions/purchases/{id}/bridge-acceptance": {
+      "post": {
+        "operationId": "acceptBridgeOffer",
+        "summary": "Accept Bridge Offer",
+        "description": "Accepts a Bridge offer for a purchase.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the purchase.",
+            "schema": { "type": "string", "example": "pur-q7r8s9t0" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BridgeAcceptanceRequest" },
+              "example": { "offerId": "bridge-u1v2w3x4" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandbox-financial-api.deere.com/merchants/transactions/purchases/pur-q7r8s9t0/bridge-acceptance' \\\n  --header 'Accept: application/json;version=1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"offerId\":\"bridge-u1v2w3x4\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bridge offer accepted successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BridgeAcceptanceResponse" },
+                "example": {
+                  "purchaseId": "pur-q7r8s9t0",
+                  "offerId": "bridge-u1v2w3x4",
+                  "status": "ACCEPTED",
+                  "acceptedAt": "2026-04-04T14:30:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Purchase or offer not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    }
+  }
+}

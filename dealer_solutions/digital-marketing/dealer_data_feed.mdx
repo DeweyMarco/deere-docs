@@ -1,7 +1,11 @@
 ---
-title: "Dealer Data Feed"
+title: "Dealer Data Feed (New)"
 description: "CoreMedia APIs that enable John Deere Dealers to access and synchronize comprehensive product information from John Deere New Websites."
 ---
+
+<Warning>
+  The original documentation at [developer.deere.com/dev-docs/dealer-data-feed](https://developer.deere.com/dev-docs/dealer-data-feed) is being sunset. This page is the preserved reference.
+</Warning>
 
 ## Overview
 
@@ -83,7 +87,7 @@ curl --request GET \
   <Expandable title="taxonomies">
     <ResponseField name="categories" type="array">
       List of top-level product categories.
-      <Expandable title="categories[]">
+      <Expandable title="categories">
         <ResponseField name="id" type="string">
           Unique identifier for the category.
         </ResponseField>
@@ -112,6 +116,10 @@ curl --request GET \
     </ResponseField>
   </Expandable>
 </ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /caas/v1/ddf/categories">
+  Test this endpoint interactively with your bearer token.
+</Card>
 
 #### Sample response
 
@@ -187,6 +195,10 @@ curl --request GET \
 ```
 
 </CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /caas/v1/ddf/products">
+  Test this endpoint interactively with your bearer token.
+</Card>
 
 ---
 

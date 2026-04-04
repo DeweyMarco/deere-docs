@@ -1,0 +1,33 @@
+---
+title: "Field Operations Measurements (Nov 17, 2023)"
+---
+
+### What is changing?
+
+The Field Operation Measurements response contains a `productTotals` list, `area`, `averageSpeed`, `totalMaterial`, and `averageMaterial` that will be replaced with an `applicationProductTotals` list for all Single Product and Tank Mix Operations. The new list will allow for a reference back to the Tank Mix with which the product is associated.
+
+Additionally, the single `product` object in Field Operations responses will be replaced with a `products` list.
+
+### Why is it changing?
+
+Currently when multiple application products or different tank mixes are applied on a single field, the data is separated into multiple Field Operations. In the future, the data will be grouped into a single field operation when it is applied as part of a single application.
+
+### Actions Required
+
+Update all API calls to the Field Operations endpoints to reference the `products` list in the response instead of the single `product` object. Additionally, update all API calls to either the Field Operation Measurement Types endpoints or calls containing the `embed=measurementTypes` query parameter to reference the `applicationProductTotals` list instead of the former `productTotals` list. The new list is structured differently and includes a reference to the associated Tank Mix where applicable.
+
+### Impacted API Endpoints
+
+| Method | Endpoint |
+|--------|----------|
+| GET | `https://partnerapi.deere.com/organizations/{orgId}/fields/{fieldId}/fieldOperations` |
+| GET | `https://partnerapi.deere.com/fieldOperations/{operationId}` |
+| GET | `https://partnerapi.deere.com/fieldOperations/{operationId}/measurementTypes` |
+| GET | `https://partnerapi.deere.com/fieldOperations/{operationId}/measurementTypes/{measurementType}` |
+
+### Key Dates
+
+| Date | Event |
+|------|-------|
+| Today | The `products` list and `applicationProductTotals` list are available in the response. The individual `product` and `productTotals` fields will still be available. |
+| July 10, 2024 | The `products` list may include multiple application products and/or tank mixes. The `product` field will be fully deprecated and removed. The `productTotals` list, `area`, `averageSpeed`, `totalMaterial`, and `averageMaterial` fields will be fully deprecated and removed for all Single Application and Tank Mix Operations. |

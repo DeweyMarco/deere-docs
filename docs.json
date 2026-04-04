@@ -13,7 +13,7 @@
       "dark": "#367C2B"
     },
     "api": {
-      "openapi": "openapi.json",
+      "openapi": ["openapi/dealer-data-feed.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json"],
       "playground": {
         "display": "interactive"
       },
@@ -34,38 +34,249 @@
         "tabs": [
             {
                 "tab": "Dealer Solutions",
-                "icon": "square-terminal",
+                "icon": "store",
                 "pages": [
-                    "dealer_solutions/dealer_data_feed",
                     {
-                        "group": "Dealer Data Feed API",
-                        "openapi": "openapi.json",
+                        "group": "Digital Marketing",
                         "pages": [
-                            "GET /caas/v1/ddf/categories",
-                            "GET /caas/v1/ddf/products"
+                            {
+                                "group": "Dealer Data Feed",
+                                "root": "dealer_solutions/digital-marketing/dealer_data_feed",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/dealer-data-feed.json",
+                                        "pages": [
+                                            "GET /caas/v1/ddf/categories",
+                                            "GET /caas/v1/ddf/products"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Dealer Data Feed (Legacy)",
+                                "root": "dealer_solutions/digital-marketing/dealer_data_feed_legacy"
+                            }
+                        ]
+                    },
+                    {
+                        "group": "Financial",
+                        "pages": [
+                            "dealer_solutions/financial/index"
+                        ]
+                    },
+                    {
+                        "group": "Marketing Reporting",
+                        "pages": [
+                            "dealer_solutions/marketing-reporting/index"
+                        ]
+                    },
+                    {
+                        "group": "Parts",
+                        "pages": [
+                            "dealer_solutions/parts/index"
+                        ]
+                    },
+                    {
+                        "group": "Sales",
+                        "pages": [
+                            "dealer_solutions/sales/index"
+                        ]
+                    },
+                    {
+                        "group": "Service",
+                        "pages": [
+                            "dealer_solutions/service/index"
+                        ]
+                    },
+                    {
+                        "group": "Warranty",
+                        "pages": [
+                            "dealer_solutions/warranty/index"
+                        ]
+                    },
+                    {
+                        "group": "Use Cases",
+                        "pages": [
+                            "dealer_solutions/use-cases/cart-integration-dealers-portal",
+                            "dealer_solutions/use-cases/inspection-work-summary",
+                            "dealer_solutions/use-cases/dealer-syndication-cart-integration"
                         ]
                     }
                 ]
             },
             {
                 "tab": "Financial",
-                "icon": "square-terminal",
+                "icon": "landmark",
                 "pages": [
-                    "financial/index"
+                    {
+                        "group": "CRM",
+                        "pages": [
+                            {
+                                "group": "Online Credit Application CRM API",
+                                "root": "financial/crm/online-credit-application",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/oca-crm.json",
+                                        "pages": [
+                                            "GET /applications/{applicationId}"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "group": "Merchant Integration",
+                        "pages": [
+                            {
+                                "group": "Merchant Customer Accounts",
+                                "root": "financial/merchant-integration/merchant-customer-accounts",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/merchant-integration.json",
+                                        "pages": [
+                                            "GET /merchants/accounts/{accountNumber}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Merchant Incentives",
+                                "root": "financial/merchant-integration/merchant-incentives",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/merchant-incentives.json",
+                                        "pages": [
+                                            "GET /merchants/incentives/list",
+                                            "GET /merchants/incentives/{incentiveId}",
+                                            "GET /merchants/incentives/{incentiveId}/products"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Merchant Transactions",
+                                "root": "financial/merchant-integration/merchant-transactions",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/merchant-transactions.json",
+                                        "pages": [
+                                            "POST /merchants/transactions/authorizations",
+                                            "GET /merchants/transactions/authorizations/{id}",
+                                            "DELETE /merchants/transactions/authorizations/{id}",
+                                            "POST /merchants/transactions/captures",
+                                            "POST /merchants/transactions/credits",
+                                            "DELETE /merchants/transactions/credits/{id}",
+                                            "POST /merchants/transactions/payments",
+                                            "DELETE /merchants/transactions/payments/{id}",
+                                            "POST /merchants/transactions/purchases",
+                                            "DELETE /merchants/transactions/purchases/{id}",
+                                            "POST /merchants/transactions/purchases/{id}/bridge-acceptance"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "group": "Use Cases",
+                        "pages": [
+                            "financial/use-cases/index"
+                        ]
+                    }
                 ]
             },
             {
                 "tab": "Precision Tech",
-                "icon": "square-terminal",
+                "icon": "microchip",
                 "pages": [
-                    "precision_tech/index"
+                    {
+                        "group": "Application",
+                        "pages": [
+                            "precision_tech/application/index"
+                        ]
+                    },
+                    {
+                        "group": "Equipment",
+                        "pages": [
+                            "precision_tech/equipment/index"
+                        ]
+                    },
+                    {
+                        "group": "Insights / Monitoring",
+                        "pages": [
+                            "precision_tech/insights-monitoring/index"
+                        ]
+                    },
+                    {
+                        "group": "Organization / User",
+                        "pages": [
+                            "precision_tech/organization-user/index"
+                        ]
+                    },
+                    {
+                        "group": "Setup / Plan",
+                        "pages": [
+                            "precision_tech/setup-plan/index"
+                        ]
+                    },
+                    {
+                        "group": "Work Results",
+                        "pages": [
+                            "precision_tech/work-results/index"
+                        ]
+                    },
+                    {
+                        "group": "Use Cases",
+                        "pages": [
+                            "precision_tech/use-cases/send-work-plans-to-growers",
+                            "precision_tech/use-cases/share-intel-smart-machinery",
+                            "precision_tech/use-cases/monitor-sensor-readings-operations-center"
+                        ]
+                    },
+                    {
+                        "group": "News",
+                        "pages": [
+                            "precision_tech/news/equipment-api-changes",
+                            "precision_tech/news/paging-parameters",
+                            "precision_tech/news/field-operations-measurements",
+                            "precision_tech/news/sandbox-usage-guidelines",
+                            "precision_tech/news/oauth2-update",
+                            "precision_tech/news/oauth1-token-termination",
+                            "precision_tech/news/terms-and-conditions-update"
+                        ]
+                    }
                 ]
             },
             {
                 "tab": "Supply Chain",
-                "icon": "square-terminal",
+                "icon": "truck",
                 "pages": [
-                    "supply_chain/index"
+                    {
+                        "group": "Sourcing",
+                        "pages": [
+                            {
+                                "group": "Supplier Part Quoting",
+                                "root": "supply_chain/sourcing/supplier_part_quoting",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/supplier-part-quoting.json",
+                                        "pages": [
+                                            "GET /quotes",
+                                            "GET /quotes/{quoteNumber}",
+                                            "POST /rfqs"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 ]
             }
         ]

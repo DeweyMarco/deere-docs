@@ -1,0 +1,423 @@
+---
+title: "Merchant Incentives"
+description: "Integration between external vendors and John Deere Financial revolving products to retrieve various Incentive Programs."
+---
+
+## Overview
+
+Integration between external vendors and John Deere Financial revolving products to retrieve various Incentive Programs.
+
+<CardGroup cols={3}>
+  <Card title="Incentives Overview" icon="list">
+    Retrieve all active incentive programs for a merchant, optionally filtered by product.
+  </Card>
+  <Card title="Incentive Details" icon="tag">
+    Get full details for a specific incentive including APR, term, and eligibility criteria.
+  </Card>
+  <Card title="Incentive Products" icon="box">
+    List all products eligible for a given incentive program.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+Merchant Incentives supports both **three-legged OAuth 2.0** (authorization code) and **client credentials** grant types.
+
+<Tabs>
+  <Tab title="Three-Legged OAuth (Authorization Code)">
+
+### 1. Create an Application on Developer.Deere.com
+
+When you create an application, it is assigned a **Client Key** and **Client Secret**. You will sign all API requests with these credentials.
+
+Add one or more **Callback URLs (Redirect URI)** on the OAuth Profile page of your application. Click **Add** to include additional URIs, then **Save**.
+
+<Note>
+  If callback URLs do not sync properly, users will experience a `400 Bad Redirect` error after authentication. Contact John Deere support if this occurs — they will manually sync your callback with the OAuth provider.
+</Note>
+
+### 2. Discover OAuth endpoints
+
+```
+GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+```
+
+### 3. Acquire an authorization code
+
+Direct the resource owner to the authorization server. Include the following query parameters:
+
+| Parameter | Description |
+|---|---|
+| `response_type` | `code` |
+| `client_id` | Your application's Client Key |
+| `redirect_uri` | URL-encoded callback URL |
+| `scope` | Space-separated list of required scopes |
+| `state` | Random string for CSRF protection |
+
+**OAuth Scopes:**
+
+| Scope | Description |
+|---|---|
+| `offline_access` | Request a Refresh Token |
+
+The customer is redirected to the John Deere sign-in page, authenticates, and accepts the scope allowance screen. The authorization server then redirects back to your callback URL with an authorization code.
+
+### 4. Acquire an access token
+
+Exchange the authorization code for an access token:
+
+```
+POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+```
+
+Pass `grant_type=authorization_code`, the `code`, and the `redirect_uri`. Tokens expire after **12 hours**.
+
+### 5. Refresh the access token
+
+Pass `grant_type=refresh_token` with the `refresh_token` to acquire a new access token before expiry. Refresh tokens expire after **365 days** of inactivity — if expired, the user must re-authenticate from step 3.
+
+  </Tab>
+  <Tab title="Client Credentials">
+
+### 1. Create an Application on Developer.Deere.com
+
+When you create an application, it is assigned a **Client Key** and **Client Secret**. You will sign all API requests with these credentials.
+
+Add a callback URL in the Security section. While not required for client credentials, add one as part of the syncing process. You may use `https://localhost:9090/callback` as a placeholder.
+
+### 2. Discover OAuth endpoints
+
+```
+GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+```
+
+### 3. Acquire an access token
+
+```
+POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token' \
+  --header 'Authorization: Basic <base64(clientId:clientSecret)>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'grant_type=client_credentials&scope={customScope}'
+```
+
+</CodeGroup>
+
+<Note>
+  The client ID and secret are passed in the HTTP `Authorization` header using HTTP Basic Auth — not in the request body.
+</Note>
+
+**Token response:**
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 43200,
+  "access_token": "eyJhbG[...]1LQ",
+  "scope": "customScope"
+}
+```
+
+Tokens expire after **12 hours**. Refresh as needed.
+
+  </Tab>
+</Tabs>
+
+---
+
+## Base URL
+
+```
+https://sandbox-financial-api.deere.com/merchants/incentives
+```
+
+---
+
+## Endpoints
+
+### Get Incentives Overview
+
+Returns a list of all Active Incentives Programs based on Merchant Number or a combination of Merchant Number and CDMSId/GTIN/ProductId.
+
+```
+GET /incentives/list
+```
+
+<ParamField query="merchantNumber" type="string" required>
+  The merchant number to retrieve incentives for.
+</ParamField>
+
+<ParamField query="cdmsId" type="string">
+  CDMS identifier to filter incentives for a specific product.
+</ParamField>
+
+<ParamField query="gtin" type="string">
+  Global Trade Item Number (GTIN) to filter incentives for a specific product.
+</ParamField>
+
+<ParamField query="productId" type="string">
+  Product identifier to filter incentives for a specific product.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/list?merchantNumber=MER-123456' \
+  --header 'Accept: application/json;version=1' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="incentives" type="array">
+  List of active incentive programs.
+  <Expandable title="incentives">
+    <ResponseField name="incentiveId" type="string">
+      Unique identifier for the incentive program.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Name of the incentive program.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Status of the program. One of: `ACTIVE`, `EXPIRED`, `PENDING`.
+    </ResponseField>
+    <ResponseField name="startDate" type="string">
+      Date the incentive program begins (ISO 8601).
+    </ResponseField>
+    <ResponseField name="endDate" type="string">
+      Date the incentive program ends (ISO 8601).
+    </ResponseField>
+    <ResponseField name="merchantNumber" type="string">
+      Merchant number associated with this incentive.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of active incentive programs returned.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /merchants/incentives/list">
+  Test this endpoint interactively with your bearer token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "incentives": [
+    {
+      "incentiveId": "INC-2024-001",
+      "name": "Spring Equipment Promotion",
+      "status": "ACTIVE",
+      "startDate": "2024-03-01",
+      "endDate": "2024-05-31",
+      "merchantNumber": "MER-123456"
+    },
+    {
+      "incentiveId": "INC-2024-002",
+      "name": "Summer Harvest Special",
+      "status": "ACTIVE",
+      "startDate": "2024-06-01",
+      "endDate": "2024-08-31",
+      "merchantNumber": "MER-123456"
+    }
+  ],
+  "total": 2
+}
+```
+
+---
+
+### Get Incentive Details
+
+Returns incentive details for a given Incentive Id.
+
+```
+GET /incentives/{incentiveId}
+```
+
+<ParamField path="incentiveId" type="string" required>
+  The unique identifier of the incentive program.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/INC-2024-001' \
+  --header 'Accept: application/json;version=1' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="incentiveId" type="string">
+  Unique identifier for the incentive program.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Name of the incentive program.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the program. One of: `ACTIVE`, `EXPIRED`, `PENDING`.
+</ResponseField>
+
+<ResponseField name="startDate" type="string">
+  Date the incentive program begins (ISO 8601).
+</ResponseField>
+
+<ResponseField name="endDate" type="string">
+  Date the incentive program ends (ISO 8601).
+</ResponseField>
+
+<ResponseField name="merchantNumber" type="string">
+  Merchant number associated with this incentive.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Full description of the incentive program.
+</ResponseField>
+
+<ResponseField name="apr" type="number">
+  Annual percentage rate for this incentive.
+</ResponseField>
+
+<ResponseField name="termMonths" type="integer">
+  Length of the incentive term in months.
+</ResponseField>
+
+<ResponseField name="minimumPurchaseAmount" type="number">
+  Minimum purchase amount required to qualify.
+</ResponseField>
+
+<ResponseField name="eligibleProductTypes" type="array">
+  Types of products eligible for this incentive (e.g. `TRACTORS`, `COMBINES`, `SPRAYERS`).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /merchants/incentives/{incentiveId}">
+  Test this endpoint interactively with your bearer token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "incentiveId": "INC-2024-001",
+  "name": "Spring Equipment Promotion",
+  "status": "ACTIVE",
+  "startDate": "2024-03-01",
+  "endDate": "2024-05-31",
+  "merchantNumber": "MER-123456",
+  "description": "0% APR for 48 months on select agricultural equipment purchases.",
+  "apr": 0.0,
+  "termMonths": 48,
+  "minimumPurchaseAmount": 5000.00,
+  "eligibleProductTypes": ["TRACTORS", "COMBINES", "SPRAYERS"]
+}
+```
+
+---
+
+### Get Incentive Products
+
+Returns a list of products eligible for a given incentive program.
+
+```
+GET /incentives/{incentiveId}/products
+```
+
+<ParamField path="incentiveId" type="string" required>
+  The unique identifier of the incentive program.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandbox-financial-api.deere.com/merchants/incentives/INC-2024-001/products' \
+  --header 'Accept: application/json;version=1' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="incentiveId" type="string">
+  The incentive program identifier.
+</ResponseField>
+
+<ResponseField name="products" type="array">
+  List of products eligible for the incentive.
+  <Expandable title="products">
+    <ResponseField name="productId" type="string">
+      Unique product identifier.
+    </ResponseField>
+    <ResponseField name="cdmsId" type="string">
+      CDMS identifier for the product.
+    </ResponseField>
+    <ResponseField name="gtin" type="string">
+      Global Trade Item Number (GTIN).
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Product name.
+    </ResponseField>
+    <ResponseField name="category" type="string">
+      Product category.
+    </ResponseField>
+    <ResponseField name="modelYear" type="integer">
+      Model year of the product.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of eligible products returned.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /merchants/incentives/{incentiveId}/products">
+  Test this endpoint interactively with your bearer token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "incentiveId": "INC-2024-001",
+  "products": [
+    {
+      "productId": "8R-410",
+      "cdmsId": "CDMS-98765",
+      "gtin": "00012345678905",
+      "name": "8R 410 Tractor",
+      "category": "TRACTORS",
+      "modelYear": 2024
+    },
+    {
+      "productId": "S780",
+      "cdmsId": "CDMS-11223",
+      "gtin": "00012345678906",
+      "name": "S780 Combine",
+      "category": "COMBINES",
+      "modelYear": 2024
+    }
+  ],
+  "total": 2
+}
+```

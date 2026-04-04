@@ -1,0 +1,501 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Supplier Part Quoting API",
+    "description": "APIs to request quotes from a supplier and manage quote responses within the John Deere Total Cost Solution quoting application.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdsn-quote-api-sandbox.deere.com/scs/quotesAPI",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "OAuth 2.0 bearer token issued by John Deere's authorization server."
+      }
+    },
+    "schemas": {
+      "Quote": {
+        "type": "object",
+        "properties": {
+          "supplier": {
+            "type": "string",
+            "description": "10-digit Supplier Number.",
+            "example": "0000012345"
+          },
+          "rfq": {
+            "type": "integer",
+            "description": "Request for Quote number.",
+            "example": 12345
+          },
+          "quoteNumber": {
+            "type": "integer",
+            "description": "Quote Number.",
+            "example": 12345
+          },
+          "quoteDueDate": {
+            "type": "string",
+            "description": "Quote Due Date."
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit Code associated with the RFQ.",
+            "example": "Harvester Works - East Moline (US)"
+          },
+          "program": {
+            "type": "string",
+            "description": "Program of the quote.",
+            "example": "HARVESTER PROGRAM"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Comments.",
+            "example": "Sheetmetal group 1 RFQ"
+          },
+          "itemCode": {
+            "type": "string",
+            "description": "Part Number.",
+            "example": "400X"
+          },
+          "revision": {
+            "type": "string",
+            "description": "Part Revision.",
+            "example": "A"
+          },
+          "itemDesc": {
+            "type": "string",
+            "description": "Part Description.",
+            "example": "BALL, STEEL"
+          },
+          "annualQuantity": {
+            "type": "integer",
+            "description": "Annual Quantity.",
+            "example": 100
+          },
+          "inputCurrencyCode": {
+            "type": "string",
+            "description": "Input Currency Code.",
+            "example": "USD"
+          },
+          "replaceItemCode": {
+            "type": "string",
+            "description": "Part Replaced.",
+            "example": "400Y"
+          },
+          "replaceRevision": {
+            "type": "string",
+            "description": "Revision of the replaced part.",
+            "example": "C"
+          },
+          "firstUseDate": {
+            "type": "string",
+            "description": "First Use Date entered by the buyer.",
+            "example": "2015-08-19"
+          },
+          "assignedBuyerId": {
+            "type": "string",
+            "description": "Assigned Buyer ID.",
+            "example": "BUYERUSERID"
+          },
+          "deereResponseCode": {
+            "type": "string",
+            "description": "Deere's response to a submitted quote. Values: NA (Not Awarded), A (Awarded), C (Cancelled), W (Withdrawn), or empty (no response).",
+            "enum": ["NA", "A", "C", "W"],
+            "example": "NA"
+          },
+          "itemWeightGross": {
+            "type": "number",
+            "description": "Gross Part Weight.",
+            "example": 40.538
+          },
+          "itemWeightNet": {
+            "type": "number",
+            "description": "Net Part Weight.",
+            "example": 40.538
+          },
+          "selectedUnitOfMeasure": {
+            "type": "string",
+            "description": "Unit of Measure.",
+            "example": "PC"
+          },
+          "unitOfPrice": {
+            "type": "number",
+            "description": "Unit of Price.",
+            "example": 100.0
+          },
+          "requestPurposeCode": {
+            "type": "string",
+            "description": "Request Purpose.",
+            "enum": ["EST", "QT"],
+            "example": "QT"
+          },
+          "partUsageType": {
+            "type": "string",
+            "description": "Part Usage Type.",
+            "example": "PNS"
+          },
+          "IncotermsCode": {
+            "type": "string",
+            "description": "Incoterms Code.",
+            "example": "CIP"
+          },
+          "materialReplenishCode": {
+            "type": "string",
+            "description": "Material Replenishment Method.",
+            "example": "PO"
+          },
+          "compliantExpectationsCode": {
+            "type": "string",
+            "description": "Compliance Expectation.",
+            "enum": ["FD", "CD", "RD"],
+            "example": "RD"
+          },
+          "containerQuantity": {
+            "type": "integer",
+            "description": "Container Quantity.",
+            "example": 150
+          },
+          "orderReleaseQuantity": {
+            "type": "integer",
+            "description": "Minimum Order Quantity.",
+            "example": 150
+          },
+          "containerTypeCode": {
+            "type": "string",
+            "description": "Container Type.",
+            "enum": ["RC", "NRC"],
+            "example": "NRC"
+          },
+          "containerCode": {
+            "type": "string",
+            "description": "Container Code.",
+            "example": "RCB05"
+          },
+          "containerWeightUom": {
+            "type": "string",
+            "description": "Container Weight Unit of Measure.",
+            "example": "KG"
+          },
+          "containerWeight": {
+            "type": "number",
+            "description": "Container Weight.",
+            "example": 103.41
+          },
+          "containerDimensionsUom": {
+            "type": "string",
+            "description": "Container Dimension Unit of Measure.",
+            "example": "IN"
+          },
+          "containerLength": {
+            "type": "number",
+            "description": "Container Length.",
+            "example": 24.0
+          },
+          "containerWidth": {
+            "type": "number",
+            "description": "Container Width.",
+            "example": 15.0
+          },
+          "containerHeight": {
+            "type": "number",
+            "description": "Container Height.",
+            "example": 9.0
+          },
+          "repack": {
+            "type": "string",
+            "description": "Repack Indicator.",
+            "example": "N"
+          }
+        }
+      },
+      "QuotesListResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Quote"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "The requested resource was not found."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/quotes": {
+      "get": {
+        "operationId": "getQuotes",
+        "summary": "Get quote numbers for a supplier",
+        "description": "Get the list of Quote Numbers for a given supplier and quote status.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": true,
+            "description": "Quote status to filter by.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "supplier",
+            "in": "query",
+            "required": true,
+            "description": "10-digit Supplier Number.",
+            "schema": {
+              "type": "string",
+              "example": "0000012345"
+            }
+          },
+          {
+            "name": "lastModifiedStart",
+            "in": "query",
+            "required": false,
+            "description": "Minimum last modified date for search.",
+            "schema": {
+              "type": "string",
+              "example": "2024-01-01"
+            }
+          },
+          {
+            "name": "lastModifiedEnd",
+            "in": "query",
+            "required": false,
+            "description": "Maximum last modified date for search.",
+            "schema": {
+              "type": "string",
+              "example": "2024-12-31"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdsn-quote-api-sandbox.deere.com/scs/quotesAPI/quotes?status=OPEN&supplier=0000012345' \\\n  --header 'Accept: application/json' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved list of quotes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotesListResponse"
+                },
+                "example": [
+                  {
+                    "supplier": "0000012345",
+                    "rfq": 12345,
+                    "quoteNumber": 67890,
+                    "quoteDueDate": "2024-06-30",
+                    "unit": "Harvester Works - East Moline (US)",
+                    "program": "HARVESTER PROGRAM",
+                    "comment": "Sheetmetal group 1 RFQ",
+                    "itemCode": "400X",
+                    "revision": "A",
+                    "itemDesc": "BALL, STEEL",
+                    "annualQuantity": 100,
+                    "inputCurrencyCode": "USD",
+                    "requestPurposeCode": "QT",
+                    "deereResponseCode": "NA"
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing required parameter.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "Required parameter 'supplier' is missing."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotes/{quoteNumber}": {
+      "get": {
+        "operationId": "getQuoteByNumber",
+        "summary": "Get details for a quote number",
+        "description": "Retrieve the full details for a specific Quote Number.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "quoteNumber",
+            "in": "path",
+            "required": true,
+            "description": "The Quote Number to retrieve details for.",
+            "schema": {
+              "type": "integer",
+              "example": 12345
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdsn-quote-api-sandbox.deere.com/scs/quotesAPI/quotes/12345' \\\n  --header 'Accept: application/json' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved quote details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quote"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "Quote '12345' not found."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rfqs": {
+      "post": {
+        "operationId": "createRfq",
+        "summary": "Register a new RFQ",
+        "description": "Registers a new Request for Quote (RFQ).",
+        "security": [{ "BearerAuth": [] }],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdsn-quote-api-sandbox.deere.com/scs/quotesAPI/rfqs' \\\n  --header 'Accept: application/json' \\\n  --header 'Authorization: Bearer <access_token>'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "RFQ successfully registered."
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

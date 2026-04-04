@@ -1,0 +1,201 @@
+---
+title: "Merchant Customer Accounts"
+description: "APIs that allow merchant Business Systems partnered with John Deere Financial to obtain revolving product customer account details."
+---
+
+## Overview
+
+This API allows merchant Business Systems that are partnered with John Deere Financial to obtain revolving product customer account details for registered merchants. This applies to the following John Deere Financial revolving finance products: Multi-Use Account (US), PowerPlan, and John Deere Financial Revolving Plan (JDFRP).
+
+<CardGroup cols={2}>
+  <Card title="Get Account Credit Details" icon="credit-card">
+    Retrieve regular and special terms credit account details to evaluate a customer for a transaction.
+  </Card>
+  <Card title="Multi-Use Account (US)" icon="wallet">
+    Supports the John Deere Multi-Use Account revolving finance product.
+  </Card>
+  <Card title="PowerPlan" icon="bolt">
+    Supports the PowerPlan revolving finance product.
+  </Card>
+  <Card title="JDFRP" icon="rotate">
+    Supports the John Deere Financial Revolving Plan (JDFRP).
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Financial APIs use the **OAuth 2.0 client credentials** grant type.
+
+### 1. Create an Application on Developer.Deere.com
+
+When you create an application, it is assigned a **Client Key** and **Client Secret**. You will sign all API requests with these credentials.
+
+Add a callback URL (Redirect URI) to your application in the Security section. While a redirect URI may not be needed for the client credentials flow, add one as part of our syncing process. You may use a local placeholder such as `https://localhost:9090/callback`.
+
+### 2. Discover OAuth endpoints
+
+```
+GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+```
+
+This well-known URL contains the authorization endpoint, token endpoint, and available scopes.
+
+### 3. Acquire an access token
+
+```
+POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token' \
+  --header 'Authorization: Basic <base64(clientId:clientSecret)>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'grant_type=client_credentials&scope={customScope}'
+```
+
+</CodeGroup>
+
+<Note>
+  The client ID and secret are passed in the HTTP `Authorization` header using HTTP Basic Auth — not in the request body.
+</Note>
+
+**Token response:**
+
+```json
+{
+  "token_type": "Bearer",
+  "expires_in": 43200,
+  "access_token": "eyJhbG[...]1LQ",
+  "scope": "customScope"
+}
+```
+
+Tokens expire after **12 hours**. Refresh as needed.
+
+### 4. Call the API
+
+Pass the access token in the `Authorization` header on every request:
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+---
+
+## Base URL
+
+```
+https://sandbox-financial-api.deere.com/merchants/accounts
+```
+
+---
+
+## Endpoints
+
+### Get Account Credit Details
+
+Request to retrieve the regular and special terms credit account details for a customer to consider them for a transaction.
+
+```
+GET /{accountNumber}
+```
+
+<ParamField path="accountNumber" type="string" required>
+  The customer's revolving account number.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandbox-financial-api.deere.com/merchants/accounts/1234567890' \
+  --header 'Accept: application/json;version=1' \
+  --header 'Authorization: Bearer <access_token>'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="accountNumber" type="string">
+  The customer's revolving account number.
+</ResponseField>
+
+<ResponseField name="accountStatus" type="string">
+  Current status of the account. One of: `ACTIVE`, `INACTIVE`, `SUSPENDED`, `CLOSED`.
+</ResponseField>
+
+<ResponseField name="productType" type="string">
+  The revolving finance product type. One of: `MULTI_USE_ACCOUNT`, `POWER_PLAN`, `JDFRP`.
+</ResponseField>
+
+<ResponseField name="creditLimit" type="number">
+  Total credit limit on the account.
+</ResponseField>
+
+<ResponseField name="availableCredit" type="number">
+  Currently available credit balance.
+</ResponseField>
+
+<ResponseField name="currentBalance" type="number">
+  Current outstanding balance on the account.
+</ResponseField>
+
+<ResponseField name="regularTermsApr" type="number">
+  Annual percentage rate for regular (non-promotional) purchases.
+</ResponseField>
+
+<ResponseField name="specialTermsOffers" type="array">
+  Active promotional offers available on the account.
+  <Expandable title="specialTermsOffers">
+    <ResponseField name="offerId" type="string">
+      Unique identifier for the special terms offer.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Description of the promotional offer.
+    </ResponseField>
+    <ResponseField name="expirationDate" type="string">
+      Date the offer expires (ISO 8601 date format).
+    </ResponseField>
+    <ResponseField name="minimumPurchaseAmount" type="number">
+      Minimum purchase amount required to qualify.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="accountHolderName" type="string">
+  Name of the primary account holder.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /merchants/accounts/{accountNumber}">
+  Test this endpoint interactively with your bearer token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "accountNumber": "1234567890",
+  "accountStatus": "ACTIVE",
+  "productType": "MULTI_USE_ACCOUNT",
+  "creditLimit": 25000.00,
+  "availableCredit": 18500.00,
+  "currentBalance": 6500.00,
+  "regularTermsApr": 19.99,
+  "specialTermsOffers": [
+    {
+      "offerId": "ST-2024-001",
+      "description": "0% APR for 12 months on qualifying purchases",
+      "expirationDate": "2024-12-31",
+      "minimumPurchaseAmount": 500.00
+    }
+  ],
+  "accountHolderName": "John Smith"
+}
+```

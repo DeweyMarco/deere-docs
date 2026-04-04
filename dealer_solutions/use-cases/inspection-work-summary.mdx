@@ -1,0 +1,59 @@
+---
+title: "Enables Dealers / Technicians to Perform Inspection and Generate Work Summary"
+description: "Learn how the Work Order Execution Microservice API enables dealers and technicians to inspect equipment, create digital work orders, and generate service estimates."
+---
+
+## Enables Dealers / Technicians to Perform Inspection and Generate Work Summary
+
+The Work Order Execution Microservice API allows dealers and technicians to inspect, repair, and maintain equipment by creating a digital work order and/or service estimate. Technicians can perform step-by-step jobs, easily create work orders and service estimates, and recommend additional jobs to the customer. The API improves servicing efficiency and integrates with Service Delivery to streamline how work orders are created and updated. It also allows for quick and easy customer quoting.
+
+---
+
+## How to Use the Expert App
+
+The John Deere Expert App has three views: **Service Manager View**, **Super Technician View**, and **Technician View**. Below are the key screens and capabilities within each view.
+
+<Steps>
+  <Step title="Home Screen">
+    The home screen provides quick access to the main functions based on the user's role. Service Managers see Work Orders and Service Estimates; technicians land directly on My Worklist.
+  </Step>
+  <Step title="Work Orders">
+    Work Orders shows how many open work orders are at your location. Only Service Managers have Work Orders as an option on their home screen.
+
+    Select **Work Orders** from the home screen or footer to see all work orders at your location. Select a work order to view its details.
+  </Step>
+  <Step title="Service Estimates">
+    Service Estimates shows how many service estimates are at your location. Only Service Managers have Service Estimates as an option on their home screen.
+
+    Select **Service Estimates** from the home screen or footer to see all outstanding service estimates. Select a service estimate to respond to recommended jobs and send the estimate.
+  </Step>
+  <Step title="My Worklist">
+    Selecting **My Worklist** from the home screen or footer takes you to the My Worklist screen, where you can see all work orders assigned to you or view unassigned and completed work orders. Select a work order to begin executing the work.
+
+    If you have technician permissions, My Worklist will be your home screen.
+  </Step>
+  <Step title="Add Equipment">
+    Selecting **Add Equipment** takes you to the Add Equipment screen of the create new work order process. Use the barcode scanner to scan equipment. Super Technicians and Technicians can also use the **Scan Barcode** option in the footer.
+
+    Scanning equipment also surfaces warranty information for that piece of equipment.
+  </Step>
+  <Step title="Add Customer">
+    Selecting **Add Customer** takes you to the Search Customers screen of the create new work order process.
+  </Step>
+  <Step title="Add Complaints & Notes">
+    Selecting **Add Complaints & Notes** takes you to the Work Order Details screen. You can create a work order by entering a complaint without any customer, equipment, or segment information.
+
+    **Note:** At this point, this does not tie into Service Delivery.
+  </Step>
+</Steps>
+
+---
+
+## API Endpoints
+
+| Endpoint | Description |
+|---|---|
+| **Fetch Work Order List** | Returns a list of all available open work orders for the respective user. |
+| **Fetch DBS Customer** | Returns DBS customer details for the given ID and dealer location ID. |
+| **Fetch Completed Inspections** | Returns completed inspections for the respective user. |
+| **Fetch Smart Info** | Returns machine details, warranty details, and customer details for the given serial number. |

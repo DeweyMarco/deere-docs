@@ -1,0 +1,76 @@
+---
+title: "Send Work Plans to Growers"
+description: "Integrate with the Work Plans API to send field-specific recommendations to the John Deere Operations Center for wireless transfer to Generation 4 displays."
+---
+
+## Send Work Plans to Growers
+
+Enable collaboration between trusted advisors, save time in the field, and ensure high quality precision Ag data by integrating with the Work Plans API offering. The Work Plans API allows a Connected Software Company to send field-specific recommendations to the John Deere Operations Center for wireless data flow to Generation 4 displays (4200, 4240, 4600, or 4640), removing operator guess work and enabling one-touch setup as the operator approaches the field.
+
+Sending Work Plans to Operations Center enables growers to finalize the plan, automate the setup, and remove operator guess work in the field. Work plans drive more accurate records of in-field execution, reducing post-work data editing.
+
+A work plan can be made up of the following data elements:
+
+| Element | Required |
+|---|---|
+| Fields | Yes |
+| Boundaries | |
+| Guidance Lines | |
+| Products | Yes |
+| Prescription File | |
+| Machines | |
+| Implements | |
+| Operators | |
+
+---
+
+## How to Get Started
+
+Operations Center is a digital representation of the farm. It is increasingly important to keep the digital farm synchronized with software solutions used by the farmer. Setup components are critical to get in place and keep up to date to enable faster execution in the cab and make full use of work plan transfers, automation, autonomy, monitoring, and insights.
+
+<Note>
+  We recommend mapping your customer's Operations Center master data to records within your software solution by storing the John Deere IDs.
+</Note>
+
+Use this guide to create your first work plan, viewable in Work Planner in Operations Center.
+
+<Steps>
+  <Step title="Retrieve master data from the customer's Operations Center organization">
+    You will need the John Deere IDs later to create the Work Plan. Retrieving this data lets you discover what the customer already has in Operations Center so you don't create duplicate records. Only retrieve the data your system uses when creating work for the grower.
+
+    - **Retrieve Fields**
+    - **Retrieve Field Boundaries** — Accurate boundaries are important for machine execution and enable the operator to be notified of an associated work plan when they approach the field.
+    - **Retrieve Products** — Accurate inputs drive quality data associated with completed work and reduce data editing after execution.
+      - Retrieve Varieties
+      - Retrieve Chemicals
+      - Retrieve Fertilizers
+      - Retrieve Tank Mixes
+      - Retrieve Crop Types
+    - **Retrieve Machines**
+    - **Retrieve Implements**
+    - **Retrieve Operators**
+    - **Retrieve Guidance Lines**
+  </Step>
+  <Step title="Create missing master data">
+    If you were unable to map your record to existing master data in the customer's organization, you can create the data for them. You will need the John Deere ID later to create the Work Plan.
+
+    - **Create a Field**
+    - **Create a Field Boundary** — Accurate boundaries are important for machine execution and enable the operator to be notified of an associated work plan when they approach the field.
+    - **Create Products** — Accurate inputs drive quality data associated with completed work and reduce data editing after execution.
+      - Create a Variety
+      - Create a Chemical
+      - Create a Fertilizer
+      - Create a Tank Mix
+    - **Create an Operator**
+    - **Create Guidance Lines**
+  </Step>
+  <Step title="Upload a prescription file">
+    Upload the prescription file that will be referenced in the Work Plan.
+  </Step>
+  <Step title="Create a Work Plan">
+    After you create the Work Plan, customers can view it within Work Planner in Operations Center. From Work Planner, customers can add additional setup data like guidance lines and equipment, then wirelessly transfer Work Plans to machines.
+  </Step>
+  <Step title="Retrieve Field Operations">
+    Check out the **Data Subscription Service** for Field Operations Events. Subscribe to Field Operations per organization and you will be notified when new Field Operations are available for an organization.
+  </Step>
+</Steps>
