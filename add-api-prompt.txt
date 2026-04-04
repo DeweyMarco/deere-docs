@@ -1,0 +1,18 @@
+Add a new API to this Mintlify docs project. Here is the source documentation to replicate:
+
+```
+
+```
+
+**What to create:**
+1. `openapi/[filename].json` — OpenAPI 3.0 spec. Follow the same pattern as the existing specs (clean base URL with full paths, `x-codeSamples` with cURL, detailed schemas with examples, proper security scheme).
+2. `[tab]/[group]/[filename].mdx` — Documentation page. Match the style of existing MDX files: frontmatter, overview with `<CardGroup>`, auth section with `<Steps>`, endpoint sections with `<ParamField>` / `<ResponseField>` / `<CodeGroup>`, and a `<Card>` playground link per endpoint.
+3. Update `docs.json` — Add the new spec to the `api.openapi` array and wire the nav group with `root`, `openapi`, and all page paths matching exactly `METHOD /path`.
+
+**Rules:**
+- Server URL must be the bare base (e.g. `https://sandbox-financial-api.deere.com`) — never embed path prefixes in the server URL.
+- Nav page strings must exactly match `METHOD /full/path/{param}` as they appear in the OpenAPI `paths` object.
+- Do not create a file that already exists — check first.
+- Place the new nav group inside the correct existing tab and group in `docs.json`.
+
+**Context:** Tab is `Dealer Solutions`, group is `Marketing Reporting`, files go in `dealer_solutions/marketing-reporting/`.

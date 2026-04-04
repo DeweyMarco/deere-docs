@@ -1,0 +1,392 @@
+---
+title: "OM Equipment - Update Vehicle Availability API"
+description: "Update Equipment availability in John Deere Sales Center, consumed by external DBS tools."
+---
+
+## Overview
+
+The OM Equipment API provides externally exposed endpoints to update Equipment availability in John Deere Sales Center. These APIs are consumed by external Dealer Business System (DBS) tools to manage vehicle rental status and retrieve reference data.
+
+<CardGroup cols={2}>
+  <Card title="On Rent / Off Rent" icon="key">
+    Update a vehicle's availability status to On Rent when a rental begins, or Off Rent when it ends.
+  </Card>
+  <Card title="Purchaser & Market Types" icon="list">
+    Retrieve reference data for purchaser type and market type classifications used during availability updates.
+  </Card>
+  <Card title="Geographic Data" icon="map">
+    Fetch level1, level2, and level3 geo codes for any supported country to support location-based workflows.
+  </Card>
+  <Card title="DBS Integration" icon="plug">
+    Designed for consumption by external Dealer Business System tools as part of the Sales Center equipment lifecycle.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The OM Equipment API uses **three-legged OAuth 2.0** for authentication. This flow requires end-user consent and a John Deere sign-in.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    On the OAuth Profile page of your application (found in the Details section), add one or more **Callback URLs (Redirect URIs)**. Click **Add** to add more than one, then click **Save**.
+
+    <Note>
+      If callback URLs do not sync properly, users will receive a `400 Bad Redirect` error after authentication. Contact John Deere support if this occurs — the callback may need to be manually synced.
+    </Note>
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization endpoint, token endpoint, and available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the John Deere authorization server. The server will redirect back to your application with an authorization code after the user signs in and grants consent.
+
+    Required query parameters: `response_type=code`, `client_id`, `redirect_uri` (URL-encoded), `scope`, and `state`.
+
+    **OAuth Scopes:**
+
+    | Scope | Permission | Description |
+    |---|---|---|
+    | `offline_access` | API authentication only | Request a refresh token |
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code for an access token and refresh token.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=authorization_code&code=<auth_code>&redirect_uri=<redirect_uri>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 3600,
+      "access_token": "eyJhbG[...]1LQ",
+      "refresh_token": "eyJhbG[...]xYZ",
+      "scope": "offline_access"
+    }
+    ```
+
+    <Note>
+      The access token expires after **1 hour**. Use the refresh token to obtain a new access token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+  <Step title="Refresh the access token periodically">
+    Before the access token expires, request a new one using the refresh token. The refresh token expires after **8 hours** of inactivity — if it expires, the user must re-authenticate.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=refresh_token&refresh_token=<refresh_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://om-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Update the availability of the equipment to On Rent
+
+Begins a new rental for a vehicle by updating the availability to On Rent.
+
+```
+PUT /om/equipment/{vehicleNumber}/on-rent
+```
+
+<ParamField path="vehicleNumber" type="string" required>
+  The unique identifier of the vehicle to place on rent.
+</ParamField>
+
+<ParamField body="rentalStartDate" type="string" required>
+  The date the rental period begins (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="purchaserTypeCode" type="string">
+  Code identifying the purchaser type. Retrieve valid values from the [Get Purchaser Types](#get-purchaser-types) endpoint.
+</ParamField>
+
+<ParamField body="marketTypeCode" type="string">
+  Code identifying the market type. Retrieve valid values from the [Get Market Types](#get-market-types) endpoint.
+</ParamField>
+
+<ParamField body="rentalAccountNumber" type="string">
+  Account number associated with the rental.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://om-api-sandbox.deere.com/om/equipment/VH-00987654/on-rent' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json;version=1' \
+  --data '{"rentalStartDate":"2026-04-10","purchaserTypeCode":"DEALER","marketTypeCode":"AG","rentalAccountNumber":"ACC-00123456"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="vehicleNumber" type="string">
+  The vehicle identifier.
+</ResponseField>
+
+<ResponseField name="availabilityStatus" type="string">
+  Updated availability status. Returns `ON_RENT`.
+</ResponseField>
+
+<ResponseField name="effectiveDate" type="string">
+  Date the availability change takes effect.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /om/equipment/{vehicleNumber}/on-rent">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update the availability of the equipment to Off Rent
+
+Ends an existing rental for a vehicle by updating the availability to Off Rent/Available in Sales Center.
+
+```
+PUT /om/equipment/{vehicleNumber}/off-rent
+```
+
+<ParamField path="vehicleNumber" type="string" required>
+  The unique identifier of the vehicle to take off rent.
+</ParamField>
+
+<ParamField body="rentalEndDate" type="string" required>
+  The date the rental period ends (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="returnConditionCode" type="string">
+  Condition of the vehicle upon return (e.g. `GOOD`, `DAMAGED`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://om-api-sandbox.deere.com/om/equipment/VH-00987654/off-rent' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json;version=1' \
+  --data '{"rentalEndDate":"2026-05-10","returnConditionCode":"GOOD"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="vehicleNumber" type="string">
+  The vehicle identifier.
+</ResponseField>
+
+<ResponseField name="availabilityStatus" type="string">
+  Updated availability status. Returns `OFF_RENT` or `AVAILABLE`.
+</ResponseField>
+
+<ResponseField name="effectiveDate" type="string">
+  Date the availability change takes effect.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /om/equipment/{vehicleNumber}/off-rent">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Purchaser Types
+
+Returns the list of available purchaser types for a vehicle.
+
+```
+GET /om/equipment/purchaser-types
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://om-api-sandbox.deere.com/om/equipment/purchaser-types' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json;version=1'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="purchaserTypes" type="array">
+  List of available purchaser type objects.
+  <Expandable title="purchaserTypes">
+    <ResponseField name="code" type="string">
+      Unique code identifying the purchaser type.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Human-readable description of the purchaser type.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/equipment/purchaser-types">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Market Types
+
+Returns the list of available market types for a vehicle.
+
+```
+GET /om/equipment/market-types
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://om-api-sandbox.deere.com/om/equipment/market-types' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json;version=1'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="marketTypes" type="array">
+  List of available market type objects.
+  <Expandable title="marketTypes">
+    <ResponseField name="code" type="string">
+      Unique code identifying the market type.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Human-readable description of the market type.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/equipment/market-types">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Geo Details for the Country
+
+Returns the geo codes for level1, level2, and level3 geographic subdivisions for the specified country.
+
+```
+GET /om/equipment/{countryCode}/geography
+```
+
+<ParamField path="countryCode" type="string" required>
+  ISO 3166-1 alpha-2 country code (e.g. `US`, `CA`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://om-api-sandbox.deere.com/om/equipment/US/geography' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json;version=1'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="countryCode" type="string">
+  ISO 3166-1 alpha-2 country code.
+</ResponseField>
+
+<ResponseField name="level1" type="array">
+  Top-level geographic subdivisions (e.g. states, provinces).
+  <Expandable title="level1">
+    <ResponseField name="code" type="string">
+      Unique geographic code.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Name of the geographic area.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="level2" type="array">
+  Second-level geographic subdivisions (e.g. counties, districts).
+  <Expandable title="level2">
+    <ResponseField name="code" type="string">
+      Unique geographic code.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Name of the geographic area.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="level3" type="array">
+  Third-level geographic subdivisions (e.g. cities, municipalities).
+  <Expandable title="level3">
+    <ResponseField name="code" type="string">
+      Unique geographic code.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Name of the geographic area.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/equipment/{countryCode}/geography">
+  Test this endpoint interactively with your access token.
+</Card>

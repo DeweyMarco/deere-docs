@@ -1,0 +1,299 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Customer Data Product API",
+    "description": "REST API providing a unified view of Deere customer data, including profile, sales leads, warranty, and predictive analytics. CDP aggregates customer activities and behavioral data into a single digital thread for consuming applications.",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://cdp-sandbox-api.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Client credentials OAuth 2.0 flow. Requires the `axiom` scope.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Access customer purchase analytics data"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ProfileObject": {
+        "type": "object",
+        "description": "Customer profile information.",
+        "properties": {
+          "dogId": {
+            "type": "string",
+            "description": "Unique dealer/owner group identifier for the customer.",
+            "example": "DOG-00123456"
+          },
+          "name": {
+            "type": "string",
+            "description": "Customer full name or organization name.",
+            "example": "Smith Family Farms"
+          },
+          "email": {
+            "type": "string",
+            "description": "Primary email address.",
+            "example": "contact@smithfamilyfarms.com"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Primary phone number.",
+            "example": "515-555-0100"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "street": { "type": "string", "example": "4400 NW 114th Ave" },
+              "city": { "type": "string", "example": "Urbandale" },
+              "state": { "type": "string", "example": "IA" },
+              "zip": { "type": "string", "example": "50322" },
+              "country": { "type": "string", "example": "US" }
+            }
+          },
+          "segment": {
+            "type": "string",
+            "description": "Customer market segment.",
+            "example": "Large Agriculture"
+          }
+        }
+      },
+      "SalesLeadObject": {
+        "type": "object",
+        "description": "Sales lead information associated with the customer.",
+        "properties": {
+          "leadId": {
+            "type": "string",
+            "description": "Unique identifier for the sales lead.",
+            "example": "SL-20260001"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current lead status.",
+            "example": "OPEN",
+            "enum": ["OPEN", "IN_PROGRESS", "CLOSED_WON", "CLOSED_LOST"]
+          },
+          "equipmentInterest": {
+            "type": "string",
+            "description": "Equipment the customer has expressed interest in.",
+            "example": "8R Series Tractor"
+          },
+          "estimatedValue": {
+            "type": "number",
+            "description": "Estimated deal value in USD.",
+            "example": 320000.00
+          },
+          "assignedDealer": {
+            "type": "string",
+            "description": "Dealer account number assigned to the lead.",
+            "example": "D-078901"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the lead was created.",
+            "example": "2026-01-15T08:00:00Z"
+          }
+        }
+      },
+      "CustomerRecord": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/ProfileObject"
+          },
+          "sales_leads": {
+            "type": "array",
+            "description": "Sales leads associated with this customer.",
+            "items": {
+              "$ref": "#/components/schemas/SalesLeadObject"
+            }
+          }
+        }
+      },
+      "CustomersResponse": {
+        "type": "object",
+        "properties": {
+          "customers": {
+            "type": "array",
+            "description": "List of customer records matching the query.",
+            "items": {
+              "$ref": "#/components/schemas/CustomerRecord"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "Total number of matching customer records.",
+            "example": 1243
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of records returned in this response.",
+            "example": 25
+          },
+          "searchFrom": {
+            "type": "integer",
+            "description": "The starting row index of this result set.",
+            "example": 0
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/isg/customerdataproduct/v2/customers": {
+      "get": {
+        "operationId": "getCustomers",
+        "summary": "Get customer purchase analytics",
+        "description": "Returns customers for a given dealer organization group to accurately understand customer purchase behavior based on past purchase behaviors and geographical customer purchase patterns.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "searchFrom",
+            "in": "header",
+            "required": false,
+            "description": "The start row number for pagination.",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "example": 5
+            }
+          },
+          {
+            "name": "responsePageSize",
+            "in": "header",
+            "required": false,
+            "description": "The number of rows to return per page.",
+            "schema": {
+              "type": "integer",
+              "default": 500,
+              "example": 25
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://cdp-sandbox-api.deere.com/isg/customerdataproduct/v2/customers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'searchFrom: 0' \\\n  --header 'responsePageSize: 25'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved customer purchase analytics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomersResponse"
+                },
+                "example": {
+                  "customers": [
+                    {
+                      "profile": {
+                        "dogId": "DOG-00123456",
+                        "name": "Smith Family Farms",
+                        "email": "contact@smithfamilyfarms.com",
+                        "phone": "515-555-0100",
+                        "address": {
+                          "street": "4400 NW 114th Ave",
+                          "city": "Urbandale",
+                          "state": "IA",
+                          "zip": "50322",
+                          "country": "US"
+                        },
+                        "segment": "Large Agriculture"
+                      },
+                      "sales_leads": [
+                        {
+                          "leadId": "SL-20260001",
+                          "status": "OPEN",
+                          "equipmentInterest": "8R Series Tractor",
+                          "estimatedValue": 320000.00,
+                          "assignedDealer": "D-078901",
+                          "createdAt": "2026-01-15T08:00:00Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "totalCount": 1243,
+                  "pageSize": 25,
+                  "searchFrom": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

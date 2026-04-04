@@ -1,0 +1,521 @@
+---
+title: "Quote Data API"
+description: "Retrieve quote-related information including search, details, last modified dates, and PDF document generation."
+---
+
+## Overview
+
+The Quote Data API is responsible for retrieving quote-related information.
+
+<CardGroup cols={2}>
+  <Card title="Search Quotes" icon="magnifying-glass">
+    Search across quotes using filters like dealer ID, customer name, status, and date range.
+  </Card>
+  <Card title="Quote Details" icon="file-lines">
+    Retrieve the full detail record for a quote, including equipment line items and pricing.
+  </Card>
+  <Card title="PDF Documents" icon="file-pdf">
+    Generate and download order form, proposal, and recap PDFs for any quote.
+  </Card>
+  <Card title="Supporting Docs" icon="paperclip">
+    List all supporting documents attached to a quote.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Quote Data API uses **three-legged OAuth 2.0** for authentication. This flow requires end-user consent and a John Deere sign-in.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    On the OAuth Profile page of your application (found in the Details section), add one or more **Callback URLs (Redirect URIs)**. Click **Add** to add more than one, then click **Save**.
+
+    <Note>
+      If callback URLs do not sync properly, users will receive a `400 Bad Redirect` error after authentication. Contact John Deere support if this occurs — the callback may need to be manually synced.
+    </Note>
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization endpoint, token endpoint, and available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the John Deere authorization server. The server will redirect back to your application with an authorization code after the user signs in and grants consent.
+
+    Required query parameters: `response_type=code`, `client_id`, `redirect_uri` (URL-encoded), `scope`, and `state`.
+
+    **OAuth Scopes:**
+
+    | Scope | Permission | Description |
+    |---|---|---|
+    | `offline_access` | API authentication only | Request a refresh token |
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code for an access token and refresh token.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=authorization_code&code=<auth_code>&redirect_uri=<redirect_uri>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "refresh_token": "eyJhbG[...]xYZ",
+      "scope": "offline_access"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Use the refresh token to obtain a new access token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+  <Step title="Refresh the access token periodically">
+    Before the access token expires, request a new one using the refresh token. The refresh token expires after **365 days** of inactivity.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=refresh_token&refresh_token=<refresh_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://jdquote2-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Search Quote
+
+Search for quotes using filter criteria such as dealer ID, customer name, status, or date range.
+
+```
+POST /om/cert/quotedata/api/v1/quote-data
+```
+
+<ParamField body="dealerId" type="string">
+  Filter by dealer account identifier.
+</ParamField>
+
+<ParamField body="customerName" type="string">
+  Filter by customer name (partial match supported).
+</ParamField>
+
+<ParamField body="status" type="string">
+  Filter by quote status. One of: `DRAFT`, `ACTIVE`, `EXPIRED`, `DELETED`.
+</ParamField>
+
+<ParamField body="fromDate" type="string">
+  Filter quotes created on or after this date (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="toDate" type="string">
+  Filter quotes created on or before this date (`YYYY-MM-DD`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quote-data' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","status":"ACTIVE","customerName":"Smith"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quotes" type="array">
+  List of quotes matching the search criteria.
+  <Expandable title="quotes">
+    <ResponseField name="quoteId" type="string">
+      Unique identifier for the quote.
+    </ResponseField>
+    <ResponseField name="dealerId" type="string">
+      Dealer account identifier associated with the quote.
+    </ResponseField>
+    <ResponseField name="customerName" type="string">
+      Name of the customer the quote is prepared for.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Current status. One of: `DRAFT`, `ACTIVE`, `EXPIRED`, `DELETED`.
+    </ResponseField>
+    <ResponseField name="createdDate" type="string">
+      ISO 8601 timestamp when the quote was created.
+    </ResponseField>
+    <ResponseField name="expirationDate" type="string">
+      Date on which the quote expires.
+    </ResponseField>
+    <ResponseField name="totalAmount" type="number">
+      Total quoted amount in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalCount" type="integer">
+  Total number of quotes matching the search criteria.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/quotedata/api/v1/quote-data">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Last Modified Date
+
+Returns the date and time a specific quote was last modified.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/last-modified-date
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/last-modified-date' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quoteId" type="string">
+  Unique identifier for the quote.
+</ResponseField>
+
+<ResponseField name="lastModifiedDate" type="string">
+  ISO 8601 timestamp when the quote was last modified.
+</ResponseField>
+
+#### Sample response
+
+```json
+{
+  "quoteId": "QT-20260001",
+  "lastModifiedDate": "2026-03-20T14:32:00Z"
+}
+```
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/last-modified-date">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Order Form PDF
+
+Returns the order form PDF document for a specific quote.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/orderform-pdf
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/orderform-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --output orderform.pdf
+```
+
+</CodeGroup>
+
+The response body is the raw PDF binary. Use the `--output` flag (or equivalent) to save it to a file.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/orderform-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Proposal PDF
+
+Returns the customer-facing proposal PDF document for a specific quote.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/proposal-pdf
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/proposal-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --output proposal.pdf
+```
+
+</CodeGroup>
+
+The response body is the raw PDF binary. Use the `--output` flag (or equivalent) to save it to a file.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/proposal-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Quote Detail
+
+Returns the full detail record for a specific quote, including all equipment line items, pricing, and customer information.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/quote-details
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/quote-details' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quoteId" type="string">
+  Unique identifier for the quote.
+</ResponseField>
+
+<ResponseField name="dealerId" type="string">
+  Dealer account identifier.
+</ResponseField>
+
+<ResponseField name="customerName" type="string">
+  Name of the customer the quote is prepared for.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status. One of: `DRAFT`, `ACTIVE`, `EXPIRED`, `DELETED`.
+</ResponseField>
+
+<ResponseField name="createdDate" type="string">
+  ISO 8601 timestamp when the quote was created.
+</ResponseField>
+
+<ResponseField name="expirationDate" type="string">
+  Date on which the quote expires.
+</ResponseField>
+
+<ResponseField name="equipments" type="array">
+  Equipment line items included in the quote.
+  <Expandable title="equipments">
+    <ResponseField name="equipmentId" type="string">
+      Unique identifier for the equipment line item.
+    </ResponseField>
+    <ResponseField name="modelNumber" type="string">
+      Equipment model number.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Human-readable equipment description.
+    </ResponseField>
+    <ResponseField name="quantity" type="integer">
+      Number of units quoted.
+    </ResponseField>
+    <ResponseField name="unitPrice" type="number">
+      Unit price in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalAmount" type="number">
+  Total quoted amount in USD.
+</ResponseField>
+
+#### Sample response
+
+```json
+{
+  "quoteId": "QT-20260001",
+  "dealerId": "D-078901",
+  "customerName": "Smith Family Farms",
+  "status": "ACTIVE",
+  "createdDate": "2026-01-15T08:00:00Z",
+  "expirationDate": "2026-04-15",
+  "equipments": [
+    {
+      "equipmentId": "EQ-00445566",
+      "modelNumber": "8R410",
+      "description": "8R 410 Tractor",
+      "quantity": 1,
+      "unitPrice": 485000.00
+    }
+  ],
+  "totalAmount": 485000.00
+}
+```
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/quote-details">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Recap PDF
+
+Returns the recap PDF document summarizing the key details of a specific quote.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/recap-pdf
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/recap-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --output recap.pdf
+```
+
+</CodeGroup>
+
+The response body is the raw PDF binary. Use the `--output` flag (or equivalent) to save it to a file.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/recap-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Supporting Docs
+
+Returns a list of supporting documents attached to a specific quote.
+
+```
+GET /om/cert/quotedata/api/v1/quotes/{quoteId}/supporting-docs
+```
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/supporting-docs' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="documents" type="array">
+  List of supporting documents attached to the quote.
+  <Expandable title="documents">
+    <ResponseField name="documentId" type="string">
+      Unique identifier for the document.
+    </ResponseField>
+    <ResponseField name="documentName" type="string">
+      Display name of the document.
+    </ResponseField>
+    <ResponseField name="documentType" type="string">
+      MIME type of the document.
+    </ResponseField>
+    <ResponseField name="uploadedDate" type="string">
+      ISO 8601 timestamp when the document was uploaded.
+    </ResponseField>
+    <ResponseField name="uploadedBy" type="string">
+      User who uploaded the document.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Sample response
+
+```json
+{
+  "documents": [
+    {
+      "documentId": "DOC-00112233",
+      "documentName": "Trade-In Appraisal.pdf",
+      "documentType": "application/pdf",
+      "uploadedDate": "2026-02-10T09:15:00Z",
+      "uploadedBy": "jdoe@dealer.com"
+    }
+  ]
+}
+```
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/quotedata/api/v1/quotes/{quoteId}/supporting-docs">
+  Test this endpoint interactively with your access token.
+</Card>

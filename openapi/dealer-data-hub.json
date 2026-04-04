@@ -1,0 +1,316 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer Data Hub (External)",
+    "description": "John Deere Dealer Data Hub integrates dealer activities, behavioral and predictive analytics, and builds a digital thread of dealer data to provide a unified view.",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://dealer-data-hub-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Client credentials OAuth 2.0 flow. Use the OAuth scope assigned to your application on Developer.Deere.com (see the API technical documentation for the required scope).",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "ddh": "Access Dealer Data Hub search and dealer profile resources"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DealerSearchByXidRequest": {
+        "type": "object",
+        "description": "Optional search criteria or filters in addition to the employee XID in the path.",
+        "additionalProperties": true,
+        "properties": {
+          "includeInactive": {
+            "type": "boolean",
+            "description": "Whether to include inactive dealer associations when applicable.",
+            "example": false
+          }
+        }
+      },
+      "DealerSearch360Request": {
+        "type": "object",
+        "description": "Optional filters for the 360-degree dealer view (e.g. dealer identifier, reporting context).",
+        "additionalProperties": true,
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer identifier to scope the 360-degree view.",
+            "example": "D-078901"
+          }
+        }
+      },
+      "DealerSearchResponse": {
+        "type": "object",
+        "description": "Dealer search or profile payload. Exact structure follows Dealer Data Hub v2.",
+        "additionalProperties": true,
+        "properties": {
+          "dealers": {
+            "type": "array",
+            "description": "Matching dealer records or digital-thread aggregates.",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "meta": {
+            "type": "object",
+            "description": "Pagination or result metadata when returned by the service.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/search/xid/{xid}": {
+      "post": {
+        "operationId": "searchDealerByEmployeeXid",
+        "summary": "Search dealer by employee XID",
+        "description": "Search for dealer data associated with an employee XID (cross-identifier). Provides a unified view aligned with Dealer Data Hub digital threads.",
+        "security": [{ "OAuth2": ["ddh"] }],
+        "parameters": [
+          {
+            "name": "xid",
+            "in": "path",
+            "required": true,
+            "description": "Employee XID to resolve to dealer context.",
+            "schema": {
+              "type": "string",
+              "example": "emp-xid-001234567890"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.ddh.v2+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerSearchByXidRequest"
+              },
+              "example": {
+                "includeInactive": false
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerSearchByXidRequest"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://dealer-data-hub-sandbox.deere.com/api/search/xid/emp-xid-001234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.ddh.v2+json' \\\n  --header 'Content-Type: application/vnd.deere.ddh.v2+json' \\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully returned dealer data for the employee XID.",
+            "content": {
+              "application/vnd.deere.ddh.v2+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerSearchResponse"
+                },
+                "example": {
+                  "dealers": [
+                    {
+                      "dealerId": "D-078901",
+                      "dealerName": "Example Ag & Turf",
+                      "employeeXid": "emp-xid-001234567890"
+                    }
+                  ],
+                  "meta": {
+                    "resultCount": 1
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerSearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required OAuth scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required Dealer Data Hub scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/dealers": {
+      "post": {
+        "operationId": "searchDealers360",
+        "summary": "Dealer 360-degree view",
+        "description": "Provide a 360-degree view of dealer data through various digital threads (activities, analytics, and related dealer context).",
+        "security": [{ "OAuth2": ["ddh"] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.ddh.v2+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerSearch360Request"
+              },
+              "example": {
+                "dealerId": "D-078901"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerSearch360Request"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://dealer-data-hub-sandbox.deere.com/api/search/dealers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.ddh.v2+json' \\\n  --header 'Content-Type: application/vnd.deere.ddh.v2+json' \\\n  --data '{\"dealerId\":\"D-078901\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully returned the dealer 360-degree view.",
+            "content": {
+              "application/vnd.deere.ddh.v2+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerSearchResponse"
+                },
+                "example": {
+                  "dealers": [
+                    {
+                      "dealerId": "D-078901",
+                      "dealerName": "Example Ag & Turf",
+                      "digitalThreads": ["sales", "service", "parts"]
+                    }
+                  ],
+                  "meta": {
+                    "resultCount": 1
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerSearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required OAuth scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required Dealer Data Hub scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

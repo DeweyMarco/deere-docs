@@ -1,0 +1,321 @@
+---
+title: "Market Share API"
+description: "U.S. and Canada dealer market share data for Ag, C&F, and CCE, aligned with Global Market Share (GMS) By Store and By County reports."
+---
+
+## Overview
+
+The Market Share API is a REST API that provides U.S. and Canada dealer market share data for Agriculture, Construction & Forestry (C&F), and Construction & Compact Equipment (CCE). It aligns with data provided through the Global Market Share (GMS) application, including both **By Store** and **By County** structures.
+
+Using market share data can help your organization track performance against sales and market share goals and support insight into potential pay-for-performance incentives.
+
+<CardGroup cols={2}>
+  <Card title="AEM benchmarks" icon="dollar-sign">
+    Retrieve Association for Equipment Manufacturers (AEM) average dollar values by machine and size class.
+  </Card>
+  <Card title="Raw data by county" icon="map">
+    Match GMS “Raw Data (by County)” — dealer and industry sales by machine, size class, county, and activity month.
+  </Card>
+  <Card title="Raw data by store" icon="store">
+    Match GMS “Raw Data (by Store)” — dealer and industry sales by machine, size class, store, and activity month.
+  </Card>
+  <Card title="GMS alignment" icon="chart-column">
+    Same reporting structures as the Global Market Share application for consistent analytics.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Market Share API uses the **client credentials** OAuth 2.0 grant type.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://drx-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get AEM industry average dollar data
+
+Returns the Association for Equipment Manufacturers (AEM) list of average dollar values for each unique machine and size class combination. For North America, these values are typically updated annually and made available in February.
+
+```
+GET /mrkt/sandbox/drx-api/avgDollarReport/{dealerId}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="dealerId" type="string" required>
+  Dealer identifier for which to retrieve AEM average dollar data.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/avgDollarReport/D-078901' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="dealerId" type="string">
+  Dealer identifier for the report.
+</ResponseField>
+
+<ResponseField name="rows" type="array">
+  AEM average dollar rows for each unique machine and size class combination.
+  <Expandable title="rows">
+    <ResponseField name="machine" type="string">
+      Machine category or model family identifier.
+    </ResponseField>
+    <ResponseField name="sizeClass" type="string">
+      Equipment size class.
+    </ResponseField>
+    <ResponseField name="averageDollarValue" type="number">
+      AEM average dollar value for this combination.
+    </ResponseField>
+    <ResponseField name="currency" type="string">
+      ISO 4217 currency code (e.g. `USD`).
+    </ResponseField>
+    <ResponseField name="effectiveYear" type="integer">
+      Year the AEM values apply to.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /mrkt/sandbox/drx-api/avgDollarReport/{dealerId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "dealerId": "D-078901",
+  "rows": [
+    {
+      "machine": "LARGE_TRACTOR",
+      "sizeClass": "200_HP_PLUS",
+      "averageDollarValue": 425000.5,
+      "currency": "USD",
+      "effectiveYear": 2026
+    }
+  ]
+}
+```
+
+---
+
+### Retrieve market share data by county
+
+Returns the same data as the Global Market Share (GMS) application’s “Raw Data (by County)” report (“ByCounty” tab): dealer and industry sales for each unique Machine, Size Class, County, and Activity Month combination.
+
+```
+POST /mrkt/sandbox/drx-api/rawDataReport/byCounty
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField body="dealerId" type="string">
+  Dealer identifier requesting the report.
+</ParamField>
+
+<ParamField body="reportingPeriodStart" type="string">
+  Start of the activity month range (inclusive), ISO 8601 date.
+</ParamField>
+
+<ParamField body="reportingPeriodEnd" type="string">
+  End of the activity month range (inclusive), ISO 8601 date.
+</ParamField>
+
+<ParamField body="segments" type="array">
+  Optional market segments to include (e.g. Ag, C&F, CCE).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/rawDataReport/byCounty' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","reportingPeriodStart":"2025-01-01","reportingPeriodEnd":"2025-12-31","segments":["AG","CF","CCE"]}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="rows" type="array">
+  Report rows aligned with the GMS By County raw data structure. Exact fields may vary by segment and reporting period.
+</ResponseField>
+
+<ResponseField name="rowCount" type="integer">
+  Number of rows returned in this response.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /mrkt/sandbox/drx-api/rawDataReport/byCounty">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "rows": [
+    {
+      "machine": "COMBINE",
+      "sizeClass": "CLASS_8",
+      "county": "Polk",
+      "stateOrProvince": "IA",
+      "activityMonth": "2025-06-01",
+      "dealerSales": 1850000.0,
+      "industrySales": 12400000.0
+    }
+  ],
+  "rowCount": 1842
+}
+```
+
+---
+
+### Retrieve market share data by store
+
+Returns the same data as the Global Market Share (GMS) application’s “Raw Data (by Store)” report (“ByStore” tab): dealer and industry sales for each unique Machine, Size Class, Store, and Activity Month combination.
+
+```
+POST /mrkt/sandbox/drx-api/rawDataReport/byStore
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField body="dealerId" type="string">
+  Dealer identifier requesting the report.
+</ParamField>
+
+<ParamField body="reportingPeriodStart" type="string">
+  Start of the activity month range (inclusive), ISO 8601 date.
+</ParamField>
+
+<ParamField body="reportingPeriodEnd" type="string">
+  End of the activity month range (inclusive), ISO 8601 date.
+</ParamField>
+
+<ParamField body="segments" type="array">
+  Optional market segments to include (e.g. Ag, C&F, CCE).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/rawDataReport/byStore' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","reportingPeriodStart":"2025-01-01","reportingPeriodEnd":"2025-12-31","segments":["AG","CF","CCE"]}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="rows" type="array">
+  Report rows aligned with the GMS By Store raw data structure. Exact fields may vary by segment and reporting period.
+</ResponseField>
+
+<ResponseField name="rowCount" type="integer">
+  Number of rows returned in this response.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /mrkt/sandbox/drx-api/rawDataReport/byStore">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "rows": [
+    {
+      "machine": "LARGE_TRACTOR",
+      "sizeClass": "200_HP_PLUS",
+      "storeId": "ST-10021",
+      "activityMonth": "2025-06-01",
+      "dealerSales": 920000.0,
+      "industrySales": 6100000.0
+    }
+  ],
+  "rowCount": 942
+}
+```

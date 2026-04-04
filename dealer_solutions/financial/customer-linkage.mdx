@@ -1,0 +1,324 @@
+---
+title: "Customer Linkage API"
+description: "Create, remove, and retrieve linkages between Dealer Business System (DBS) customer records and John Deere Customer Registry records."
+---
+
+## Overview
+
+Today, dealers keep their customer records in their Dealer Business System (DBS). John Deere maintains customer data in the Customer Registry (also known as CKC, IKC, or Customer Master Data). John Deere Sales Tools — such as Sales Center, JDQuote2, Warranty, JMInt, JDSet, Rewards, and Dealer Communication Platform — use the Registry for customer data.
+
+The Customer Linkage API lets dealers create a linkage (a pointer) between a DBS customer record and a Registry customer record. This is helpful when integrating systems that use different customer data sources.
+
+<CardGroup cols={2}>
+  <Card title="Create Linkages" icon="link">
+    Link a DBS customer record to a Registry record for seamless cross-system integration.
+  </Card>
+  <Card title="Remove Linkages" icon="link-slash">
+    Remove an existing DBS/Registry linkage when it is no longer needed.
+  </Card>
+  <Card title="Retrieve Linkages" icon="magnifying-glass">
+    Retrieve all active DBS/Registry linkages for your DOG Account ID.
+  </Card>
+  <Card title="DOG Account Resolution" icon="building">
+    Linkages are scoped to the DOG Account ID derived from your OKTA Client ID and system name.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Customer Linkage API uses the **client credentials** OAuth 2.0 grant type. This is a two-legged flow — no end-user login is required.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://dealer-customer-tools-servicessandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Create Linkages
+
+Creates a DBS/Registry customer linkage on a Registry customer record. The DOG Account ID is derived from your OKTA Client ID and the `system-name` header.
+
+```
+POST /isg/customerlinkage/api/linkages
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField header="system-name" type="string" required>
+  The name of the system making the request. Used with your OKTA Client ID to derive the DOG Account ID.
+</ParamField>
+
+<ParamField header="endUserId" type="string" required>
+  Your system user ID for tracking and debugging. Must be alphanumeric with a maximum length of 40 characters.
+</ParamField>
+
+<ParamField body="dbsCustomerId" type="string" required>
+  The dealer's DBS customer record identifier.
+</ParamField>
+
+<ParamField body="registryCustomerId" type="string" required>
+  The John Deere Customer Registry customer identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/linkages' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header 'system-name: MY_DEALER_SYSTEM' \
+  --header 'endUserId: USER12345' \
+  --data '{"dbsCustomerId": "DBS-00098765", "registryCustomerId": "REG-00123456"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="linkageId" type="string">
+  Unique identifier for the created linkage record.
+</ResponseField>
+
+<ResponseField name="dbsCustomerId" type="string">
+  The dealer's DBS customer record identifier.
+</ResponseField>
+
+<ResponseField name="registryCustomerId" type="string">
+  The John Deere Customer Registry customer identifier.
+</ResponseField>
+
+<ResponseField name="dogAccountId" type="string">
+  The derived DOG Account ID associated with this linkage.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the linkage. One of: `ACTIVE`, `INACTIVE`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when the linkage was created.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /isg/customerlinkage/api/linkages">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "linkageId": "LNK-20260001",
+  "dbsCustomerId": "DBS-00098765",
+  "registryCustomerId": "REG-00123456",
+  "dogAccountId": "DOG-00123456",
+  "status": "ACTIVE",
+  "createdAt": "2026-01-15T08:00:00Z"
+}
+```
+
+---
+
+### Remove Linkages
+
+Removes a DBS/Registry customer linkage from a Registry customer record. The DOG Account ID is derived from your OKTA Client ID and the `system-name` header.
+
+```
+DELETE /isg/customerlinkage/api/linkages
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField header="system-name" type="string" required>
+  The name of the system making the request. Used with your OKTA Client ID to derive the DOG Account ID.
+</ParamField>
+
+<ParamField header="endUserId" type="string" required>
+  Your system user ID for tracking and debugging. Must be alphanumeric with a maximum length of 40 characters.
+</ParamField>
+
+<ParamField body="dbsCustomerId" type="string" required>
+  The dealer's DBS customer record identifier.
+</ParamField>
+
+<ParamField body="registryCustomerId" type="string" required>
+  The John Deere Customer Registry customer identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/linkages' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header 'system-name: MY_DEALER_SYSTEM' \
+  --header 'endUserId: USER12345' \
+  --data '{"dbsCustomerId": "DBS-00098765", "registryCustomerId": "REG-00123456"}'
+```
+
+</CodeGroup>
+
+<Note>
+  A successful removal returns HTTP `204 No Content` with no response body.
+</Note>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /isg/customerlinkage/api/linkages">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Retrieve Linkages
+
+Retrieves all DBS/Registry customer linkages for the derived DOG Account ID. Pass the `system-name` header to identify the system.
+
+```
+GET /isg/customerlinkage/api/retrieveLinkages
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField header="system-name" type="string" required>
+  The name of the system making the request. Used with your OKTA Client ID to derive the DOG Account ID.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/retrieveLinkages' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'system-name: MY_DEALER_SYSTEM'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="linkages" type="array">
+  List of DBS/Registry customer linkage records.
+  <Expandable title="linkages">
+    <ResponseField name="linkageId" type="string">
+      Unique identifier for the linkage record.
+    </ResponseField>
+    <ResponseField name="dbsCustomerId" type="string">
+      The dealer's DBS customer record identifier.
+    </ResponseField>
+    <ResponseField name="registryCustomerId" type="string">
+      The John Deere Customer Registry customer identifier.
+    </ResponseField>
+    <ResponseField name="dogAccountId" type="string">
+      The derived DOG Account ID associated with this linkage.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Current status of the linkage. One of: `ACTIVE`, `INACTIVE`.
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when the linkage was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalCount" type="integer">
+  Total number of linkage records returned.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/customerlinkage/api/retrieveLinkages">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "linkages": [
+    {
+      "linkageId": "LNK-20260001",
+      "dbsCustomerId": "DBS-00098765",
+      "registryCustomerId": "REG-00123456",
+      "dogAccountId": "DOG-00123456",
+      "status": "ACTIVE",
+      "createdAt": "2026-01-15T08:00:00Z"
+    },
+    {
+      "linkageId": "LNK-20260002",
+      "dbsCustomerId": "DBS-00054321",
+      "registryCustomerId": "REG-00654321",
+      "dogAccountId": "DOG-00123456",
+      "status": "ACTIVE",
+      "createdAt": "2026-01-20T10:30:00Z"
+    }
+  ],
+  "totalCount": 2
+}
+```

@@ -1,0 +1,436 @@
+---
+title: "PO Data API"
+description: "Retrieve Purchase Order data including blank PO PDFs, PO search, PO details by quote ID, and rental details."
+---
+
+## Overview
+
+The PO Data API can be used to retrieve Purchase Order data from the system.
+
+<CardGroup cols={2}>
+  <Card title="Blank PO PDF" icon="file-pdf">
+    Download a blank Purchase Order PDF template for a given dealer.
+  </Card>
+  <Card title="Search Purchase Orders" icon="magnifying-glass">
+    Search for purchase orders by dealer, status, customer, or date range.
+  </Card>
+  <Card title="PO Detail by Quote ID" icon="file-lines">
+    Retrieve full purchase order details associated with a specific quote.
+  </Card>
+  <Card title="Rental Details" icon="clock">
+    Access rental terms and rate information tied to a quote.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The PO Data API uses **three-legged OAuth 2.0** for authentication. This flow requires end-user consent and a John Deere sign-in.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    On the OAuth Profile page of your application (found in the Details section), add one or more **Callback URLs (Redirect URIs)**. Click **Add** to add more than one, then click **Save**.
+
+    <Note>
+      If callback URLs do not sync properly, users will receive a `400 Bad Redirect` error after authentication. Contact John Deere support if this occurs — the callback may need to be manually synced.
+    </Note>
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization endpoint, token endpoint, and available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the John Deere authorization server. The server will redirect back to your application with an authorization code after the user signs in and grants consent.
+
+    Required query parameters: `response_type=code`, `client_id`, `redirect_uri` (URL-encoded), `scope`, and `state`.
+
+    **OAuth Scopes:**
+
+    | Scope | Permission | Description |
+    |---|---|---|
+    | `axiom` | API access | Required for all PO Data endpoints |
+    | `offline_access` | API authentication only | Request a refresh token |
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code for an access token and refresh token.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=authorization_code&code=<auth_code>&redirect_uri=<redirect_uri>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "refresh_token": "eyJhbG[...]xYZ",
+      "scope": "axiom offline_access"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Use the refresh token to obtain a new access token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+  <Step title="Refresh the access token periodically">
+    Before the access token expires, request a new one using the refresh token. The refresh token expires after **365 days** of inactivity.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=refresh_token&refresh_token=<refresh_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://jdquote2-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get Blank PO Pdf
+
+Returns a blank Purchase Order PDF for the specified dealer.
+
+```
+GET /api/v1/dealers/{racfId}/blank-po-pdf
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="racfId" type="string" required>
+  The RACF ID of the dealer.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/JDRACF001/blank-po-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /api/v1/dealers/{racfId}/blank-po-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Search Purchase Order
+
+Searches for purchase orders matching the specified criteria.
+
+```
+POST /api/v1/purchase-orders
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField body="racfId" type="string" required>
+  RACF ID of the dealer to search purchase orders for.
+</ParamField>
+
+<ParamField body="customerName" type="string">
+  Optional customer name filter.
+</ParamField>
+
+<ParamField body="status" type="string">
+  Optional status filter. One of: `PENDING`, `APPROVED`, `CANCELLED`, `COMPLETED`.
+</ParamField>
+
+<ParamField body="fromDate" type="string">
+  Optional start date filter (`YYYY-MM-DD`, inclusive).
+</ParamField>
+
+<ParamField body="toDate" type="string">
+  Optional end date filter (`YYYY-MM-DD`, inclusive).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/purchase-orders' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"racfId":"JDRACF001","status":"APPROVED","fromDate":"2026-01-01","toDate":"2026-12-31"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="purchaseOrders" type="array">
+  List of purchase orders matching the search criteria.
+  <Expandable title="purchaseOrders">
+    <ResponseField name="purchaseOrderId" type="string">
+      Unique identifier for the purchase order.
+    </ResponseField>
+    <ResponseField name="quoteId" type="string">
+      Quote ID associated with this purchase order.
+    </ResponseField>
+    <ResponseField name="racfId" type="string">
+      RACF ID of the dealer associated with the purchase order.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Current status. One of: `PENDING`, `APPROVED`, `CANCELLED`, `COMPLETED`.
+    </ResponseField>
+    <ResponseField name="customerName" type="string">
+      Name of the customer for the purchase order.
+    </ResponseField>
+    <ResponseField name="createdDate" type="string">
+      ISO 8601 timestamp when the purchase order was created.
+    </ResponseField>
+    <ResponseField name="totalAmount" type="number">
+      Total amount of the purchase order in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/purchase-orders">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get PO Detail By QuoteID
+
+Retrieves the full purchase order detail for a given quote ID and dealer RACF ID.
+
+```
+GET /api/v1/quotes/{quoteId}/dealers/{racfId}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<ParamField path="racfId" type="string" required>
+  The RACF ID of the dealer.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/dealers/JDRACF001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="purchaseOrderId" type="string">
+  Unique identifier for the purchase order.
+</ResponseField>
+
+<ResponseField name="quoteId" type="string">
+  Quote ID associated with this purchase order.
+</ResponseField>
+
+<ResponseField name="racfId" type="string">
+  RACF ID of the dealer associated with the purchase order.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status. One of: `PENDING`, `APPROVED`, `CANCELLED`, `COMPLETED`.
+</ResponseField>
+
+<ResponseField name="customerName" type="string">
+  Name of the customer for the purchase order.
+</ResponseField>
+
+<ResponseField name="createdDate" type="string">
+  ISO 8601 timestamp when the purchase order was created.
+</ResponseField>
+
+<ResponseField name="lineItems" type="array">
+  Equipment line items on the purchase order.
+  <Expandable title="lineItems">
+    <ResponseField name="lineItemId" type="string">
+      Unique identifier for the line item.
+    </ResponseField>
+    <ResponseField name="modelNumber" type="string">
+      Equipment model number.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Human-readable equipment description.
+    </ResponseField>
+    <ResponseField name="quantity" type="integer">
+      Number of units ordered.
+    </ResponseField>
+    <ResponseField name="unitPrice" type="number">
+      Unit price in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalAmount" type="number">
+  Total amount of the purchase order in USD.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /api/v1/quotes/{quoteId}/dealers/{racfId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "purchaseOrderId": "PO-20260001",
+  "quoteId": "QT-20260001",
+  "racfId": "JDRACF001",
+  "status": "APPROVED",
+  "customerName": "Smith Family Farms",
+  "createdDate": "2026-01-15T08:00:00Z",
+  "lineItems": [
+    {
+      "lineItemId": "LI-00112233",
+      "modelNumber": "8R410",
+      "description": "8R 410 Tractor",
+      "quantity": 1,
+      "unitPrice": 485000.00
+    }
+  ],
+  "totalAmount": 485000.00
+}
+```
+
+---
+
+### Get PO Pdf
+
+Retrieves the Purchase Order PDF for a specific quote.
+
+```
+GET /api/v1/quotes/{quoteId}/po-pdf
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/po-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /api/v1/quotes/{quoteId}/po-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Rental Details
+
+Retrieves rental details associated with a specific quote.
+
+```
+GET /api/v1/quotes/{quoteId}/rentals
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/rentals' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="rentals" type="array">
+  List of rental records associated with the quote.
+  <Expandable title="rentals">
+    <ResponseField name="rentalId" type="string">
+      Unique identifier for the rental record.
+    </ResponseField>
+    <ResponseField name="quoteId" type="string">
+      Quote ID associated with this rental.
+    </ResponseField>
+    <ResponseField name="equipmentDescription" type="string">
+      Description of the rented equipment.
+    </ResponseField>
+    <ResponseField name="rentalStartDate" type="string">
+      Start date of the rental period (`YYYY-MM-DD`).
+    </ResponseField>
+    <ResponseField name="rentalEndDate" type="string">
+      End date of the rental period (`YYYY-MM-DD`).
+    </ResponseField>
+    <ResponseField name="dailyRate" type="number">
+      Daily rental rate in USD.
+    </ResponseField>
+    <ResponseField name="totalRentalAmount" type="number">
+      Total rental amount in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /api/v1/quotes/{quoteId}/rentals">
+  Test this endpoint interactively with your access token.
+</Card>

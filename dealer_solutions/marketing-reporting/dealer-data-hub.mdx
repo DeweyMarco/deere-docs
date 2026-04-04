@@ -1,0 +1,222 @@
+---
+title: "Dealer Data Hub (External)"
+description: "Unified dealer data, activities, and analytics through Dealer Data Hub digital threads — search by employee XID and retrieve a 360-degree dealer view."
+---
+
+## Overview
+
+John Deere **Dealer Data Hub** integrates dealer activities, behavioral and predictive analytics, and builds a **digital thread** of dealer data so you can work from a unified view across systems and reporting contexts.
+
+<CardGroup cols={2}>
+  <Card title="Search by employee XID" icon="user-search">
+    Resolve dealer context using an employee cross-identifier (XID) for integrations tied to workforce identity.
+  </Card>
+  <Card title="Dealer 360 view" icon="view">
+    Request a 360-degree view of dealer data across digital threads for analytics and operational insight.
+  </Card>
+  <Card title="Dealer Data Hub v2 media type" icon="file-code">
+    Responses use `application/vnd.deere.ddh.v2+json` for versioned Dealer Data Hub payloads.
+  </Card>
+  <Card title="OAuth 2 client credentials" icon="lock">
+    Authenticate with the John Deere OAuth 2.0 client credentials flow using your Developer.Deere.com application.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The John Deere Dealer Solutions API endpoints use the **client credentials** grant type for OAuth 2.0 authentication.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    When you create an application, it is assigned a **Client Key** and **Client Secret**. You sign API requests with these credentials.
+
+    In the **Security** section of your application (under application details), add at least one **Callback URL (Redirect URI)**. While a redirect URI may not be required for the client credentials flow, add one as part of the registration process. You may use a placeholder such as `https://localhost:9090/callback` if needed.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Discover the authorization and token endpoints and the scopes your integration can request.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/.well-known/oauth-authorization-server
+    ```
+
+    OAuth scopes required for each endpoint are documented with the API. Not every API requires a scope; confirm the scope for Dealer Data Hub in your technical documentation and application configuration.
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using **HTTP Basic Auth** — not in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=<your_scope>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ"
+    }
+    ```
+
+    <Note>
+      Access tokens expire; refresh by requesting a new token before expiry. The `expires_in` value (seconds) returned by the token endpoint is authoritative for your client.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request to Dealer Data Hub.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://dealer-data-hub-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Search dealer by employee XID
+
+Search for dealer data associated with an **employee XID**. Use this when your integration keys off employee identity to resolve dealer context.
+
+```
+POST /api/search/xid/{xid}
+```
+
+**OAuth scope:** Use the scope configured for Dealer Data Hub on your Developer.Deere.com application (this documentation uses the `ddh` scope in the API reference as an example — replace with your assigned scope if different).
+
+<ParamField path="xid" type="string" required>
+  Employee XID used to search dealer records.
+</ParamField>
+
+<ParamField body="includeInactive" type="boolean">
+  Optional. When supported, whether to include inactive associations in the result set.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://dealer-data-hub-sandbox.deere.com/api/search/xid/emp-xid-001234567890' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.ddh.v2+json' \
+  --header 'Content-Type: application/vnd.deere.ddh.v2+json' \
+  --data '{}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="dealers" type="array">
+  Dealer records or aggregates returned for the XID search. Exact fields follow Dealer Data Hub v2.
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Optional result metadata (for example counts or pagination hints).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/search/xid/{xid}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "dealers": [
+    {
+      "dealerId": "D-078901",
+      "dealerName": "Example Ag & Turf",
+      "employeeXid": "emp-xid-001234567890"
+    }
+  ],
+  "meta": {
+    "resultCount": 1
+  }
+}
+```
+
+---
+
+### Dealer 360-degree view
+
+Provide a **360-degree view** of dealer data through various digital threads (activities, analytics, and related context).
+
+```
+POST /api/search/dealers
+```
+
+**OAuth scope:** Use the scope configured for Dealer Data Hub on your Developer.Deere.com application (see note above).
+
+<ParamField body="dealerId" type="string">
+  Optional dealer identifier to scope the 360-degree view when applicable.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://dealer-data-hub-sandbox.deere.com/api/search/dealers' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.ddh.v2+json' \
+  --header 'Content-Type: application/vnd.deere.ddh.v2+json' \
+  --data '{"dealerId":"D-078901"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="dealers" type="array">
+  Dealer-level payloads for the 360-degree view. Structure aligns with Dealer Data Hub digital threads.
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Optional result metadata.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/search/dealers">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "dealers": [
+    {
+      "dealerId": "D-078901",
+      "dealerName": "Example Ag & Turf",
+      "digitalThreads": ["sales", "service", "parts"]
+    }
+  ],
+  "meta": {
+    "resultCount": 1
+  }
+}
+```

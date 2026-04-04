@@ -1,0 +1,240 @@
+---
+title: "Customer Data Product API"
+description: "Unified customer data API providing purchase analytics, profile, sales leads, and behavioral insights for dealer organization groups."
+---
+
+## Overview
+
+The Customer Data Product (CDP) API is a REST API that serves as a single access point to Deere customer data. CDP integrates all activities, behavioral analytics, and predictive analytics for customers to build a digital thread — providing a unified view across the organization.
+
+CDP aggregates different customer data sources and provides an easy interface to all consuming applications. You can compose the customer data you need, such as `Profile`, `Sales Lead`, `Warranty`, `Pips`, and more, based on your specific requirements.
+
+<CardGroup cols={2}>
+  <Card title="Purchase Analytics" icon="chart-line">
+    Understand customer purchase behavior based on historical data and geographical purchase patterns.
+  </Card>
+  <Card title="Unified Customer Profile" icon="user">
+    Access consolidated profile data including contact details, market segment, and account identifiers.
+  </Card>
+  <Card title="Sales Leads" icon="handshake">
+    Retrieve active and historical sales leads associated with each customer record.
+  </Card>
+  <Card title="Composable Data" icon="layer-group">
+    Select the customer data components you need — Profile, Sales Leads, Warranty, Pips, and more.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The CDP API uses the **client credentials** OAuth 2.0 grant type. This is a two-legged flow — no end-user login is required.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://cdp-sandbox-api.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get customer purchase analytics
+
+Returns customers for a given dealer organization group to accurately understand customer purchase behavior based on past purchase behaviors and geographical customer purchase patterns.
+
+```
+GET /isg/customerdataproduct/v2/customers
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField header="searchFrom" type="integer">
+  The start row number for pagination. Defaults to `0`.
+</ParamField>
+
+<ParamField header="responsePageSize" type="integer">
+  The number of customer records to return per page. Defaults to `500`.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://cdp-sandbox-api.deere.com/isg/customerdataproduct/v2/customers' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'searchFrom: 0' \
+  --header 'responsePageSize: 25'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="customers" type="array">
+  List of customer records matching the dealer organization group.
+  <Expandable title="customers">
+    <ResponseField name="profile" type="object">
+      Customer profile information.
+      <Expandable title="profile">
+        <ResponseField name="dogId" type="string">
+          Unique dealer/owner group identifier for the customer.
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Customer full name or organization name.
+        </ResponseField>
+        <ResponseField name="email" type="string">
+          Primary email address.
+        </ResponseField>
+        <ResponseField name="phone" type="string">
+          Primary phone number.
+        </ResponseField>
+        <ResponseField name="address" type="object">
+          Mailing address including street, city, state, zip, and country.
+        </ResponseField>
+        <ResponseField name="segment" type="string">
+          Customer market segment (e.g. `Large Agriculture`).
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="sales_leads" type="array">
+      Sales leads associated with this customer.
+      <Expandable title="sales_leads">
+        <ResponseField name="leadId" type="string">
+          Unique identifier for the sales lead.
+        </ResponseField>
+        <ResponseField name="status" type="string">
+          Current lead status. One of: `OPEN`, `IN_PROGRESS`, `CLOSED_WON`, `CLOSED_LOST`.
+        </ResponseField>
+        <ResponseField name="equipmentInterest" type="string">
+          Equipment the customer has expressed interest in.
+        </ResponseField>
+        <ResponseField name="estimatedValue" type="number">
+          Estimated deal value in USD.
+        </ResponseField>
+        <ResponseField name="assignedDealer" type="string">
+          Dealer account number assigned to the lead.
+        </ResponseField>
+        <ResponseField name="createdAt" type="string">
+          ISO 8601 timestamp when the lead was created.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalCount" type="integer">
+  Total number of matching customer records across all pages.
+</ResponseField>
+
+<ResponseField name="pageSize" type="integer">
+  Number of records returned in this response.
+</ResponseField>
+
+<ResponseField name="searchFrom" type="integer">
+  The starting row index of this result set.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/customerdataproduct/v2/customers">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "customers": [
+    {
+      "profile": {
+        "dogId": "DOG-00123456",
+        "name": "Smith Family Farms",
+        "email": "contact@smithfamilyfarms.com",
+        "phone": "515-555-0100",
+        "address": {
+          "street": "4400 NW 114th Ave",
+          "city": "Urbandale",
+          "state": "IA",
+          "zip": "50322",
+          "country": "US"
+        },
+        "segment": "Large Agriculture"
+      },
+      "sales_leads": [
+        {
+          "leadId": "SL-20260001",
+          "status": "OPEN",
+          "equipmentInterest": "8R Series Tractor",
+          "estimatedValue": 320000.00,
+          "assignedDealer": "D-078901",
+          "createdAt": "2026-01-15T08:00:00Z"
+        }
+      ]
+    }
+  ],
+  "totalCount": 1243,
+  "pageSize": 25,
+  "searchFrom": 0
+}
+```

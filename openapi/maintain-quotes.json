@@ -1,0 +1,1194 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Maintain Quotes API",
+    "description": "REST API for creating and updating the main aspects of a quotation, including equipment management, trade-in details, expiration dates, and master quote workflows.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdquote2-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 flow. Requires the `axiom` scope.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Access quote management operations",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "QuoteObject": {
+        "type": "object",
+        "description": "A quotation record.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "description": "Unique identifier for the quote.",
+            "example": "QT-20260001"
+          },
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer account identifier associated with the quote.",
+            "example": "D-078901"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the quote.",
+            "enum": ["DRAFT", "ACTIVE", "EXPIRED", "DELETED"],
+            "example": "DRAFT"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Name of the customer the quote is prepared for.",
+            "example": "Smith Family Farms"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the quote was created.",
+            "example": "2026-01-15T08:00:00Z"
+          },
+          "expirationDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date on which the quote expires.",
+            "example": "2026-04-15"
+          },
+          "equipments": {
+            "type": "array",
+            "description": "Equipment items included in the quote.",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentObject"
+            }
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Total quoted amount in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "EquipmentObject": {
+        "type": "object",
+        "description": "An equipment item on a quote.",
+        "properties": {
+          "equipmentId": {
+            "type": "string",
+            "description": "Unique identifier for the equipment line item.",
+            "example": "EQ-00445566"
+          },
+          "modelNumber": {
+            "type": "string",
+            "description": "Equipment model number.",
+            "example": "8R410"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable equipment description.",
+            "example": "8R 410 Tractor"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Number of units quoted.",
+            "example": 1
+          },
+          "unitPrice": {
+            "type": "number",
+            "description": "Unit price in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "TradeInObject": {
+        "type": "object",
+        "description": "Trade-in equipment details associated with a quote.",
+        "properties": {
+          "tradeInId": {
+            "type": "string",
+            "description": "Unique identifier for the trade-in record.",
+            "example": "TI-00112233"
+          },
+          "year": {
+            "type": "integer",
+            "description": "Model year of the trade-in equipment.",
+            "example": 2019
+          },
+          "make": {
+            "type": "string",
+            "description": "Manufacturer of the trade-in equipment.",
+            "example": "John Deere"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model name of the trade-in equipment.",
+            "example": "8370R"
+          },
+          "tradeInValue": {
+            "type": "number",
+            "description": "Appraised trade-in value in USD.",
+            "example": 185000.00
+          }
+        }
+      },
+      "MasterQuoteObject": {
+        "type": "object",
+        "description": "A master quote template record.",
+        "properties": {
+          "masterQuoteId": {
+            "type": "string",
+            "description": "Unique identifier for the master quote.",
+            "example": "MQ-20260001"
+          },
+          "name": {
+            "type": "string",
+            "description": "Descriptive name for the master quote template.",
+            "example": "Spring 2026 Row Crop Package"
+          },
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer account identifier that owns this master quote.",
+            "example": "D-078901"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the master quote was created.",
+            "example": "2026-01-10T10:00:00Z"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/dealers/{dealerId}/quotes": {
+      "post": {
+        "operationId": "getMasterQuotes",
+        "summary": "Get Master Quotes",
+        "description": "Returns the list of master quote templates for a given dealer.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "dealerId",
+            "in": "path",
+            "required": true,
+            "description": "The unique dealer account identifier.",
+            "schema": {
+              "type": "string",
+              "example": "D-078901"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/D-078901/quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved master quotes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "masterQuotes": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/MasterQuoteObject" }
+                    }
+                  }
+                },
+                "example": {
+                  "masterQuotes": [
+                    {
+                      "masterQuoteId": "MQ-20260001",
+                      "name": "Spring 2026 Row Crop Package",
+                      "dealerId": "D-078901",
+                      "createdDate": "2026-01-10T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. Missing required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "FORBIDDEN", "message": "Access token is missing the required 'axiom' scope." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dealers/{dealerRacfId}/maintain-quotes": {
+      "post": {
+        "operationId": "getQuotes",
+        "summary": "Get Quotes",
+        "description": "Returns the list of quotes for a given dealer identified by RACF ID.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "dealerRacfId",
+            "in": "path",
+            "required": true,
+            "description": "The dealer RACF identifier.",
+            "schema": {
+              "type": "string",
+              "example": "JDRACF001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/JDRACF001/maintain-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved quotes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quotes": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/QuoteObject" }
+                    }
+                  }
+                },
+                "example": {
+                  "quotes": [
+                    {
+                      "quoteId": "QT-20260001",
+                      "dealerId": "D-078901",
+                      "status": "DRAFT",
+                      "customerName": "Smith Family Farms",
+                      "createdDate": "2026-01-15T08:00:00Z",
+                      "expirationDate": "2026-04-15",
+                      "totalAmount": 485000.00
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/maintain-quotes": {
+      "post": {
+        "operationId": "createQuote",
+        "summary": "Create Quote",
+        "description": "Creates a new quotation.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["dealerId", "customerName"],
+                "properties": {
+                  "dealerId": {
+                    "type": "string",
+                    "description": "Dealer account identifier.",
+                    "example": "D-078901"
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "description": "Name of the customer the quote is for.",
+                    "example": "Smith Family Farms"
+                  },
+                  "expirationDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Optional expiration date for the quote.",
+                    "example": "2026-04-15"
+                  }
+                }
+              },
+              "example": {
+                "dealerId": "D-078901",
+                "customerName": "Smith Family Farms",
+                "expirationDate": "2026-04-15"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/maintain-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"customerName\":\"Smith Family Farms\",\"expirationDate\":\"2026-04-15\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Quote created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260001",
+                  "dealerId": "D-078901",
+                  "status": "DRAFT",
+                  "customerName": "Smith Family Farms",
+                  "createdDate": "2026-01-15T08:00:00Z",
+                  "expirationDate": "2026-04-15",
+                  "totalAmount": 0.00
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing or invalid fields.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "BAD_REQUEST", "message": "Required field 'dealerId' is missing." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/copy-quote": {
+      "post": {
+        "operationId": "copyQuote",
+        "summary": "Copy Quote",
+        "description": "Creates a copy of an existing quote, duplicating all its details and equipment.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote to copy.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/copy-quote' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Quote copied successfully. Returns the new quote.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260002",
+                  "dealerId": "D-078901",
+                  "status": "DRAFT",
+                  "customerName": "Smith Family Farms",
+                  "createdDate": "2026-02-01T09:00:00Z",
+                  "expirationDate": "2026-05-01",
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/dealers/{dealerId}": {
+      "delete": {
+        "operationId": "deleteQuote",
+        "summary": "Delete Quote",
+        "description": "Permanently deletes a quote for the specified dealer.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote to delete.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          },
+          {
+            "name": "dealerId",
+            "in": "path",
+            "required": true,
+            "description": "The dealer account identifier that owns the quote.",
+            "schema": {
+              "type": "string",
+              "example": "D-078901"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/dealers/D-078901' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Quote deleted successfully."
+          },
+          "404": {
+            "description": "Quote or dealer not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found for dealer D-078901." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/equipments": {
+      "post": {
+        "operationId": "addEquipmentFromDBS",
+        "summary": "Add Equipment From DBS",
+        "description": "Adds equipment to a quote sourced from the Dealer Business System (DBS).",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["modelNumber"],
+                "properties": {
+                  "modelNumber": {
+                    "type": "string",
+                    "description": "Equipment model number to add from DBS.",
+                    "example": "8R410"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "description": "Number of units to add.",
+                    "example": 1
+                  }
+                }
+              },
+              "example": {
+                "modelNumber": "8R410",
+                "quantity": 1
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/equipments' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"modelNumber\":\"8R410\",\"quantity\":1}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment added successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EquipmentObject" },
+                "example": {
+                  "equipmentId": "EQ-00445566",
+                  "modelNumber": "8R410",
+                  "description": "8R 410 Tractor",
+                  "quantity": 1,
+                  "unitPrice": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEquipment",
+        "summary": "Delete Equipment",
+        "description": "Removes equipment from a quote.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          },
+          {
+            "name": "equipmentId",
+            "in": "query",
+            "required": true,
+            "description": "The unique identifier of the equipment line item to remove.",
+            "schema": {
+              "type": "string",
+              "example": "EQ-00445566"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/equipments?equipmentId=EQ-00445566' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Equipment removed successfully."
+          },
+          "404": {
+            "description": "Quote or equipment not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Equipment EQ-00445566 not found on quote QT-20260001." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/maintain-quote-details": {
+      "get": {
+        "operationId": "getQuoteDetail",
+        "summary": "Get Quote Detail",
+        "description": "Returns the full details of a specific quote, including all equipment and trade-in information.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/maintain-quote-details' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quote details retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260001",
+                  "dealerId": "D-078901",
+                  "status": "DRAFT",
+                  "customerName": "Smith Family Farms",
+                  "createdDate": "2026-01-15T08:00:00Z",
+                  "expirationDate": "2026-04-15",
+                  "equipments": [
+                    {
+                      "equipmentId": "EQ-00445566",
+                      "modelNumber": "8R410",
+                      "description": "8R 410 Tractor",
+                      "quantity": 1,
+                      "unitPrice": 485000.00
+                    }
+                  ],
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/expiration-date": {
+      "post": {
+        "operationId": "setExpirationDate",
+        "summary": "Set Expiration Date",
+        "description": "Sets or updates the expiration date for a quote.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["expirationDate"],
+                "properties": {
+                  "expirationDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The new expiration date for the quote.",
+                    "example": "2026-06-30"
+                  }
+                }
+              },
+              "example": {
+                "expirationDate": "2026-06-30"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/expiration-date' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"expirationDate\":\"2026-06-30\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expiration date updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260001",
+                  "expirationDate": "2026-06-30"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/maintain-quotes": {
+      "put": {
+        "operationId": "updateQuote",
+        "summary": "Update Quote",
+        "description": "Updates the main details of an existing quote.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote to update.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerName": {
+                    "type": "string",
+                    "description": "Updated customer name.",
+                    "example": "Smith Family Farms LLC"
+                  },
+                  "expirationDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Updated expiration date.",
+                    "example": "2026-06-30"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Updated quote status.",
+                    "enum": ["DRAFT", "ACTIVE"],
+                    "example": "ACTIVE"
+                  }
+                }
+              },
+              "example": {
+                "customerName": "Smith Family Farms LLC",
+                "expirationDate": "2026-06-30",
+                "status": "ACTIVE"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/maintain-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"customerName\":\"Smith Family Farms LLC\",\"expirationDate\":\"2026-06-30\",\"status\":\"ACTIVE\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quote updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260001",
+                  "dealerId": "D-078901",
+                  "status": "ACTIVE",
+                  "customerName": "Smith Family Farms LLC",
+                  "expirationDate": "2026-06-30",
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/master-quotes": {
+      "post": {
+        "operationId": "createQuoteFromMasterQuote",
+        "summary": "Create Quote From Master Quote",
+        "description": "Creates a new quote based on an existing master quote template.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the master quote to use as a template.",
+            "schema": {
+              "type": "string",
+              "example": "MQ-20260001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["dealerId", "customerName"],
+                "properties": {
+                  "dealerId": {
+                    "type": "string",
+                    "description": "Dealer account identifier for the new quote.",
+                    "example": "D-078901"
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "description": "Customer name for the new quote.",
+                    "example": "Jones Ag Operations"
+                  }
+                }
+              },
+              "example": {
+                "dealerId": "D-078901",
+                "customerName": "Jones Ag Operations"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/MQ-20260001/master-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"customerName\":\"Jones Ag Operations\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Quote created from master quote successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260003",
+                  "dealerId": "D-078901",
+                  "status": "DRAFT",
+                  "customerName": "Jones Ag Operations",
+                  "createdDate": "2026-02-10T11:00:00Z",
+                  "expirationDate": "2026-05-10",
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Master quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Master quote MQ-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/save-quotes": {
+      "post": {
+        "operationId": "saveQuote",
+        "summary": "Save Quote",
+        "description": "Persists the current state of a quote, committing all pending changes.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote to save.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/save-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quote saved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuoteObject" },
+                "example": {
+                  "quoteId": "QT-20260001",
+                  "status": "ACTIVE",
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/{quoteId}/trade-in": {
+      "post": {
+        "operationId": "tradeInData",
+        "summary": "Trade-In Data",
+        "description": "Adds or updates trade-in equipment details associated with a quote.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["make", "model", "year"],
+                "properties": {
+                  "year": {
+                    "type": "integer",
+                    "description": "Model year of the trade-in equipment.",
+                    "example": 2019
+                  },
+                  "make": {
+                    "type": "string",
+                    "description": "Manufacturer of the trade-in equipment.",
+                    "example": "John Deere"
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Model name of the trade-in equipment.",
+                    "example": "8370R"
+                  },
+                  "tradeInValue": {
+                    "type": "number",
+                    "description": "Appraised trade-in value in USD.",
+                    "example": 185000.00
+                  }
+                }
+              },
+              "example": {
+                "year": 2019,
+                "make": "John Deere",
+                "model": "8370R",
+                "tradeInValue": 185000.00
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/trade-in' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"year\":2019,\"make\":\"John Deere\",\"model\":\"8370R\",\"tradeInValue\":185000.00}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trade-in data saved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TradeInObject" },
+                "example": {
+                  "tradeInId": "TI-00112233",
+                  "year": 2019,
+                  "make": "John Deere",
+                  "model": "8370R",
+                  "tradeInValue": 185000.00
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "NOT_FOUND", "message": "Quote QT-20260001 not found." } }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": { "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired access token." } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

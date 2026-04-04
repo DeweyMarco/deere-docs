@@ -1,0 +1,642 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Quote Data API",
+    "description": "REST API for retrieving quote-related information, including quote search, details, and PDF document generation.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdquote2-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 flow.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "QuoteSummary": {
+        "type": "object",
+        "description": "A summarized quote record returned from a search.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "description": "Unique identifier for the quote.",
+            "example": "QT-20260001"
+          },
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer account identifier associated with the quote.",
+            "example": "D-078901"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Name of the customer the quote is prepared for.",
+            "example": "Smith Family Farms"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the quote.",
+            "enum": ["DRAFT", "ACTIVE", "EXPIRED", "DELETED"],
+            "example": "ACTIVE"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the quote was created.",
+            "example": "2026-01-15T08:00:00Z"
+          },
+          "expirationDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date on which the quote expires.",
+            "example": "2026-04-15"
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Total quoted amount in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "QuoteDetail": {
+        "type": "object",
+        "description": "Full detail record for a quote.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "description": "Unique identifier for the quote.",
+            "example": "QT-20260001"
+          },
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer account identifier.",
+            "example": "D-078901"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Name of the customer.",
+            "example": "Smith Family Farms"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the quote.",
+            "enum": ["DRAFT", "ACTIVE", "EXPIRED", "DELETED"],
+            "example": "ACTIVE"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the quote was created.",
+            "example": "2026-01-15T08:00:00Z"
+          },
+          "expirationDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date on which the quote expires.",
+            "example": "2026-04-15"
+          },
+          "equipments": {
+            "type": "array",
+            "description": "Equipment line items included in the quote.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "equipmentId": {
+                  "type": "string",
+                  "description": "Unique identifier for the equipment line item.",
+                  "example": "EQ-00445566"
+                },
+                "modelNumber": {
+                  "type": "string",
+                  "description": "Equipment model number.",
+                  "example": "8R410"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Human-readable equipment description.",
+                  "example": "8R 410 Tractor"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "description": "Number of units quoted.",
+                  "example": 1
+                },
+                "unitPrice": {
+                  "type": "number",
+                  "description": "Unit price in USD.",
+                  "example": 485000.00
+                }
+              }
+            }
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Total quoted amount in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "LastModifiedDate": {
+        "type": "object",
+        "description": "Last modified date response for a quote.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "description": "Unique identifier for the quote.",
+            "example": "QT-20260001"
+          },
+          "lastModifiedDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the quote was last modified.",
+            "example": "2026-03-20T14:32:00Z"
+          }
+        }
+      },
+      "SupportingDoc": {
+        "type": "object",
+        "description": "A supporting document attached to a quote.",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "Unique identifier for the document.",
+            "example": "DOC-00112233"
+          },
+          "documentName": {
+            "type": "string",
+            "description": "Display name of the document.",
+            "example": "Trade-In Appraisal.pdf"
+          },
+          "documentType": {
+            "type": "string",
+            "description": "MIME type of the document.",
+            "example": "application/pdf"
+          },
+          "uploadedDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the document was uploaded.",
+            "example": "2026-02-10T09:15:00Z"
+          },
+          "uploadedBy": {
+            "type": "string",
+            "description": "User who uploaded the document.",
+            "example": "jdoe@dealer.com"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code.",
+            "example": "QUOTE_NOT_FOUND"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message.",
+            "example": "Quote with ID QT-20260001 was not found."
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "OAuth2": []
+    }
+  ],
+  "paths": {
+    "/om/cert/quotedata/api/v1/quote-data": {
+      "post": {
+        "summary": "Search Quote",
+        "description": "Search for quotes using filter criteria such as dealer ID, customer name, date range, or quote status.",
+        "operationId": "searchQuote",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quote-data' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"status\":\"ACTIVE\",\"customerName\":\"Smith\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dealerId": {
+                    "type": "string",
+                    "description": "Filter by dealer account identifier.",
+                    "example": "D-078901"
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "description": "Filter by customer name (partial match supported).",
+                    "example": "Smith"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Filter by quote status.",
+                    "enum": ["DRAFT", "ACTIVE", "EXPIRED", "DELETED"],
+                    "example": "ACTIVE"
+                  },
+                  "fromDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Filter quotes created on or after this date (`YYYY-MM-DD`).",
+                    "example": "2026-01-01"
+                  },
+                  "toDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Filter quotes created on or before this date (`YYYY-MM-DD`).",
+                    "example": "2026-03-31"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A list of quotes matching the search criteria.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quotes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QuoteSummary"
+                      }
+                    },
+                    "totalCount": {
+                      "type": "integer",
+                      "description": "Total number of quotes matching the search criteria.",
+                      "example": 12
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid search parameters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/last-modified-date": {
+      "get": {
+        "summary": "Get Last Modified Date",
+        "description": "Returns the date and time a specific quote was last modified.",
+        "operationId": "getLastModifiedDate",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/last-modified-date' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The last modified date for the quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastModifiedDate"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/orderform-pdf": {
+      "get": {
+        "summary": "Get Order Form PDF",
+        "description": "Returns the order form PDF document for a specific quote.",
+        "operationId": "getOrderFormPdf",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/orderform-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --output orderform.pdf"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF binary content of the order form.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/proposal-pdf": {
+      "get": {
+        "summary": "Get Proposal PDF",
+        "description": "Returns the customer-facing proposal PDF document for a specific quote.",
+        "operationId": "getProposalPdf",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/proposal-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --output proposal.pdf"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF binary content of the proposal.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/quote-details": {
+      "get": {
+        "summary": "Get Quote Detail",
+        "description": "Returns the full detail record for a specific quote, including all equipment line items, pricing, and customer information.",
+        "operationId": "getQuoteDetail",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/quote-details' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full detail record for the quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/recap-pdf": {
+      "get": {
+        "summary": "Get Recap PDF",
+        "description": "Returns the recap PDF document summarizing the key details of a specific quote.",
+        "operationId": "getRecapPdf",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/recap-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --output recap.pdf"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF binary content of the recap document.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    },
+    "/om/cert/quotedata/api/v1/quotes/{quoteId}/supporting-docs": {
+      "get": {
+        "summary": "Get Supporting Docs",
+        "description": "Returns a list of supporting documents attached to a specific quote.",
+        "operationId": "getSupportingDocs",
+        "tags": ["Quote Data"],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/om/cert/quotedata/api/v1/quotes/QT-20260001/supporting-docs' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of supporting documents for the quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SupportingDoc"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Quote not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid access token."
+          }
+        }
+      }
+    }
+  }
+}

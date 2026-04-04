@@ -13,7 +13,7 @@
       "dark": "#367C2B"
     },
     "api": {
-      "openapi": ["openapi/dealer-data-feed.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json"],
+      "openapi": ["openapi/dealer-data-feed.json", "openapi/dealer-data-hub.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json", "openapi/customer-data-product.json", "openapi/customer-linkage.json", "openapi/maintain-quotes.json", "openapi/market-share.json", "openapi/po-data.json", "openapi/om-equipment.json", "openapi/transaction-pricing.json"],
       "playground": {
         "display": "interactive"
       },
@@ -62,13 +62,127 @@
                     {
                         "group": "Financial",
                         "pages": [
-                            "dealer_solutions/financial/index"
+                            {
+                                "group": "Customer Data Product",
+                                "root": "dealer_solutions/financial/customer-data-product",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/customer-data-product.json",
+                                        "pages": [
+                                            "GET /isg/customerdataproduct/v2/customers"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Customer Linkage",
+                                "root": "dealer_solutions/financial/customer-linkage",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/customer-linkage.json",
+                                        "pages": [
+                                            "POST /isg/customerlinkage/api/linkages",
+                                            "DELETE /isg/customerlinkage/api/linkages",
+                                            "GET /isg/customerlinkage/api/retrieveLinkages"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Maintain Quotes",
+                                "root": "dealer_solutions/financial/maintain-quotes",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/maintain-quotes.json",
+                                        "pages": [
+                                            "POST /api/v1/dealers/{dealerId}/quotes",
+                                            "POST /api/v1/dealers/{dealerRacfId}/maintain-quotes",
+                                            "POST /api/v1/maintain-quotes",
+                                            "POST /api/v1/quotes/{quoteId}/copy-quote",
+                                            "DELETE /api/v1/quotes/{quoteId}/dealers/{dealerId}",
+                                            "POST /api/v1/quotes/{quoteId}/equipments",
+                                            "DELETE /api/v1/quotes/{quoteId}/equipments",
+                                            "GET /api/v1/quotes/{quoteId}/maintain-quote-details",
+                                            "POST /api/v1/quotes/{quoteId}/expiration-date",
+                                            "PUT /api/v1/quotes/{quoteId}/maintain-quotes",
+                                            "POST /api/v1/quotes/{quoteId}/master-quotes",
+                                            "POST /api/v1/quotes/{quoteId}/save-quotes",
+                                            "POST /api/v1/quotes/{quoteId}/trade-in"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "OM Equipment - Update Vehicle Availability",
+                                "root": "dealer_solutions/financial/om-equipment",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/om-equipment.json",
+                                        "pages": [
+                                            "PUT /om/equipment/{vehicleNumber}/on-rent",
+                                            "PUT /om/equipment/{vehicleNumber}/off-rent",
+                                            "GET /om/equipment/purchaser-types",
+                                            "GET /om/equipment/market-types",
+                                            "GET /om/equipment/{countryCode}/geography"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "PO Data",
+                                "root": "dealer_solutions/financial/po-data",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/po-data.json",
+                                        "pages": [
+                                            "GET /api/v1/dealers/{racfId}/blank-po-pdf",
+                                            "POST /api/v1/purchase-orders",
+                                            "GET /api/v1/quotes/{quoteId}/dealers/{racfId}",
+                                            "GET /api/v1/quotes/{quoteId}/po-pdf",
+                                            "GET /api/v1/quotes/{quoteId}/rentals"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Marketing Reporting",
                         "pages": [
-                            "dealer_solutions/marketing-reporting/index"
+                            {
+                                "group": "Dealer Data Hub (External)",
+                                "root": "dealer_solutions/marketing-reporting/dealer-data-hub",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/dealer-data-hub.json",
+                                        "pages": [
+                                            "POST /api/search/xid/{xid}",
+                                            "POST /api/search/dealers"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Market Share",
+                                "root": "dealer_solutions/marketing-reporting/market-share",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/market-share.json",
+                                        "pages": [
+                                            "GET /mrkt/sandbox/drx-api/avgDollarReport/{dealerId}",
+                                            "POST /mrkt/sandbox/drx-api/rawDataReport/byCounty",
+                                            "POST /mrkt/sandbox/drx-api/rawDataReport/byStore"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {

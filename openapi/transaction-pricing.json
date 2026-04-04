@@ -1,0 +1,253 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Transaction Pricing API",
+    "description": "REST API for recording competitive transaction pricing data, enabling dealers to compare competitor retail prices with John Deere offerings across machine sales, finance, and warranty programs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://mktg-services-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Client credentials OAuth 2.0 flow.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "TransactionEntry": {
+        "type": "object",
+        "description": "A competitive transaction pricing record.",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "description": "Unique dealer identifier submitting the transaction.",
+            "example": "D-078901"
+          },
+          "transactionDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the transaction or competitive sale occurred.",
+            "example": "2026-04-01"
+          },
+          "competitorName": {
+            "type": "string",
+            "description": "Name of the competing manufacturer or brand.",
+            "example": "AGCO"
+          },
+          "competitorModel": {
+            "type": "string",
+            "description": "Model name or number of the competitor equipment.",
+            "example": "Fendt 942 Vario"
+          },
+          "equipmentCategory": {
+            "type": "string",
+            "description": "Category of equipment. Examples: `Tractor`, `Combine`, `Planter`.",
+            "example": "Tractor"
+          },
+          "competitorRetailPrice": {
+            "type": "number",
+            "format": "double",
+            "description": "Competitor retail sale price in USD.",
+            "example": 510000.00
+          },
+          "johnDeereModel": {
+            "type": "string",
+            "description": "Comparable John Deere model number offered.",
+            "example": "8R 410"
+          },
+          "johnDeereRetailPrice": {
+            "type": "number",
+            "format": "double",
+            "description": "John Deere retail price for the comparable model in USD.",
+            "example": 495000.00
+          },
+          "financeProgram": {
+            "type": "object",
+            "description": "Finance program details associated with the transaction.",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "description": "Finance provider name.",
+                "example": "John Deere Financial"
+              },
+              "rate": {
+                "type": "number",
+                "description": "Annual percentage rate (APR) offered.",
+                "example": 3.9
+              },
+              "termMonths": {
+                "type": "integer",
+                "description": "Length of the finance term in months.",
+                "example": 60
+              }
+            }
+          },
+          "warrantyProgram": {
+            "type": "object",
+            "description": "Warranty program details associated with the transaction.",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "description": "Warranty provider name.",
+                "example": "John Deere"
+              },
+              "durationYears": {
+                "type": "integer",
+                "description": "Warranty duration in years.",
+                "example": 3
+              },
+              "coverageType": {
+                "type": "string",
+                "description": "Type of warranty coverage. Examples: `Comprehensive`, `Powertrain`.",
+                "example": "Comprehensive"
+              }
+            }
+          },
+          "saleOutcome": {
+            "type": "string",
+            "description": "Outcome of the sales interaction. One of: `WON`, `LOST`, `PENDING`.",
+            "enum": ["WON", "LOST", "PENDING"],
+            "example": "LOST"
+          },
+          "lostSaleReason": {
+            "type": "string",
+            "description": "Primary reason for a lost sale if `saleOutcome` is `LOST`. Not limited to price — can capture preference, features, financing, etc.",
+            "example": "Customer preferred competitor financing terms"
+          },
+          "salespersonId": {
+            "type": "string",
+            "description": "Identifier of the salesperson or data entry personnel recording the transaction.",
+            "example": "SP-00445"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional free-text notes about the transaction.",
+            "example": "Customer was interested in a large acreage row-crop operation; competitor offered 0% for 24 months."
+          }
+        },
+        "required": ["dealerId", "transactionDate", "competitorName", "competitorModel", "competitorRetailPrice", "saleOutcome"]
+      },
+      "TransactionResponse": {
+        "type": "object",
+        "description": "Confirmation of a successfully recorded transaction.",
+        "properties": {
+          "transactionId": {
+            "type": "string",
+            "description": "Unique identifier assigned to the recorded transaction.",
+            "example": "TP-20260001"
+          },
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer identifier associated with the transaction.",
+            "example": "D-078901"
+          },
+          "status": {
+            "type": "string",
+            "description": "Recording status. Typically `ACCEPTED`.",
+            "example": "ACCEPTED"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the transaction record was created.",
+            "example": "2026-04-01T14:30:00Z"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "OAuth2": []
+    }
+  ],
+  "paths": {
+    "/mrkt/trans-pricing/transaction": {
+      "post": {
+        "operationId": "createTransaction",
+        "summary": "Transaction entry in TP Application",
+        "description": "Records a competitive transaction pricing entry in the Transaction Pricing (TP) application. Use this endpoint to submit competitor retail prices, finance and warranty program comparisons, and sale outcome data for market analysis and dealer training.",
+        "tags": ["Transaction Pricing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionEntry"
+              },
+              "example": {
+                "dealerId": "D-078901",
+                "transactionDate": "2026-04-01",
+                "competitorName": "AGCO",
+                "competitorModel": "Fendt 942 Vario",
+                "equipmentCategory": "Tractor",
+                "competitorRetailPrice": 510000.00,
+                "johnDeereModel": "8R 410",
+                "johnDeereRetailPrice": 495000.00,
+                "financeProgram": {
+                  "provider": "John Deere Financial",
+                  "rate": 3.9,
+                  "termMonths": 60
+                },
+                "warrantyProgram": {
+                  "provider": "John Deere",
+                  "durationYears": 3,
+                  "coverageType": "Comprehensive"
+                },
+                "saleOutcome": "LOST",
+                "lostSaleReason": "Customer preferred competitor financing terms",
+                "salespersonId": "SP-00445",
+                "notes": "Customer was interested in a large acreage row-crop operation; competitor offered 0% for 24 months."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction successfully recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                },
+                "example": {
+                  "transactionId": "TP-20260001",
+                  "dealerId": "D-078901",
+                  "status": "ACCEPTED",
+                  "createdDate": "2026-04-01T14:30:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing required fields or invalid data."
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token."
+          },
+          "500": {
+            "description": "Internal server error."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://mktg-services-sandbox.deere.com/mrkt/trans-pricing/transaction' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\n    \"dealerId\": \"D-078901\",\n    \"transactionDate\": \"2026-04-01\",\n    \"competitorName\": \"AGCO\",\n    \"competitorModel\": \"Fendt 942 Vario\",\n    \"equipmentCategory\": \"Tractor\",\n    \"competitorRetailPrice\": 510000.00,\n    \"johnDeereModel\": \"8R 410\",\n    \"johnDeereRetailPrice\": 495000.00,\n    \"saleOutcome\": \"LOST\",\n    \"lostSaleReason\": \"Customer preferred competitor financing terms\",\n    \"salespersonId\": \"SP-00445\"\n  }'"
+          }
+        ]
+      }
+    }
+  }
+}

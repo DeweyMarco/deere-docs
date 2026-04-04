@@ -1,0 +1,773 @@
+---
+title: "Maintain Quotes API"
+description: "Create and update quotations including equipment management, trade-in details, expiration dates, and master quote workflows."
+---
+
+## Overview
+
+The Maintain Quotes API is designed to create and update the main aspects of a quotation. Use these endpoints to manage the full quote lifecycle — from initial creation to saving a finalized quote ready for the customer.
+
+<CardGroup cols={2}>
+  <Card title="Create & Copy Quotes" icon="file-plus">
+    Create new quotes from scratch, from master templates, or by copying existing quotes.
+  </Card>
+  <Card title="Equipment Management" icon="tractor">
+    Add and remove equipment line items sourced directly from the Dealer Business System (DBS).
+  </Card>
+  <Card title="Trade-In Data" icon="arrows-rotate">
+    Capture and update trade-in equipment details to accurately reflect customer deals.
+  </Card>
+  <Card title="Master Quote Templates" icon="copy">
+    Retrieve master quote templates and spin up new quotes from a standardized starting point.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Maintain Quotes API uses **three-legged OAuth 2.0** for authentication. This flow requires end-user consent and a John Deere sign-in.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    On the OAuth Profile page of your application (found in the Details section), add one or more **Callback URLs (Redirect URIs)**. Click **Add** to add more than one, then click **Save**.
+
+    <Note>
+      If callback URLs do not sync properly, users will receive a `400 Bad Redirect` error after authentication. Contact John Deere support if this occurs — the callback may need to be manually synced.
+    </Note>
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization endpoint, token endpoint, and available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the John Deere authorization server. The server will redirect back to your application with an authorization code after the user signs in and grants consent.
+
+    Required query parameters: `response_type=code`, `client_id`, `redirect_uri` (URL-encoded), `scope`, and `state`.
+
+    **OAuth Scopes:**
+
+    | Scope | Permission | Description |
+    |---|---|---|
+    | `axiom` | API access | Required for all Maintain Quotes endpoints |
+    | `offline_access` | API authentication only | Request a refresh token |
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code for an access token and refresh token.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=authorization_code&code=<auth_code>&redirect_uri=<redirect_uri>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "refresh_token": "eyJhbG[...]xYZ",
+      "scope": "axiom offline_access"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Use the refresh token to obtain a new access token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+  <Step title="Refresh the access token periodically">
+    Before the access token expires, request a new one using the refresh token. The refresh token expires after **365 days** of inactivity.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=refresh_token&refresh_token=<refresh_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://jdquote2-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get Master Quotes
+
+Returns the list of master quote templates for a given dealer.
+
+```
+POST /api/v1/dealers/{dealerId}/quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="dealerId" type="string" required>
+  The unique dealer account identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/D-078901/quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="masterQuotes" type="array">
+  List of master quote templates for the dealer.
+  <Expandable title="masterQuotes">
+    <ResponseField name="masterQuoteId" type="string">
+      Unique identifier for the master quote.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Descriptive name for the master quote template.
+    </ResponseField>
+    <ResponseField name="dealerId" type="string">
+      Dealer account identifier that owns this master quote.
+    </ResponseField>
+    <ResponseField name="createdDate" type="string">
+      ISO 8601 timestamp when the master quote was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/dealers/{dealerId}/quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Quotes
+
+Returns the list of quotes for a given dealer, identified by RACF ID.
+
+```
+POST /api/v1/dealers/{dealerRacfId}/maintain-quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="dealerRacfId" type="string" required>
+  The dealer RACF identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/JDRACF001/maintain-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quotes" type="array">
+  List of quotes for the dealer.
+  <Expandable title="quotes">
+    <ResponseField name="quoteId" type="string">
+      Unique identifier for the quote.
+    </ResponseField>
+    <ResponseField name="dealerId" type="string">
+      Dealer account identifier associated with the quote.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Current status. One of: `DRAFT`, `ACTIVE`, `EXPIRED`, `DELETED`.
+    </ResponseField>
+    <ResponseField name="customerName" type="string">
+      Name of the customer the quote is prepared for.
+    </ResponseField>
+    <ResponseField name="createdDate" type="string">
+      ISO 8601 timestamp when the quote was created.
+    </ResponseField>
+    <ResponseField name="expirationDate" type="string">
+      Date on which the quote expires.
+    </ResponseField>
+    <ResponseField name="totalAmount" type="number">
+      Total quoted amount in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/dealers/{dealerRacfId}/maintain-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create Quote
+
+Creates a new quotation.
+
+```
+POST /api/v1/maintain-quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField body="dealerId" type="string" required>
+  Dealer account identifier.
+</ParamField>
+
+<ParamField body="customerName" type="string" required>
+  Name of the customer the quote is for.
+</ParamField>
+
+<ParamField body="expirationDate" type="string">
+  Optional expiration date for the quote (`YYYY-MM-DD`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/maintain-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","customerName":"Smith Family Farms","expirationDate":"2026-04-15"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/maintain-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Copy Quote
+
+Creates a copy of an existing quote, duplicating all its details and equipment.
+
+```
+POST /api/v1/quotes/{quoteId}/copy-quote
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote to copy.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/copy-quote' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/copy-quote">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Delete Quote
+
+Permanently deletes a quote for the specified dealer.
+
+```
+DELETE /api/v1/quotes/{quoteId}/dealers/{dealerId}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote to delete.
+</ParamField>
+
+<ParamField path="dealerId" type="string" required>
+  The dealer account identifier that owns the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/dealers/D-078901' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /api/v1/quotes/{quoteId}/dealers/{dealerId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Add Equipment From DBS
+
+Adds equipment to a quote sourced from the Dealer Business System (DBS).
+
+```
+POST /api/v1/quotes/{quoteId}/equipments
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<ParamField body="modelNumber" type="string" required>
+  Equipment model number to add from DBS.
+</ParamField>
+
+<ParamField body="quantity" type="integer">
+  Number of units to add. Defaults to `1`.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/equipments' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"modelNumber":"8R410","quantity":1}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="equipmentId" type="string">
+  Unique identifier for the equipment line item on the quote.
+</ResponseField>
+
+<ResponseField name="modelNumber" type="string">
+  Equipment model number.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Human-readable equipment description.
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+  Number of units quoted.
+</ResponseField>
+
+<ResponseField name="unitPrice" type="number">
+  Unit price in USD.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/equipments">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Delete Equipment
+
+Removes an equipment line item from a quote.
+
+```
+DELETE /api/v1/quotes/{quoteId}/equipments
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<ParamField query="equipmentId" type="string" required>
+  The unique identifier of the equipment line item to remove.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/equipments?equipmentId=EQ-00445566' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /api/v1/quotes/{quoteId}/equipments">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Quote Detail
+
+Returns the full details of a specific quote, including all equipment and trade-in information.
+
+```
+GET /api/v1/quotes/{quoteId}/maintain-quote-details
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/maintain-quote-details' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quoteId" type="string">
+  Unique identifier for the quote.
+</ResponseField>
+
+<ResponseField name="dealerId" type="string">
+  Dealer account identifier associated with the quote.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status. One of: `DRAFT`, `ACTIVE`, `EXPIRED`, `DELETED`.
+</ResponseField>
+
+<ResponseField name="customerName" type="string">
+  Name of the customer the quote is prepared for.
+</ResponseField>
+
+<ResponseField name="createdDate" type="string">
+  ISO 8601 timestamp when the quote was created.
+</ResponseField>
+
+<ResponseField name="expirationDate" type="string">
+  Date on which the quote expires.
+</ResponseField>
+
+<ResponseField name="equipments" type="array">
+  Equipment line items on the quote.
+  <Expandable title="equipments">
+    <ResponseField name="equipmentId" type="string">
+      Unique identifier for the equipment line item.
+    </ResponseField>
+    <ResponseField name="modelNumber" type="string">
+      Equipment model number.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Human-readable equipment description.
+    </ResponseField>
+    <ResponseField name="quantity" type="integer">
+      Number of units quoted.
+    </ResponseField>
+    <ResponseField name="unitPrice" type="number">
+      Unit price in USD.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalAmount" type="number">
+  Total quoted amount in USD.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /api/v1/quotes/{quoteId}/maintain-quote-details">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "quoteId": "QT-20260001",
+  "dealerId": "D-078901",
+  "status": "DRAFT",
+  "customerName": "Smith Family Farms",
+  "createdDate": "2026-01-15T08:00:00Z",
+  "expirationDate": "2026-04-15",
+  "equipments": [
+    {
+      "equipmentId": "EQ-00445566",
+      "modelNumber": "8R410",
+      "description": "8R 410 Tractor",
+      "quantity": 1,
+      "unitPrice": 485000.00
+    }
+  ],
+  "totalAmount": 485000.00
+}
+```
+
+---
+
+### Set Expiration Date
+
+Sets or updates the expiration date for a quote.
+
+```
+POST /api/v1/quotes/{quoteId}/expiration-date
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<ParamField body="expirationDate" type="string" required>
+  The new expiration date for the quote (`YYYY-MM-DD`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/expiration-date' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"expirationDate":"2026-06-30"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/expiration-date">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Quote
+
+Updates the main details of an existing quote.
+
+```
+PUT /api/v1/quotes/{quoteId}/maintain-quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote to update.
+</ParamField>
+
+<ParamField body="customerName" type="string">
+  Updated customer name.
+</ParamField>
+
+<ParamField body="expirationDate" type="string">
+  Updated expiration date (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="status" type="string">
+  Updated quote status. One of: `DRAFT`, `ACTIVE`.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/maintain-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"customerName":"Smith Family Farms LLC","expirationDate":"2026-06-30","status":"ACTIVE"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /api/v1/quotes/{quoteId}/maintain-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create Quote From Master Quote
+
+Creates a new quote based on an existing master quote template.
+
+```
+POST /api/v1/quotes/{quoteId}/master-quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the master quote to use as a template.
+</ParamField>
+
+<ParamField body="dealerId" type="string" required>
+  Dealer account identifier for the new quote.
+</ParamField>
+
+<ParamField body="customerName" type="string" required>
+  Customer name for the new quote.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/MQ-20260001/master-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","customerName":"Jones Ag Operations"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/master-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Save Quote
+
+Persists the current state of a quote, committing all pending changes.
+
+```
+POST /api/v1/quotes/{quoteId}/save-quotes
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote to save.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/save-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/save-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Trade-In Data
+
+Adds or updates trade-in equipment details associated with a quote.
+
+```
+POST /api/v1/quotes/{quoteId}/trade-in
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="quoteId" type="string" required>
+  The unique identifier of the quote.
+</ParamField>
+
+<ParamField body="year" type="integer" required>
+  Model year of the trade-in equipment.
+</ParamField>
+
+<ParamField body="make" type="string" required>
+  Manufacturer of the trade-in equipment.
+</ParamField>
+
+<ParamField body="model" type="string" required>
+  Model name of the trade-in equipment.
+</ParamField>
+
+<ParamField body="tradeInValue" type="number">
+  Appraised trade-in value in USD.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/trade-in' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*' \
+  --header 'Content-Type: application/json' \
+  --data '{"year":2019,"make":"John Deere","model":"8370R","tradeInValue":185000.00}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="tradeInId" type="string">
+  Unique identifier for the trade-in record.
+</ResponseField>
+
+<ResponseField name="year" type="integer">
+  Model year of the trade-in equipment.
+</ResponseField>
+
+<ResponseField name="make" type="string">
+  Manufacturer of the trade-in equipment.
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Model name of the trade-in equipment.
+</ResponseField>
+
+<ResponseField name="tradeInValue" type="number">
+  Appraised trade-in value in USD.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /api/v1/quotes/{quoteId}/trade-in">
+  Test this endpoint interactively with your access token.
+</Card>

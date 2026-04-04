@@ -1,0 +1,469 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Market Share API",
+    "description": "REST API providing U.S. and Canada dealer market share data for Agriculture, Construction & Forestry (C&F), and Construction & Compact Equipment (CCE). Aligns with Global Market Share (GMS) application data including By Store and By County structures.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://drx-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Client credentials OAuth 2.0 flow. Requires the `axiom` scope.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Access market share and reporting data"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AemAverageDollarRow": {
+        "type": "object",
+        "description": "AEM average dollar value for a machine and size class combination.",
+        "properties": {
+          "machine": {
+            "type": "string",
+            "description": "Machine category or model family identifier.",
+            "example": "LARGE_TRACTOR"
+          },
+          "sizeClass": {
+            "type": "string",
+            "description": "Equipment size class.",
+            "example": "200_HP_PLUS"
+          },
+          "averageDollarValue": {
+            "type": "number",
+            "description": "Association for Equipment Manufacturers (AEM) average dollar value for this combination.",
+            "example": 425000.5
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code.",
+            "example": "USD"
+          },
+          "effectiveYear": {
+            "type": "integer",
+            "description": "Fiscal or calendar year the AEM values apply to.",
+            "example": 2026
+          }
+        }
+      },
+      "AemAverageDollarReportResponse": {
+        "type": "object",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer identifier for the report.",
+            "example": "D-078901"
+          },
+          "rows": {
+            "type": "array",
+            "description": "AEM average dollar rows for each unique machine and size class combination.",
+            "items": {
+              "$ref": "#/components/schemas/AemAverageDollarRow"
+            }
+          }
+        }
+      },
+      "RawDataByCountyRequest": {
+        "type": "object",
+        "description": "Request body for the Raw Data (by County) report. Include filters your integration requires (e.g. reporting period, segments).",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer identifier requesting the report.",
+            "example": "D-078901"
+          },
+          "reportingPeriodStart": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the activity month range (inclusive).",
+            "example": "2025-01-01"
+          },
+          "reportingPeriodEnd": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the activity month range (inclusive).",
+            "example": "2025-12-31"
+          },
+          "segments": {
+            "type": "array",
+            "description": "Optional market segments to include (e.g. Ag, C&F, CCE).",
+            "items": {
+              "type": "string"
+            },
+            "example": ["AG", "CF", "CCE"]
+          }
+        }
+      },
+      "RawDataByStoreRequest": {
+        "type": "object",
+        "description": "Request body for the Raw Data (by Store) report. Include filters your integration requires (e.g. reporting period, segments).",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "description": "Dealer identifier requesting the report.",
+            "example": "D-078901"
+          },
+          "reportingPeriodStart": {
+            "type": "string",
+            "format": "date",
+            "description": "Start of the activity month range (inclusive).",
+            "example": "2025-01-01"
+          },
+          "reportingPeriodEnd": {
+            "type": "string",
+            "format": "date",
+            "description": "End of the activity month range (inclusive).",
+            "example": "2025-12-31"
+          },
+          "segments": {
+            "type": "array",
+            "description": "Optional market segments to include (e.g. Ag, C&F, CCE).",
+            "items": {
+              "type": "string"
+            },
+            "example": ["AG", "CF", "CCE"]
+          }
+        }
+      },
+      "RawDataReportResponse": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "description": "Report rows. Structure matches the GMS Raw Data report for the selected dimension.",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "rowCount": {
+            "type": "integer",
+            "example": 1842
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/mrkt/sandbox/drx-api/avgDollarReport/{dealerId}": {
+      "get": {
+        "operationId": "getAemAverageDollarReport",
+        "summary": "Get AEM industry average dollar data",
+        "description": "Returns the Association for Equipment Manufacturers (AEM) list of average dollar values for each unique machine and size class combination. For North America, these values are typically updated annually and made available in February.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "dealerId",
+            "in": "path",
+            "required": true,
+            "description": "Dealer identifier for which to retrieve AEM average dollar data.",
+            "schema": {
+              "type": "string",
+              "example": "D-078901"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/avgDollarReport/D-078901' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved AEM average dollar data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AemAverageDollarReportResponse"
+                },
+                "example": {
+                  "dealerId": "D-078901",
+                  "rows": [
+                    {
+                      "machine": "LARGE_TRACTOR",
+                      "sizeClass": "200_HP_PLUS",
+                      "averageDollarValue": 425000.5,
+                      "currency": "USD",
+                      "effectiveYear": 2026
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mrkt/sandbox/drx-api/rawDataReport/byCounty": {
+      "post": {
+        "operationId": "postRawDataReportByCounty",
+        "summary": "Retrieve market share data by county",
+        "description": "Returns the same data as the Global Market Share (GMS) application’s “Raw Data (by County)” report (“ByCounty” tab): dealer and industry sales for each unique Machine, Size Class, County, and Activity Month combination.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RawDataByCountyRequest"
+              },
+              "example": {
+                "dealerId": "D-078901",
+                "reportingPeriodStart": "2025-01-01",
+                "reportingPeriodEnd": "2025-12-31",
+                "segments": ["AG", "CF", "CCE"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/rawDataReport/byCounty' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"reportingPeriodStart\":\"2025-01-01\",\"reportingPeriodEnd\":\"2025-12-31\",\"segments\":[\"AG\",\"CF\",\"CCE\"]}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved raw data by county.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawDataReportResponse"
+                },
+                "example": {
+                  "rows": [
+                    {
+                      "machine": "COMBINE",
+                      "sizeClass": "CLASS_8",
+                      "county": "Polk",
+                      "stateOrProvince": "IA",
+                      "activityMonth": "2025-06-01",
+                      "dealerSales": 1850000.0,
+                      "industrySales": 12400000.0
+                    }
+                  ],
+                  "rowCount": 1842
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mrkt/sandbox/drx-api/rawDataReport/byStore": {
+      "post": {
+        "operationId": "postRawDataReportByStore",
+        "summary": "Retrieve market share data by store",
+        "description": "Returns the same data as the Global Market Share (GMS) application’s “Raw Data (by Store)” report (“ByStore” tab): dealer and industry sales for each unique Machine, Size Class, Store, and Activity Month combination.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RawDataByStoreRequest"
+              },
+              "example": {
+                "dealerId": "D-078901",
+                "reportingPeriodStart": "2025-01-01",
+                "reportingPeriodEnd": "2025-12-31",
+                "segments": ["AG", "CF", "CCE"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://drx-api-sandbox.deere.com/mrkt/sandbox/drx-api/rawDataReport/byStore' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"reportingPeriodStart\":\"2025-01-01\",\"reportingPeriodEnd\":\"2025-12-31\",\"segments\":[\"AG\",\"CF\",\"CCE\"]}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved raw data by store.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawDataReportResponse"
+                },
+                "example": {
+                  "rows": [
+                    {
+                      "machine": "LARGE_TRACTOR",
+                      "sizeClass": "200_HP_PLUS",
+                      "storeId": "ST-10021",
+                      "activityMonth": "2025-06-01",
+                      "dealerSales": 920000.0,
+                      "industrySales": 6100000.0
+                    }
+                  ],
+                  "rowCount": 942
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

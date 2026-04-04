@@ -1,0 +1,541 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PO Data API",
+    "description": "REST API for retrieving Purchase Order data, including blank PO PDFs, PO search, PO details by quote ID, PO PDFs, and rental details.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdquote2-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 flow. Requires the `axiom` scope.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Access PO data operations",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PurchaseOrderSummary": {
+        "type": "object",
+        "description": "A summary record of a purchase order.",
+        "properties": {
+          "purchaseOrderId": {
+            "type": "string",
+            "description": "Unique identifier for the purchase order.",
+            "example": "PO-20260001"
+          },
+          "quoteId": {
+            "type": "string",
+            "description": "Quote ID associated with this purchase order.",
+            "example": "QT-20260001"
+          },
+          "racfId": {
+            "type": "string",
+            "description": "RACF ID of the dealer associated with the purchase order.",
+            "example": "JDRACF001"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the purchase order.",
+            "enum": ["PENDING", "APPROVED", "CANCELLED", "COMPLETED"],
+            "example": "APPROVED"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Name of the customer for the purchase order.",
+            "example": "Smith Family Farms"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the purchase order was created.",
+            "example": "2026-01-15T08:00:00Z"
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Total amount of the purchase order in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "PurchaseOrderDetail": {
+        "type": "object",
+        "description": "Full details of a purchase order.",
+        "properties": {
+          "purchaseOrderId": {
+            "type": "string",
+            "description": "Unique identifier for the purchase order.",
+            "example": "PO-20260001"
+          },
+          "quoteId": {
+            "type": "string",
+            "description": "Quote ID associated with this purchase order.",
+            "example": "QT-20260001"
+          },
+          "racfId": {
+            "type": "string",
+            "description": "RACF ID of the dealer associated with the purchase order.",
+            "example": "JDRACF001"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the purchase order.",
+            "enum": ["PENDING", "APPROVED", "CANCELLED", "COMPLETED"],
+            "example": "APPROVED"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Name of the customer for the purchase order.",
+            "example": "Smith Family Farms"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the purchase order was created.",
+            "example": "2026-01-15T08:00:00Z"
+          },
+          "lineItems": {
+            "type": "array",
+            "description": "Equipment line items on the purchase order.",
+            "items": {
+              "$ref": "#/components/schemas/POLineItem"
+            }
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Total amount of the purchase order in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "POLineItem": {
+        "type": "object",
+        "description": "A line item on a purchase order.",
+        "properties": {
+          "lineItemId": {
+            "type": "string",
+            "description": "Unique identifier for the line item.",
+            "example": "LI-00112233"
+          },
+          "modelNumber": {
+            "type": "string",
+            "description": "Equipment model number.",
+            "example": "8R410"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable equipment description.",
+            "example": "8R 410 Tractor"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Number of units ordered.",
+            "example": 1
+          },
+          "unitPrice": {
+            "type": "number",
+            "description": "Unit price in USD.",
+            "example": 485000.00
+          }
+        }
+      },
+      "RentalDetail": {
+        "type": "object",
+        "description": "Rental detail record for a quote.",
+        "properties": {
+          "rentalId": {
+            "type": "string",
+            "description": "Unique identifier for the rental record.",
+            "example": "RNT-20260001"
+          },
+          "quoteId": {
+            "type": "string",
+            "description": "Quote ID associated with this rental.",
+            "example": "QT-20260001"
+          },
+          "equipmentDescription": {
+            "type": "string",
+            "description": "Description of the rented equipment.",
+            "example": "8R 410 Tractor"
+          },
+          "rentalStartDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date of the rental period.",
+            "example": "2026-03-01"
+          },
+          "rentalEndDate": {
+            "type": "string",
+            "format": "date",
+            "description": "End date of the rental period.",
+            "example": "2026-05-31"
+          },
+          "dailyRate": {
+            "type": "number",
+            "description": "Daily rental rate in USD.",
+            "example": 1200.00
+          },
+          "totalRentalAmount": {
+            "type": "number",
+            "description": "Total rental amount in USD.",
+            "example": 109200.00
+          }
+        }
+      },
+      "POSearchRequest": {
+        "type": "object",
+        "description": "Request body for searching purchase orders.",
+        "properties": {
+          "racfId": {
+            "type": "string",
+            "description": "RACF ID of the dealer to search purchase orders for.",
+            "example": "JDRACF001"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "Optional customer name filter.",
+            "example": "Smith Family Farms"
+          },
+          "status": {
+            "type": "string",
+            "description": "Optional status filter.",
+            "enum": ["PENDING", "APPROVED", "CANCELLED", "COMPLETED"],
+            "example": "APPROVED"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Optional start date filter (inclusive).",
+            "example": "2026-01-01"
+          },
+          "toDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Optional end date filter (inclusive).",
+            "example": "2026-12-31"
+          }
+        },
+        "required": ["racfId"]
+      }
+    }
+  },
+  "security": [
+    {
+      "OAuth2": ["axiom"]
+    }
+  ],
+  "paths": {
+    "/api/v1/dealers/{racfId}/blank-po-pdf": {
+      "get": {
+        "operationId": "getBlankPoPdf",
+        "summary": "Get Blank PO Pdf",
+        "description": "Retrieves a blank Purchase Order PDF for the specified dealer.",
+        "tags": ["PO Data"],
+        "parameters": [
+          {
+            "name": "racfId",
+            "in": "path",
+            "required": true,
+            "description": "The RACF ID of the dealer.",
+            "schema": {
+              "type": "string",
+              "example": "JDRACF001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blank PO PDF returned successfully.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Invalid or missing access token."
+          },
+          "404": {
+            "description": "Dealer not found."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/dealers/JDRACF001/blank-po-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ]
+      }
+    },
+    "/api/v1/purchase-orders": {
+      "post": {
+        "operationId": "searchPurchaseOrders",
+        "summary": "Search Purchase Order",
+        "description": "Searches for purchase orders matching the specified criteria.",
+        "tags": ["PO Data"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/POSearchRequest"
+              },
+              "example": {
+                "racfId": "JDRACF001",
+                "status": "APPROVED",
+                "fromDate": "2026-01-01",
+                "toDate": "2026-12-31"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purchase orders returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "purchaseOrders": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PurchaseOrderSummary"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "purchaseOrders": [
+                    {
+                      "purchaseOrderId": "PO-20260001",
+                      "quoteId": "QT-20260001",
+                      "racfId": "JDRACF001",
+                      "status": "APPROVED",
+                      "customerName": "Smith Family Farms",
+                      "createdDate": "2026-01-15T08:00:00Z",
+                      "totalAmount": 485000.00
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Invalid or missing access token."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/purchase-orders' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"racfId\":\"JDRACF001\",\"status\":\"APPROVED\",\"fromDate\":\"2026-01-01\",\"toDate\":\"2026-12-31\"}'"
+          }
+        ]
+      }
+    },
+    "/api/v1/quotes/{quoteId}/dealers/{racfId}": {
+      "get": {
+        "operationId": "getPODetailByQuoteId",
+        "summary": "Get PO Detail By QuoteID",
+        "description": "Retrieves the full purchase order detail for a given quote ID and dealer RACF ID.",
+        "tags": ["PO Data"],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          },
+          {
+            "name": "racfId",
+            "in": "path",
+            "required": true,
+            "description": "The RACF ID of the dealer.",
+            "schema": {
+              "type": "string",
+              "example": "JDRACF001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase order detail returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderDetail"
+                },
+                "example": {
+                  "purchaseOrderId": "PO-20260001",
+                  "quoteId": "QT-20260001",
+                  "racfId": "JDRACF001",
+                  "status": "APPROVED",
+                  "customerName": "Smith Family Farms",
+                  "createdDate": "2026-01-15T08:00:00Z",
+                  "lineItems": [
+                    {
+                      "lineItemId": "LI-00112233",
+                      "modelNumber": "8R410",
+                      "description": "8R 410 Tractor",
+                      "quantity": 1,
+                      "unitPrice": 485000.00
+                    }
+                  ],
+                  "totalAmount": 485000.00
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Invalid or missing access token."
+          },
+          "404": {
+            "description": "Purchase order not found for the given quote ID and dealer."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/dealers/JDRACF001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ]
+      }
+    },
+    "/api/v1/quotes/{quoteId}/po-pdf": {
+      "get": {
+        "operationId": "getPoPdf",
+        "summary": "Get PO Pdf",
+        "description": "Retrieves the Purchase Order PDF for a specific quote.",
+        "tags": ["PO Data"],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PO PDF returned successfully.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Invalid or missing access token."
+          },
+          "404": {
+            "description": "Purchase order not found for the given quote ID."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/po-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ]
+      }
+    },
+    "/api/v1/quotes/{quoteId}/rentals": {
+      "get": {
+        "operationId": "getRentalDetails",
+        "summary": "Get Rental Details",
+        "description": "Retrieves rental details associated with a specific quote.",
+        "tags": ["PO Data"],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the quote.",
+            "schema": {
+              "type": "string",
+              "example": "QT-20260001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rental details returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rentals": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RentalDetail"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "rentals": [
+                    {
+                      "rentalId": "RNT-20260001",
+                      "quoteId": "QT-20260001",
+                      "equipmentDescription": "8R 410 Tractor",
+                      "rentalStartDate": "2026-03-01",
+                      "rentalEndDate": "2026-05-31",
+                      "dailyRate": 1200.00,
+                      "totalRentalAmount": 109200.00
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Invalid or missing access token."
+          },
+          "404": {
+            "description": "No rental details found for the given quote ID."
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdquote2-api-sandbox.deere.com/api/v1/quotes/QT-20260001/rentals' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,479 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Customer Linkage API",
+    "description": "API that allows dealers to create, remove, and retrieve linkages between Dealer Business System (DBS) customer records and John Deere Customer Registry records.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://dealer-customer-tools-servicessandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Client credentials OAuth 2.0 flow. Requires the `axiom` scope.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Access customer linkage operations"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "LinkageRequest": {
+        "type": "object",
+        "required": ["dbsCustomerId", "registryCustomerId"],
+        "properties": {
+          "dbsCustomerId": {
+            "type": "string",
+            "description": "The dealer's DBS customer record identifier.",
+            "example": "DBS-00098765"
+          },
+          "registryCustomerId": {
+            "type": "string",
+            "description": "The John Deere Customer Registry customer identifier.",
+            "example": "REG-00123456"
+          }
+        }
+      },
+      "LinkageRecord": {
+        "type": "object",
+        "properties": {
+          "linkageId": {
+            "type": "string",
+            "description": "Unique identifier for the linkage record.",
+            "example": "LNK-20260001"
+          },
+          "dbsCustomerId": {
+            "type": "string",
+            "description": "The dealer's DBS customer record identifier.",
+            "example": "DBS-00098765"
+          },
+          "registryCustomerId": {
+            "type": "string",
+            "description": "The John Deere Customer Registry customer identifier.",
+            "example": "REG-00123456"
+          },
+          "dogAccountId": {
+            "type": "string",
+            "description": "The derived DOG Account ID associated with this linkage.",
+            "example": "DOG-00123456"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the linkage.",
+            "enum": ["ACTIVE", "INACTIVE"],
+            "example": "ACTIVE"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the linkage was created.",
+            "example": "2026-01-15T08:00:00Z"
+          }
+        }
+      },
+      "LinkagesResponse": {
+        "type": "object",
+        "properties": {
+          "linkages": {
+            "type": "array",
+            "description": "List of DBS/Registry customer linkage records.",
+            "items": {
+              "$ref": "#/components/schemas/LinkageRecord"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "Total number of linkage records returned.",
+            "example": 3
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/isg/customerlinkage/api/linkages": {
+      "post": {
+        "operationId": "createLinkages",
+        "summary": "Create Linkages",
+        "description": "Creates DBS/Registry customer linkages on a Registry customer record for the derived DOG Account ID. The DOG Account ID is determined using the Consumer's OKTA Client ID (used for token generation) and the system name specified in the request header. Include the `endUserId` header for tracking and debugging — this may be your own system user ID and must be alphanumeric with a maximum length of 40 characters.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "system-name",
+            "in": "header",
+            "required": true,
+            "description": "The name of the system making the request. Used with the OKTA Client ID to derive the DOG Account ID.",
+            "schema": {
+              "type": "string",
+              "example": "MY_DEALER_SYSTEM"
+            }
+          },
+          {
+            "name": "endUserId",
+            "in": "header",
+            "required": true,
+            "description": "The end user ID for tracking and debugging. Must be alphanumeric with a maximum length of 40 characters.",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-zA-Z0-9]+$",
+              "example": "USER12345"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkageRequest"
+              },
+              "example": {
+                "dbsCustomerId": "DBS-00098765",
+                "registryCustomerId": "REG-00123456"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/linkages' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --header 'system-name: MY_DEALER_SYSTEM' \\\n  --header 'endUserId: USER12345' \\\n  --data '{\"dbsCustomerId\": \"DBS-00098765\", \"registryCustomerId\": \"REG-00123456\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Linkage successfully created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkageRecord"
+                },
+                "example": {
+                  "linkageId": "LNK-20260001",
+                  "dbsCustomerId": "DBS-00098765",
+                  "registryCustomerId": "REG-00123456",
+                  "dogAccountId": "DOG-00123456",
+                  "status": "ACTIVE",
+                  "createdAt": "2026-01-15T08:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing or invalid request parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "dbsCustomerId and registryCustomerId are required."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeLinkages",
+        "summary": "Remove Linkages",
+        "description": "Removes DBS/Registry customer linkages on a Registry customer record for the derived DOG Account ID. The DOG Account ID is determined using the Consumer's OKTA Client ID (used for token generation) and the system name specified in the request header. Include the `endUserId` header for tracking and debugging — this may be your own system user ID and must be alphanumeric with a maximum length of 40 characters.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "system-name",
+            "in": "header",
+            "required": true,
+            "description": "The name of the system making the request. Used with the OKTA Client ID to derive the DOG Account ID.",
+            "schema": {
+              "type": "string",
+              "example": "MY_DEALER_SYSTEM"
+            }
+          },
+          {
+            "name": "endUserId",
+            "in": "header",
+            "required": true,
+            "description": "The end user ID for tracking and debugging. Must be alphanumeric with a maximum length of 40 characters.",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-zA-Z0-9]+$",
+              "example": "USER12345"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkageRequest"
+              },
+              "example": {
+                "dbsCustomerId": "DBS-00098765",
+                "registryCustomerId": "REG-00123456"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/linkages' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --header 'system-name: MY_DEALER_SYSTEM' \\\n  --header 'endUserId: USER12345' \\\n  --data '{\"dbsCustomerId\": \"DBS-00098765\", \"registryCustomerId\": \"REG-00123456\"}'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Linkage successfully removed. No content returned."
+          },
+          "400": {
+            "description": "Bad request. Missing or invalid request parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "dbsCustomerId and registryCustomerId are required."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Linkage not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No linkage found for the provided DBS and Registry customer IDs."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/isg/customerlinkage/api/retrieveLinkages": {
+      "get": {
+        "operationId": "retrieveLinkages",
+        "summary": "Retrieve Linkages",
+        "description": "Retrieves the DBS/Registry customer linkages for the derived DOG Account ID. Pass the `system-name` header to identify the system. The system name is used together with the Consumer's OKTA Client ID for token generation to determine the DOG Account ID.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "system-name",
+            "in": "header",
+            "required": true,
+            "description": "The name of the system making the request. Used with the OKTA Client ID to derive the DOG Account ID.",
+            "schema": {
+              "type": "string",
+              "example": "MY_DEALER_SYSTEM"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://dealer-customer-tools-servicessandbox.deere.com/isg/customerlinkage/api/retrieveLinkages' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'system-name: MY_DEALER_SYSTEM'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved customer linkages.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkagesResponse"
+                },
+                "example": {
+                  "linkages": [
+                    {
+                      "linkageId": "LNK-20260001",
+                      "dbsCustomerId": "DBS-00098765",
+                      "registryCustomerId": "REG-00123456",
+                      "dogAccountId": "DOG-00123456",
+                      "status": "ACTIVE",
+                      "createdAt": "2026-01-15T08:00:00Z"
+                    },
+                    {
+                      "linkageId": "LNK-20260002",
+                      "dbsCustomerId": "DBS-00054321",
+                      "registryCustomerId": "REG-00654321",
+                      "dogAccountId": "DOG-00123456",
+                      "status": "ACTIVE",
+                      "createdAt": "2026-01-20T10:30:00Z"
+                    }
+                  ],
+                  "totalCount": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

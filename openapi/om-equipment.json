@@ -1,0 +1,545 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "OM Equipment - Update Vehicle Availability API",
+    "description": "John Deere Sales Center Equipment externally exposed APIs to update Equipment availability, consumed by external DBS tools.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://om-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 flow. Requires the `offline_access` scope.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "OnRentRequest": {
+        "type": "object",
+        "description": "Request body for placing a vehicle on rent.",
+        "properties": {
+          "rentalStartDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The date the rental period begins.",
+            "example": "2026-04-10"
+          },
+          "purchaserTypeCode": {
+            "type": "string",
+            "description": "Code identifying the purchaser type.",
+            "example": "DEALER"
+          },
+          "marketTypeCode": {
+            "type": "string",
+            "description": "Code identifying the market type.",
+            "example": "AG"
+          },
+          "rentalAccountNumber": {
+            "type": "string",
+            "description": "Account number associated with the rental.",
+            "example": "ACC-00123456"
+          }
+        }
+      },
+      "OffRentRequest": {
+        "type": "object",
+        "description": "Request body for returning a vehicle from rent.",
+        "properties": {
+          "rentalEndDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The date the rental period ends.",
+            "example": "2026-05-10"
+          },
+          "returnConditionCode": {
+            "type": "string",
+            "description": "Condition of the vehicle upon return.",
+            "example": "GOOD"
+          }
+        }
+      },
+      "VehicleAvailabilityResponse": {
+        "type": "object",
+        "description": "Response confirming vehicle availability update.",
+        "properties": {
+          "vehicleNumber": {
+            "type": "string",
+            "description": "The vehicle identifier.",
+            "example": "VH-00987654"
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "description": "Updated availability status of the vehicle.",
+            "enum": ["ON_RENT", "OFF_RENT", "AVAILABLE"],
+            "example": "ON_RENT"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the availability change takes effect.",
+            "example": "2026-04-10"
+          }
+        }
+      },
+      "PurchaserType": {
+        "type": "object",
+        "description": "A purchaser type classification.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Unique code identifying the purchaser type.",
+            "example": "DEALER"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the purchaser type.",
+            "example": "Authorized Dealer"
+          }
+        }
+      },
+      "PurchaserTypesResponse": {
+        "type": "object",
+        "description": "List of available purchaser types.",
+        "properties": {
+          "purchaserTypes": {
+            "type": "array",
+            "description": "Array of purchaser type objects.",
+            "items": {
+              "$ref": "#/components/schemas/PurchaserType"
+            }
+          }
+        }
+      },
+      "MarketType": {
+        "type": "object",
+        "description": "A market type classification.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Unique code identifying the market type.",
+            "example": "AG"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the market type.",
+            "example": "Agriculture"
+          }
+        }
+      },
+      "MarketTypesResponse": {
+        "type": "object",
+        "description": "List of available market types.",
+        "properties": {
+          "marketTypes": {
+            "type": "array",
+            "description": "Array of market type objects.",
+            "items": {
+              "$ref": "#/components/schemas/MarketType"
+            }
+          }
+        }
+      },
+      "GeoLevel": {
+        "type": "object",
+        "description": "A geographic subdivision level.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Unique geographic code.",
+            "example": "US-IA"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the geographic area.",
+            "example": "Iowa"
+          }
+        }
+      },
+      "GeographyResponse": {
+        "type": "object",
+        "description": "Geographic subdivision codes for a country.",
+        "properties": {
+          "countryCode": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code.",
+            "example": "US"
+          },
+          "level1": {
+            "type": "array",
+            "description": "Top-level geographic subdivisions (e.g. states, provinces).",
+            "items": {
+              "$ref": "#/components/schemas/GeoLevel"
+            }
+          },
+          "level2": {
+            "type": "array",
+            "description": "Second-level geographic subdivisions (e.g. counties, districts).",
+            "items": {
+              "$ref": "#/components/schemas/GeoLevel"
+            }
+          },
+          "level3": {
+            "type": "array",
+            "description": "Third-level geographic subdivisions (e.g. cities, municipalities).",
+            "items": {
+              "$ref": "#/components/schemas/GeoLevel"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Standard error response.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code.",
+            "example": "UNAUTHORIZED"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message.",
+            "example": "Access token is missing or invalid."
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/om/equipment/{vehicleNumber}/on-rent": {
+      "put": {
+        "operationId": "updateVehicleOnRent",
+        "summary": "Update the availability of the equipment to On Rent",
+        "description": "Begins a new rental for a vehicle by updating the availability to On Rent.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "vehicleNumber",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the vehicle to place on rent.",
+            "schema": {
+              "type": "string",
+              "example": "VH-00987654"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnRentRequest"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://om-api-sandbox.deere.com/om/equipment/VH-00987654/on-rent' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json;version=1' \\\n  --data '{\"rentalStartDate\":\"2026-04-10\",\"purchaserTypeCode\":\"DEALER\",\"marketTypeCode\":\"AG\",\"rentalAccountNumber\":\"ACC-00123456\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vehicle availability successfully updated to On Rent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleAvailabilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/equipment/{vehicleNumber}/off-rent": {
+      "put": {
+        "operationId": "updateVehicleOffRent",
+        "summary": "Update the availability of the equipment to Off Rent",
+        "description": "Ends an existing rental for a vehicle by updating the availability to Off Rent/Available in Sales Center.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "vehicleNumber",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the vehicle to take off rent.",
+            "schema": {
+              "type": "string",
+              "example": "VH-00987654"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OffRentRequest"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://om-api-sandbox.deere.com/om/equipment/VH-00987654/off-rent' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json;version=1' \\\n  --data '{\"rentalEndDate\":\"2026-05-10\",\"returnConditionCode\":\"GOOD\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vehicle availability successfully updated to Off Rent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleAvailabilityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/equipment/purchaser-types": {
+      "get": {
+        "operationId": "getPurchaserTypes",
+        "summary": "Get Purchaser Types",
+        "description": "Returns the list of available purchaser types for a vehicle.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://om-api-sandbox.deere.com/om/equipment/purchaser-types' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json;version=1'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of purchaser types returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaserTypesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/equipment/market-types": {
+      "get": {
+        "operationId": "getMarketTypes",
+        "summary": "Get Market Types",
+        "description": "Returns the list of available market types for a vehicle.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://om-api-sandbox.deere.com/om/equipment/market-types' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json;version=1'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of market types returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketTypesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/equipment/{countryCode}/geography": {
+      "get": {
+        "operationId": "getGeography",
+        "summary": "Get Geo Details for the Country",
+        "description": "Returns the geo codes for level1, level2, and level3 geographic subdivisions for the specified country.",
+        "security": [{ "OAuth2": ["offline_access"] }],
+        "parameters": [
+          {
+            "name": "countryCode",
+            "in": "path",
+            "required": true,
+            "description": "ISO 3166-1 alpha-2 country code.",
+            "schema": {
+              "type": "string",
+              "example": "US"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://om-api-sandbox.deere.com/om/equipment/US/geography' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json;version=1'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Geographic details returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeographyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — invalid or missing access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Country code not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

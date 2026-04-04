@@ -1,0 +1,249 @@
+---
+title: "Transaction Pricing API"
+description: "Record and analyze competitive transaction pricing data — machine sale prices, finance programs, and warranty comparisons — to guide market-based pricing decisions."
+---
+
+## Overview
+
+The Transaction Pricing (TP) application is a crucial tool for dealers, facilitating a comprehensive comparison of competitor retail prices with John Deere's offerings. This includes machine sale prices, finance, and warranty programs.
+
+For salespersons, managers, and data entry personnel, TP serves as a valuable reference for building future deals, aids in training, and documents unique transactions. It enables investigation of lost sales beyond price, providing a holistic understanding of customer preferences. Internally, TP guides market-based pricing decisions, contributes to bonus and discount programs, and shapes deals for review.
+
+<CardGroup cols={2}>
+  <Card title="Competitive Price Tracking" icon="chart-bar">
+    Record competitor retail prices alongside John Deere equivalents to monitor market positioning in real time.
+  </Card>
+  <Card title="Finance & Warranty Comparison" icon="file-contract">
+    Capture finance rates, terms, and warranty program details to understand the full competitive offer.
+  </Card>
+  <Card title="Lost Sale Analysis" icon="magnifying-glass">
+    Document the reasons behind lost sales — beyond price — to uncover deeper customer preferences and patterns.
+  </Card>
+  <Card title="Dealer Training & Reference" icon="graduation-cap">
+    Build a library of documented transactions that salespersons and managers can reference for future deals and training.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+The Transaction Pricing API uses **client credentials** OAuth 2.0 for authentication. This is a two-legged flow — no end-user login is required.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application (found in the Details section), add at least one **Callback URL (Redirect URI)**. Click **Add URI** to add more than one, then click **Save**.
+
+    <Note>
+      While a redirect URI is not required in the client credentials flow, please add one as part of the syncing process. You may use a placeholder such as `https://localhost:9090/callback`.
+    </Note>
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the token endpoint and available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": ""
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Repeat this step to obtain a new token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://mktg-services-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Transaction Entry
+
+Records a competitive transaction pricing entry in the TP application.
+
+```
+POST /mrkt/trans-pricing/transaction
+```
+
+<ParamField body="dealerId" type="string" required>
+  Unique dealer identifier submitting the transaction.
+</ParamField>
+
+<ParamField body="transactionDate" type="string" required>
+  Date the transaction or competitive sale occurred (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="competitorName" type="string" required>
+  Name of the competing manufacturer or brand.
+</ParamField>
+
+<ParamField body="competitorModel" type="string" required>
+  Model name or number of the competitor equipment.
+</ParamField>
+
+<ParamField body="equipmentCategory" type="string">
+  Category of equipment. Examples: `Tractor`, `Combine`, `Planter`.
+</ParamField>
+
+<ParamField body="competitorRetailPrice" type="number" required>
+  Competitor retail sale price in USD.
+</ParamField>
+
+<ParamField body="johnDeereModel" type="string">
+  Comparable John Deere model number offered.
+</ParamField>
+
+<ParamField body="johnDeereRetailPrice" type="number">
+  John Deere retail price for the comparable model in USD.
+</ParamField>
+
+<ParamField body="financeProgram" type="object">
+  Finance program details associated with the transaction.
+  <Expandable title="financeProgram">
+    <ParamField body="provider" type="string">
+      Finance provider name. Example: `John Deere Financial`.
+    </ParamField>
+    <ParamField body="rate" type="number">
+      Annual percentage rate (APR) offered.
+    </ParamField>
+    <ParamField body="termMonths" type="integer">
+      Length of the finance term in months.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="warrantyProgram" type="object">
+  Warranty program details associated with the transaction.
+  <Expandable title="warrantyProgram">
+    <ParamField body="provider" type="string">
+      Warranty provider name.
+    </ParamField>
+    <ParamField body="durationYears" type="integer">
+      Warranty duration in years.
+    </ParamField>
+    <ParamField body="coverageType" type="string">
+      Type of warranty coverage. Examples: `Comprehensive`, `Powertrain`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="saleOutcome" type="string" required>
+  Outcome of the sales interaction. One of: `WON`, `LOST`, `PENDING`.
+</ParamField>
+
+<ParamField body="lostSaleReason" type="string">
+  Primary reason for a lost sale when `saleOutcome` is `LOST`. Not limited to price — can capture preference, features, financing, or other factors.
+</ParamField>
+
+<ParamField body="salespersonId" type="string">
+  Identifier of the salesperson or data entry personnel recording the transaction.
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional free-text notes about the transaction.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://mktg-services-sandbox.deere.com/mrkt/trans-pricing/transaction' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "dealerId": "D-078901",
+    "transactionDate": "2026-04-01",
+    "competitorName": "AGCO",
+    "competitorModel": "Fendt 942 Vario",
+    "equipmentCategory": "Tractor",
+    "competitorRetailPrice": 510000.00,
+    "johnDeereModel": "8R 410",
+    "johnDeereRetailPrice": 495000.00,
+    "saleOutcome": "LOST",
+    "lostSaleReason": "Customer preferred competitor financing terms",
+    "salespersonId": "SP-00445"
+  }'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="transactionId" type="string">
+  Unique identifier assigned to the recorded transaction.
+</ResponseField>
+
+<ResponseField name="dealerId" type="string">
+  Dealer identifier associated with the transaction.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Recording status. Typically `ACCEPTED`.
+</ResponseField>
+
+<ResponseField name="createdDate" type="string">
+  ISO 8601 timestamp when the transaction record was created.
+</ResponseField>
+
+#### Sample response
+
+```json
+{
+  "transactionId": "TP-20260001",
+  "dealerId": "D-078901",
+  "status": "ACCEPTED",
+  "createdDate": "2026-04-01T14:30:00Z"
+}
+```
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /mrkt/trans-pricing/transaction">
+  Test this endpoint interactively with your access token.
+</Card>
