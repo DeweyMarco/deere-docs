@@ -15,4 +15,4 @@ Add a new API to this Mintlify docs project. Here is the source documentation to
 - Do not create a file that already exists — check first.
 - Place the new nav group inside the correct existing tab and group in `docs.json`.
 
-**Context:** Tab is `Precision Tech`, group is `Organization/User`, files go in `precision_tech/organization-user/`.
+**Context:** Tab is `Precision Tech`, group is `Setup/Plan`, files go in `precision_tech/setup-plan/`.

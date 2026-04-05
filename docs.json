@@ -48,6 +48,7 @@
             "openapi/customer-data-product.json",
             "openapi/customer-linkage.json",
             "openapi/maintain-quotes.json",
+            "openapi/quote-data.json",
             "openapi/market-share.json",
             "openapi/po-data.json",
             "openapi/connection-management.json",
@@ -191,6 +192,25 @@
                                 ]
                             },
                             {
+                                "group": "Quote Data",
+                                "root": "dealer_solutions/financial/quote-data",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/quote-data.json",
+                                        "pages": [
+                                            "POST /om/cert/quotedata/api/v1/quote-data",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/last-modified-date",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/orderform-pdf",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/proposal-pdf",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/quote-details",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/recap-pdf",
+                                            "GET /om/cert/quotedata/api/v1/quotes/{quoteId}/supporting-docs"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
                                 "group": "OM Equipment - Update Vehicle Availability",
                                 "root": "dealer_solutions/financial/om-equipment",
                                 "pages": [
@@ -220,6 +240,19 @@
                                             "GET /api/v1/quotes/{quoteId}/dealers/{racfId}",
                                             "GET /api/v1/quotes/{quoteId}/po-pdf",
                                             "GET /api/v1/quotes/{quoteId}/rentals"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Transaction Pricing",
+                                "root": "dealer_solutions/financial/transaction-pricing",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/transaction-pricing.json",
+                                        "pages": [
+                                            "POST /mrkt/trans-pricing/transaction"
                                         ]
                                     }
                                 ]
