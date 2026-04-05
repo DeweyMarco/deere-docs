@@ -1,0 +1,387 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Service Admin Portal DMS API",
+    "description": "The SVAP Dealer Management (or business) System API is intended for business systems that need to invoice agreements and record agreement components for deferred revenue tracking. It is also used to disregard Expert Alerts.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://serviceadmin-api-sandbox.deere.com",
+      "description": "Sandbox (Service Admin — cert DMS)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Use the authorization code flow (three-legged) for interactive users, or the client credentials grant for machine-to-machine access. The `axiom` scope is required for DMS operations unless your product documentation states otherwise.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AgreementPlansResponse": {
+        "type": "object",
+        "description": "Plan details associated with one or more agreement business keys (structure follows the live service response).",
+        "additionalProperties": true,
+        "properties": {
+          "plans": {
+            "type": "array",
+            "description": "Plans linked to the requested agreement keys.",
+            "items": {
+              "$ref": "#/components/schemas/AgreementPlan"
+            }
+          }
+        }
+      },
+      "AgreementPlan": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "Plan identifier.",
+            "example": "PLN-1001"
+          },
+          "agreementBusinessKey": {
+            "type": "string",
+            "description": "Business key of the parent agreement.",
+            "example": "AGR-BK-778899"
+          },
+          "description": {
+            "type": "string",
+            "example": "Extended powertrain coverage"
+          },
+          "status": {
+            "type": "string",
+            "example": "ACTIVE"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/delsol/cert-dms/dms/agreement": {
+      "get": {
+        "operationId": "listAgreements",
+        "summary": "Get list of agreements",
+        "description": "Returns agreements available to the caller for invoicing and deferred revenue tracking. Responses are XML unless your environment documents otherwise.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML document containing the list of agreements.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "description": "XML payload (agreement list). Parse according to the SVAP DMS schema published for your integration."
+                },
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><agreements><agreement businessKey=\"AGR-BK-001\"/></agreements>"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              },
+              "application/xml": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert-dms/dms/agreement/{businessKey}": {
+      "get": {
+        "operationId": "getAgreementByKey",
+        "summary": "Get agreement by key",
+        "description": "Returns a single agreement identified by its business key.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "businessKey",
+            "in": "path",
+            "required": true,
+            "description": "Agreement business key.",
+            "schema": {
+              "type": "string",
+              "example": "AGR-BK-778899"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/AGR-BK-778899' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML document for the agreement.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "description": "XML payload for one agreement."
+                },
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><agreement businessKey=\"AGR-BK-778899\"><status>ACTIVE</status></agreement>"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Agreement not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert-dms/dms/agreement/event": {
+      "get": {
+        "operationId": "listAgreementEvents",
+        "summary": "Get events on agreement",
+        "description": "Returns events associated with agreements (for example lifecycle or billing-related events). Response body is XML.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/event' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML document containing agreement events.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "description": "XML payload (events list)."
+                },
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><events><event businessKey=\"EVT-BK-01\"/></events>"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert-dms/dms/agreement/event/{businessKey}": {
+      "get": {
+        "operationId": "getAgreementEventByKey",
+        "summary": "Get event by key",
+        "description": "Returns a single agreement event identified by its business key.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "businessKey",
+            "in": "path",
+            "required": true,
+            "description": "Event business key.",
+            "schema": {
+              "type": "string",
+              "example": "EVT-BK-445566"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/event/EVT-BK-445566' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML document for the event.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "description": "XML payload for one event."
+                },
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><event businessKey=\"EVT-BK-445566\"><type>INVOICED</type></event>"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert-dms/dms/agreement/plans/{businessKeys}": {
+      "get": {
+        "operationId": "getPlansByAgreementBusinessKeys",
+        "summary": "Get plans by agreement business key",
+        "description": "Returns plan information for one or more agreement business keys. Pass the key or keys as defined by your SVAP DMS integration (for example a single key or a delimiter-separated list in the path segment).",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "businessKeys",
+            "in": "path",
+            "required": true,
+            "description": "Agreement business key or keys (format as required by the service, for example comma-separated identifiers).",
+            "schema": {
+              "type": "string",
+              "example": "AGR-BK-778899"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/plans/AGR-BK-778899' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON document with plan details for the requested agreement keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementPlansResponse"
+                },
+                "example": {
+                  "plans": [
+                    {
+                      "planId": "PLN-1001",
+                      "agreementBusinessKey": "AGR-BK-778899",
+                      "description": "Extended powertrain coverage",
+                      "status": "ACTIVE"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No plans found for the supplied keys.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

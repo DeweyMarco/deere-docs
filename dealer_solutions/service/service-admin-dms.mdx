@@ -1,0 +1,296 @@
+---
+title: "Service Admin Portal DMS API"
+description: "Invoice agreements, record agreement components for deferred revenue tracking, and support Expert Alert disregard workflows from your business system."
+---
+
+## Overview
+
+The SVAP Dealer Management (or business) System API is intended for business systems that need to **invoice the agreement** and **record the components of the agreement** for deferred revenue tracking. It is also used to **disregard Expert Alerts**.
+
+<CardGroup cols={2}>
+  <Card title="Agreements" icon="file-contract">
+    List agreements, fetch an agreement by business key, and retrieve plan details tied to agreement keys for revenue and billing alignment.
+  </Card>
+  <Card title="Events" icon="calendar-days">
+    Read agreement events in bulk or by business key to stay in sync with lifecycle and operational changes.
+  </Card>
+  <Card title="Formats" icon="code">
+    Agreement and event payloads are returned as **XML** with `Accept: application/xml`. The plans endpoint returns **JSON** with `Accept: application/json`.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using the authorization code flow or client credentials, consistent with other Dealer Solutions APIs.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **OAuth 2.0**. You can use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine integrations.
+
+**OAuth scope required for these endpoints:** `axiom` (unless your product documentation specifies a different scope).
+
+### Client credentials (machine-to-machine)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+### Authorization code (interactive users)
+
+For three-legged OAuth, direct the user to the authorization server with `response_type=code`, your **client ID**, **redirect URI** (URL-encoded), **state**, and the **scopes** required for this API (including `axiom` as documented). Exchange the authorization code at the token endpoint for an access token. Request the `offline_access` scope if you need a refresh token.
+
+<Note>
+  If callback URLs do not sync correctly, users may see a **400 Bad Redirect** after authentication. Ensure redirect URIs are saved on Developer.Deere.com and contact support if redirects fail in testing.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://serviceadmin-api-sandbox.deere.com
+```
+
+API paths for this product are rooted under `/delsol/cert-dms` (for example `/delsol/cert-dms/dms/agreement`).
+
+---
+
+## Endpoints
+
+### Get list of agreements
+
+Returns agreements available for invoicing and deferred revenue tracking. The response body is XML.
+
+```
+GET /delsol/cert-dms/dms/agreement
+```
+
+**OAuth Scope Required:** `axiom`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml'
+```
+
+</CodeGroup>
+
+#### Response
+
+The service returns an **XML** document. Element names and structure follow the SVAP DMS schema for your environment; parse and validate against the contract provided for your integration.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert-dms/dms/agreement">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response (illustrative)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<agreements>
+  <agreement businessKey="AGR-BK-001"/>
+</agreements>
+```
+
+---
+
+### Get agreement by key
+
+Returns a single agreement identified by its business key. The response body is XML.
+
+```
+GET /delsol/cert-dms/dms/agreement/{businessKey}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="businessKey" type="string" required>
+  Agreement business key.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/AGR-BK-778899' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+Interpret fields according to your SVAP DMS XML schema. Typical consumers map **business key**, **status**, and **line items** for invoicing and revenue recognition.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert-dms/dms/agreement/{businessKey}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get events on agreement
+
+Returns events related to agreements. The response body is XML.
+
+```
+GET /delsol/cert-dms/dms/agreement/event
+```
+
+**OAuth Scope Required:** `axiom`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/event' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert-dms/dms/agreement/event">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get event by key
+
+Returns a single agreement event identified by its business key. The response body is XML.
+
+```
+GET /delsol/cert-dms/dms/agreement/event/{businessKey}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="businessKey" type="string" required>
+  Event business key.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/event/EVT-BK-445566' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert-dms/dms/agreement/event/{businessKey}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get plans by agreement business key
+
+Returns plan information for one or more agreement business keys. The response body is JSON.
+
+```
+GET /delsol/cert-dms/dms/agreement/plans/{businessKeys}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="businessKeys" type="string" required>
+  Agreement business key or keys. Use the format required by your SVAP DMS deployment (for example a single key or delimiter-separated keys in this path segment).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://serviceadmin-api-sandbox.deere.com/delsol/cert-dms/dms/agreement/plans/AGR-BK-778899' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="plans" type="array">
+  Plan records associated with the requested agreement keys. Exact properties follow the live service; common fields include plan identifier, agreement business key, description, and status.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert-dms/dms/agreement/plans/{businessKeys}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "plans": [
+    {
+      "planId": "PLN-1001",
+      "agreementBusinessKey": "AGR-BK-778899",
+      "description": "Extended powertrain coverage",
+      "status": "ACTIVE"
+    }
+  ]
+}
+```

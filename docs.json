@@ -17,7 +17,7 @@
       "strict": false
     },
     "api": {
-      "openapi": ["openapi/dealer-data-feed.json", "openapi/dealer-data-hub.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json", "openapi/customer-data-product.json", "openapi/customer-linkage.json", "openapi/maintain-quotes.json", "openapi/market-share.json", "openapi/po-data.json", "openapi/om-equipment.json", "openapi/quote-vendor-services.json", "openapi/transaction-pricing.json", "openapi/dealer-syndication-service.json", "openapi/business-integration-disregard.json", "openapi/expert-services.json"],
+      "openapi": ["openapi/dealer-data-feed.json", "openapi/dealer-data-hub.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json", "openapi/customer-data-product.json", "openapi/customer-linkage.json", "openapi/maintain-quotes.json", "openapi/market-share.json", "openapi/po-data.json", "openapi/om-equipment.json", "openapi/quote-vendor-services.json", "openapi/transaction-pricing.json", "openapi/dealer-syndication-service.json", "openapi/business-integration-disregard.json", "openapi/expert-services.json", "openapi/service-admin-dms.json"],
       "playground": {
         "display": "interactive"
       },
@@ -292,6 +292,23 @@
                                             "POST /delsol/cert/expertservices/api/jobs",
                                             "GET /delsol/cert/expertservices/api/jobs/{id}",
                                             "GET /delsol/cert/expertservices/api/search"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Service Admin Portal DMS",
+                                "root": "dealer_solutions/service/service-admin-dms",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/service-admin-dms.json",
+                                        "pages": [
+                                            "GET /delsol/cert-dms/dms/agreement",
+                                            "GET /delsol/cert-dms/dms/agreement/{businessKey}",
+                                            "GET /delsol/cert-dms/dms/agreement/event",
+                                            "GET /delsol/cert-dms/dms/agreement/event/{businessKey}",
+                                            "GET /delsol/cert-dms/dms/agreement/plans/{businessKeys}"
                                         ]
                                     }
                                 ]
