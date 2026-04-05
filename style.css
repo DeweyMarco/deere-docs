@@ -84,3 +84,6 @@ html {
   height: 20px !important;
   width: auto !important;
 }
+
+/* Theme toggle position: see theme-toggle-header.js (sidebar is display:none on
+   small viewports, so CSS-only fixed positioning never paints). */

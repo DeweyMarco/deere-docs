@@ -1,0 +1,774 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Expert Services API",
+    "description": "Dealers can adopt, modify, and manage jobs and checklists backed by John Deere published content. Integrations help drive consistent quoting for service work across large dealer organizations.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://expertservices-api-sandbox.deere.com",
+      "description": "Sandbox (delsol cert expertservices)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Use the authorization code flow (three-legged) for interactive users, or the client credentials grant for machine-to-machine access. The `axiom` scope is required for Expert Services operations unless your product documentation states otherwise.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Checklist": {
+        "type": "object",
+        "description": "Checklist metadata and line items returned for a checklist identifier.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Checklist identifier.",
+            "example": "CHK-9f3a2b1c"
+          },
+          "title": {
+            "type": "string",
+            "description": "Display title for the checklist.",
+            "example": "50-hour engine service"
+          },
+          "modelFamily": {
+            "type": "string",
+            "description": "Equipment model family the checklist applies to.",
+            "example": "6M Series"
+          },
+          "items": {
+            "type": "array",
+            "description": "Ordered checklist tasks or inspection steps.",
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            }
+          }
+        }
+      },
+      "ChecklistItem": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "example": 1
+          },
+          "description": {
+            "type": "string",
+            "example": "Inspect engine air filter"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "description": "Job details for a published or ad-hoc job.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "JOB-77aa11bb"
+          },
+          "checklistId": {
+            "type": "string",
+            "description": "Associated checklist identifier when the job was created from a checklist.",
+            "example": "CHK-9f3a2b1c"
+          },
+          "title": {
+            "type": "string",
+            "example": "Annual inspection"
+          },
+          "status": {
+            "type": "string",
+            "example": "OPEN"
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/EquipmentRef"
+          }
+        }
+      },
+      "EquipmentRef": {
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": "string",
+            "example": "1XYZ12345ABCD6789"
+          },
+          "model": {
+            "type": "string",
+            "example": "6120M"
+          }
+        }
+      },
+      "JobList": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            }
+          },
+          "nextPageToken": {
+            "type": "string",
+            "description": "Opaque cursor for the next page when pagination is supported.",
+            "example": "eyJwYWdlIjoxfQ=="
+          }
+        }
+      },
+      "AdHocJobRequest": {
+        "type": "object",
+        "description": "Payload to create an ad-hoc job not tied to a standard published checklist.",
+        "required": ["title"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Customer-requested hydraulic diagnosis"
+          },
+          "description": {
+            "type": "string",
+            "example": "Diagnose slow lift on front loader."
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/EquipmentRef"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["LOW", "NORMAL", "HIGH"],
+            "example": "NORMAL"
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "description": "Combined search hits for jobs and checklists.",
+        "properties": {
+          "checklists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChecklistSummary"
+            }
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobSummary"
+            }
+          }
+        }
+      },
+      "ChecklistSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "CHK-9f3a2b1c"
+          },
+          "title": {
+            "type": "string",
+            "example": "50-hour engine service"
+          },
+          "modelFamily": {
+            "type": "string",
+            "example": "6M Series"
+          }
+        }
+      },
+      "JobSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "JOB-77aa11bb"
+          },
+          "title": {
+            "type": "string",
+            "example": "Annual inspection"
+          },
+          "status": {
+            "type": "string",
+            "example": "OPEN"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/delsol/cert/expertservices/api/checklists/{id}": {
+      "get": {
+        "operationId": "getChecklistById",
+        "summary": "Get checklist details by checklist ID",
+        "description": "Returns the full checklist definition for the supplied checklist identifier, including ordered tasks or inspection steps.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Checklist identifier.",
+            "schema": {
+              "type": "string",
+              "example": "CHK-9f3a2b1c"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/checklists/CHK-9f3a2b1c' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checklist details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Checklist"
+                },
+                "example": {
+                  "id": "CHK-9f3a2b1c",
+                  "title": "50-hour engine service",
+                  "modelFamily": "6M Series",
+                  "items": [
+                    {
+                      "sequence": 1,
+                      "description": "Inspect engine air filter",
+                      "required": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Checklist not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert/expertservices/api/jobs/{id}": {
+      "get": {
+        "operationId": "getJobById",
+        "summary": "Get job details by ID",
+        "description": "Returns job details for the supplied identifier (for example a job created from a checklist).",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Job identifier.",
+            "schema": {
+              "type": "string",
+              "example": "JOB-77aa11bb"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs/JOB-77aa11bb' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert/expertservices/api/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "summary": "Get job details (list)",
+        "description": "Returns jobs available to the caller. Supports optional filters or pagination when implemented by the service.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by job status when supported.",
+            "schema": {
+              "type": "string",
+              "example": "OPEN"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of jobs to return when pagination is supported.",
+            "schema": {
+              "type": "integer",
+              "example": 25
+            }
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from a previous response.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of jobs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                },
+                "example": {
+                  "jobs": [
+                    {
+                      "id": "JOB-77aa11bb",
+                      "checklistId": "CHK-9f3a2b1c",
+                      "title": "Annual inspection",
+                      "status": "OPEN",
+                      "equipment": {
+                        "pin": "1XYZ12345ABCD6789",
+                        "model": "6120M"
+                      }
+                    }
+                  ],
+                  "nextPageToken": "eyJwYWdlIjoxfQ=="
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAdHocJob",
+        "summary": "Create an ad-hoc job",
+        "description": "Creates a dealer-defined job that is not tied to a standard published checklist.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdHocJobRequest"
+              },
+              "example": {
+                "title": "Customer-requested hydraulic diagnosis",
+                "description": "Diagnose slow lift on front loader.",
+                "equipment": {
+                  "pin": "1XYZ12345ABCD6789",
+                  "model": "6120M"
+                },
+                "priority": "NORMAL"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"title\":\"Customer-requested hydraulic diagnosis\",\"description\":\"Diagnose slow lift on front loader.\",\"equipment\":{\"pin\":\"1XYZ12345ABCD6789\",\"model\":\"6120M\"},\"priority\":\"NORMAL\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Job created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                },
+                "example": {
+                  "id": "JOB-88cc22dd",
+                  "title": "Customer-requested hydraulic diagnosis",
+                  "status": "OPEN",
+                  "equipment": {
+                    "pin": "1XYZ12345ABCD6789",
+                    "model": "6120M"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert/expertservices/api/search": {
+      "get": {
+        "operationId": "searchJobsAndChecklists",
+        "summary": "Search job and checklist details",
+        "description": "Searches published and in-progress jobs and checklists using the supplied query parameters.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Free-text search string.",
+            "schema": {
+              "type": "string",
+              "example": "engine service"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Restrict results to `job`, `checklist`, or `all` when supported.",
+            "schema": {
+              "type": "string",
+              "enum": ["job", "checklist", "all"],
+              "example": "all"
+            }
+          },
+          {
+            "name": "modelFamily",
+            "in": "query",
+            "required": false,
+            "description": "Filter by equipment model family when supported.",
+            "schema": {
+              "type": "string",
+              "example": "6M Series"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/search?q=engine%20service&type=all' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                },
+                "example": {
+                  "checklists": [
+                    {
+                      "id": "CHK-9f3a2b1c",
+                      "title": "50-hour engine service",
+                      "modelFamily": "6M Series"
+                    }
+                  ],
+                  "jobs": [
+                    {
+                      "id": "JOB-77aa11bb",
+                      "title": "Annual inspection",
+                      "status": "OPEN"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert/expertservices/api/documents/{RACF_ID}/{UUID}": {
+      "get": {
+        "operationId": "getDocumentByRacfAndUuid",
+        "summary": "Get document by RACF ID and UUID",
+        "description": "Downloads a document using the dealer RACF identifier and document UUID.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "RACF_ID",
+            "in": "path",
+            "required": true,
+            "description": "Dealer RACF identifier.",
+            "schema": {
+              "type": "string",
+              "example": "DEALER123"
+            }
+          },
+          {
+            "name": "UUID",
+            "in": "path",
+            "required": true,
+            "description": "Document UUID.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/documents/DEALER123/550e8400-e29b-41d4-a716-446655440000' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/form-data'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document bytes (format depends on the stored document).",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "multipart/form-data": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/cert/expertservices/api/documents/{documentId}": {
+      "get": {
+        "operationId": "getDocumentById",
+        "summary": "Get document by document ID",
+        "description": "Downloads a document using the Expert Services document identifier.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "description": "Expert Services document identifier.",
+            "schema": {
+              "type": "string",
+              "example": "DOC-4411aabb"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/documents/DOC-4411aabb' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/form-data'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document bytes (format depends on the stored document).",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "multipart/form-data": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

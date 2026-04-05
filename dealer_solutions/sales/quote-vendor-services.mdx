@@ -1,0 +1,1284 @@
+---
+title: "Quote Vendor Services API"
+description: "Manage quotations and purchase agreement data in John Deere Sales Center - Quote (JDSC Quote)."
+---
+
+## Overview
+
+The Quote Vendor Services API exposes quotation and purchase agreement operations for integrators working with **JDSC Quote**, including search, create and copy flows, equipment and trade-in management, PDFs, and delivery documents.
+
+<CardGroup cols={2}>
+  <Card title="Search & filter" icon="filter">
+    Find active or deleted quotes with structured filter requests.
+  </Card>
+  <Card title="Create & copy" icon="copy">
+    Create blank quotes, quotes from master templates, copies, and equipment copies.
+  </Card>
+  <Card title="Details & PDFs" icon="file-pdf">
+    Retrieve quote, equipment, trade-in, agreement, and proposal PDFs.
+  </Card>
+  <Card title="Maintain quotes" icon="pen-to-square">
+    Update name, status, customer, salesperson, store, and expiration; delete quotes or equipment.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **three-legged OAuth 2.0**. Register an application on [Developer.Deere.com](https://developer.deere.com) to obtain a **Client Key** and **Client Secret**, and configure at least one **Callback URL (Redirect URI)** on the OAuth profile for your application. If callback URLs do not sync correctly, users may see a `400 Bad Redirect` after authentication; contact John Deere support if that occurs.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Your application receives a **Client Key** and **Client Secret**. You will use these credentials in the OAuth flow.
+  </Step>
+  <Step title="Add callback URLs">
+    On the OAuth Profile page (under application Details), add one or more **Redirect URIs** and save. The `redirect_uri` query parameter must be URL-encoded when calling the authorization server.
+  </Step>
+  <Step title="Discover OAuth metadata">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+    This document lists authorization and token endpoints and supported scopes.
+  </Step>
+  <Step title="Acquire an authorization code">
+    Redirect the user to the authorization server with `response_type=code`, requested **OAuth scopes** (see each endpoint; this API uses `openid` and `profile`), **client_id**, **state**, and **redirect_uri** (URL-encoded).
+  </Step>
+  <Step title="Exchange the code for an access token">
+    POST to the token endpoint with grant type `authorization_code`, the authorization code, and **redirect_uri**. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a refresh token.
+  </Step>
+  <Step title="Call the API">
+    Send `Authorization: Bearer <access_token>` on every request. Set up **refresh token** rotation before expiry if you requested `offline_access`. Refresh tokens expire after **365 days** of non-use.
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://quote-api-sandbox.deere.com
+```
+
+API paths are rooted at `/om/cert/vendor` (for example, `POST /om/cert/vendor/v1/quotes/filter`).
+
+---
+
+## Endpoints
+
+Each operation returns JSON (or PDF bytes for `*-pdf` routes) as described in the **OpenAPI** spec and API Playground. The examples below illustrate typical fields.
+
+### Get Quotes
+
+Filter quotes using search criteria. All request fields except `limit` and `offset` are required.
+
+```
+POST /om/cert/vendor/v1/quotes/filter
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/filter' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","fromDate":"2026-01-01","toDate":"2026-12-31","limit":50,"offset":0}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quotes" type="array">
+  Matching quote summaries (structure varies by environment).
+</ResponseField>
+
+<ResponseField name="totalCount" type="integer">
+  Total matches for the filter (when paginating with `limit` / `offset`).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/filter">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "quotes": [
+    {
+      "quoteId": "QT-20260001",
+      "name": "Spring equipment package",
+      "status": "DRAFT"
+    }
+  ],
+  "totalCount": 1
+}
+```
+
+---
+
+### Get Deleted Quotes
+
+Filter deleted quotes. All request fields except `limit` and `offset` are required.
+
+```
+POST /om/cert/vendor/v1/quotes/deleted-quotes
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/deleted-quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"dealerId":"D-078901","limit":25,"offset":0}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/deleted-quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Delete Trade-Ins
+
+Delete multiple trade-ins associated with a quote.
+
+```
+DELETE /om/cert/vendor/v1/quotes/trade-ins
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/trade-ins' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","tradeInIds":["TI-001"]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /om/cert/vendor/v1/quotes/trade-ins">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Add inventory equipment to a quote
+
+Add inventory equipment to a quote. At least one body field is required.
+
+```
+POST /om/cert/vendor/v1/quotes/{quoteId}/inventory-equipment
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/inventory-equipment' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"inventoryEquipmentId":"INV-EQ-445566"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/{quoteId}/inventory-equipment">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create Quote
+
+Create a blank quote for a customer, then add equipment with **Add inventory equipment to a quote**.
+
+```
+POST /om/cert/vendor/v1/quotes/quote
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"customerId":"CUST-00123456","dealerId":"D-078901"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/quote">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create Quote from Master Quote
+
+Create a quote from a master quote template.
+
+```
+POST /om/cert/vendor/v1/quotes/quote-from-master
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-from-master' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"masterQuoteId":"MQ-20260001","customerId":"CUST-00123456"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/quote-from-master">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create Copy Quote
+
+Create a copy of an existing quote.
+
+```
+POST /om/cert/vendor/v1/quotes/copy-quote
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/copy-quote' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"sourceQuoteId":"QT-20260001"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/copy-quote">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Copy Equipment
+
+Copy equipment lines between quotes.
+
+```
+POST /om/cert/vendor/v1/quotes/copy-equipment
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/copy-equipment' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"sourceQuoteId":"QT-20260001","targetQuoteId":"QT-20260002"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /om/cert/vendor/v1/quotes/copy-equipment">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Quote Details
+
+High-level quote information. Use equipment, trade-in, purchase agreement, and recap endpoints for full detail.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="quoteId" type="string">
+  Unique quote identifier.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name of the quote.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Workflow status (values depend on JDSC Quote configuration).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "quoteId": "QT-20260001",
+  "name": "Spring equipment package",
+  "status": "DRAFT"
+}
+```
+
+---
+
+### Get Quote Calculations
+
+Retrieve pricing and calculation data for a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/calculations
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/calculations' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/calculations">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Trade-In Details
+
+Details for a single trade-in on a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<ParamField path="tradeInId" type="string" required>
+  Trade-in identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-ins/TI-00112233' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Trade-In Supporting Documents
+
+Supporting documents for a trade-in.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}/supporting-documents
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<ParamField path="tradeInId" type="string" required>
+  Trade-in identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-ins/TI-00112233/supporting-documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}/supporting-documents">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Trade-Ins List
+
+List trade-ins for a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/trade-in
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-in' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/trade-in">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Quote Supporting Documents
+
+Supporting documents attached to the quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/supporting-documents
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/supporting-documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/supporting-documents">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Recap PDF
+
+Download the recap PDF for a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/recap-pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/recap-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/recap-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Demo Agreement Details
+
+Demo agreement details for a quote.
+
+```
+GET /om/cert/vendor/v1/demo-agreement/{quoteId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/demo-agreement/QT-20260001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/demo-agreement/{quoteId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Rental Agreement Details
+
+Rental agreement details for a quote.
+
+```
+GET /om/cert/vendor/v1/rental-agreement/{quoteId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/rental-agreement/QT-20260001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/rental-agreement/{quoteId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Rental Agreement PDF
+
+Download the rental agreement PDF.
+
+```
+GET /om/cert/vendor/v1/rental-agreement/{quoteId}/pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/rental-agreement/QT-20260001/pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/rental-agreement/{quoteId}/pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Demo Agreement PDF
+
+Download the demo agreement PDF.
+
+```
+GET /om/cert/vendor/v1/demo-agreement/{quoteId}/pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/demo-agreement/QT-20260001/pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/demo-agreement/{quoteId}/pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Proposal PDF
+
+Download the proposal PDF.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/proposal-pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/proposal-pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/proposal-pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Equipment List
+
+List all equipment lines on a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/equipment
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/equipment">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Equipment Details
+
+Details for one equipment line.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<ParamField path="equipmentId" type="string" required>
+  Equipment line identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment/EQ-00445566' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Equipment Photos and Documents
+
+Photos and documents for an equipment line.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}/photos-and-documents
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<ParamField path="equipmentId" type="string" required>
+  Equipment line identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment/EQ-00445566/photos-and-documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}/photos-and-documents">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Purchase Agreement PDF
+
+Download the purchase agreement PDF.
+
+```
+GET /om/cert/vendor/v1/purchase-agreements/{quoteId}/pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/purchase-agreements/QT-20260001/pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/purchase-agreements/{quoteId}/pdf">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Purchase Agreement Details
+
+Purchase agreement details for a quote.
+
+```
+GET /om/cert/vendor/v1/purchase-agreements/{quoteId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/purchase-agreements/QT-20260001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/purchase-agreements/{quoteId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Quote Name
+
+Rename a quote. At least one body field is required.
+
+```
+PATCH /om/cert/vendor/v1/quotes/quote-name
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-name' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","name":"Revised title"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/quote-name">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Delete Quotes
+
+Delete multiple quotes in one request.
+
+```
+DELETE /om/cert/vendor/v1/quotes/quotes
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quotes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteIds":["QT-20260001","QT-20260002"]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /om/cert/vendor/v1/quotes/quotes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Delete Equipment
+
+Remove one or more equipment lines from a quote.
+
+```
+DELETE /om/cert/vendor/v1/quotes/equipment
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/equipment' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","equipmentIds":["EQ-001"]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /om/cert/vendor/v1/quotes/equipment">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Quote Expiration Date
+
+Set a new expiration date.
+
+```
+PATCH /om/cert/vendor/v1/quotes/expiration-date
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/expiration-date' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","expirationDate":"2026-08-31"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/expiration-date">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Store Location
+
+Change the store location on a quote.
+
+```
+PATCH /om/cert/vendor/v1/quotes/store-location
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/store-location' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","storeId":"ST-002"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/store-location">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Quote Status
+
+Update workflow status for a quote.
+
+```
+PATCH /om/cert/vendor/v1/quotes/quote-status
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-status' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","status":"SUBMITTED"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/quote-status">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Salesperson
+
+Assign or change the salesperson.
+
+```
+PATCH /om/cert/vendor/v1/quotes/salesperson
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/salesperson' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","salespersonId":"SP-00045"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/salesperson">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update Customer
+
+Update primary or secondary customer. At least one of `primaryCustomer` or `secondaryCustomer` must be present.
+
+```
+PATCH /om/cert/vendor/v1/quotes/customer
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField body="(JSON)" type="object" required>
+  Request body per API contract (see OpenAPI schema for example fields).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/customer' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"quoteId":"QT-20260001","primaryCustomer":{"customerId":"CUST-001"}}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /om/cert/vendor/v1/quotes/customer">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get All Quote Incentives
+
+Incentives associated with a quote.
+
+```
+GET /om/cert/vendor/v1/quotes/{quoteId}/incentives
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/incentives' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/quotes/{quoteId}/incentives">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get Delivery Document Details
+
+Delivery document metadata by quote ID.
+
+```
+GET /om/cert/vendor/v1/delivery-documents/{quoteId}
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="quoteId" type="string" required>
+  Quote identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/delivery-documents/QT-20260001' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/delivery-documents/{quoteId}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Generate Delivery Document PDF
+
+PDF for a delivery document by delivery document ID.
+
+```
+GET /om/cert/vendor/v1/delivery-documents/{deliveryDocumentId}/pdf
+```
+
+**OAuth scopes:** `openid`, `profile`
+
+<ParamField path="deliveryDocumentId" type="string" required>
+  Delivery document identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/delivery-documents/DD-99887766/pdf' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /om/cert/vendor/v1/delivery-documents/{deliveryDocumentId}/pdf">
+  Test this endpoint interactively with your access token.
+</Card>

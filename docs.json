@@ -12,8 +12,12 @@
       "light": "#FFDE00",
       "dark": "#367C2B"
     },
+    "appearance": {
+      "default": "system",
+      "strict": false
+    },
     "api": {
-      "openapi": ["openapi/dealer-data-feed.json", "openapi/dealer-data-hub.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json", "openapi/customer-data-product.json", "openapi/customer-linkage.json", "openapi/maintain-quotes.json", "openapi/market-share.json", "openapi/po-data.json", "openapi/om-equipment.json", "openapi/transaction-pricing.json"],
+      "openapi": ["openapi/dealer-data-feed.json", "openapi/dealer-data-hub.json", "openapi/supplier-part-quoting.json", "openapi/oca-crm.json", "openapi/merchant-integration.json", "openapi/merchant-incentives.json", "openapi/merchant-transactions.json", "openapi/customer-data-product.json", "openapi/customer-linkage.json", "openapi/maintain-quotes.json", "openapi/market-share.json", "openapi/po-data.json", "openapi/om-equipment.json", "openapi/quote-vendor-services.json", "openapi/transaction-pricing.json", "openapi/dealer-syndication-service.json", "openapi/business-integration-disregard.json", "openapi/expert-services.json"],
       "playground": {
         "display": "interactive"
       },
@@ -188,19 +192,110 @@
                     {
                         "group": "Parts",
                         "pages": [
-                            "dealer_solutions/parts/index"
+                            {
+                                "group": "Dealer Syndication Service",
+                                "root": "dealer_solutions/parts/dealer-syndication-service",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/dealer-syndication-service.json",
+                                        "pages": [
+                                            "GET /digcust/dealer-syndication-service-v1-sandbox/{dealer-account-id}/cart/{cart-id}"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Sales",
                         "pages": [
-                            "dealer_solutions/sales/index"
+                            {
+                                "group": "Quote Vendor Services",
+                                "root": "dealer_solutions/sales/quote-vendor-services",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/quote-vendor-services.json",
+                                        "pages": [
+                                            "POST /om/cert/vendor/v1/quotes/filter",
+                                            "POST /om/cert/vendor/v1/quotes/deleted-quotes",
+                                            "DELETE /om/cert/vendor/v1/quotes/trade-ins",
+                                            "POST /om/cert/vendor/v1/quotes/{quoteId}/inventory-equipment",
+                                            "POST /om/cert/vendor/v1/quotes/quote",
+                                            "POST /om/cert/vendor/v1/quotes/quote-from-master",
+                                            "POST /om/cert/vendor/v1/quotes/copy-quote",
+                                            "POST /om/cert/vendor/v1/quotes/copy-equipment",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/calculations",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}/supporting-documents",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/trade-in",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/supporting-documents",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/recap-pdf",
+                                            "GET /om/cert/vendor/v1/demo-agreement/{quoteId}",
+                                            "GET /om/cert/vendor/v1/rental-agreement/{quoteId}",
+                                            "GET /om/cert/vendor/v1/rental-agreement/{quoteId}/pdf",
+                                            "GET /om/cert/vendor/v1/demo-agreement/{quoteId}/pdf",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/proposal-pdf",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/equipment",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}/photos-and-documents",
+                                            "GET /om/cert/vendor/v1/purchase-agreements/{quoteId}/pdf",
+                                            "GET /om/cert/vendor/v1/purchase-agreements/{quoteId}",
+                                            "PATCH /om/cert/vendor/v1/quotes/quote-name",
+                                            "DELETE /om/cert/vendor/v1/quotes/quotes",
+                                            "DELETE /om/cert/vendor/v1/quotes/equipment",
+                                            "PATCH /om/cert/vendor/v1/quotes/expiration-date",
+                                            "PATCH /om/cert/vendor/v1/quotes/store-location",
+                                            "PATCH /om/cert/vendor/v1/quotes/quote-status",
+                                            "PATCH /om/cert/vendor/v1/quotes/salesperson",
+                                            "PATCH /om/cert/vendor/v1/quotes/customer",
+                                            "GET /om/cert/vendor/v1/quotes/{quoteId}/incentives",
+                                            "GET /om/cert/vendor/v1/delivery-documents/{quoteId}",
+                                            "GET /om/cert/vendor/v1/delivery-documents/{deliveryDocumentId}/pdf"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Service",
                         "pages": [
-                            "dealer_solutions/service/index"
+                            {
+                                "group": "Business Integration Disregard",
+                                "root": "dealer_solutions/service/business-integration-disregard",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/business-integration-disregard.json",
+                                        "pages": [
+                                            "GET /digcust/cert-bi/disregards/reasons",
+                                            "PUT /digcust/cert-bi/disregards/{id}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Expert Services",
+                                "root": "dealer_solutions/service/expert-services",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/expert-services.json",
+                                        "pages": [
+                                            "GET /delsol/cert/expertservices/api/checklists/{id}",
+                                            "GET /delsol/cert/expertservices/api/documents/{documentId}",
+                                            "GET /delsol/cert/expertservices/api/documents/{RACF_ID}/{UUID}",
+                                            "GET /delsol/cert/expertservices/api/jobs",
+                                            "POST /delsol/cert/expertservices/api/jobs",
+                                            "GET /delsol/cert/expertservices/api/jobs/{id}",
+                                            "GET /delsol/cert/expertservices/api/search"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {

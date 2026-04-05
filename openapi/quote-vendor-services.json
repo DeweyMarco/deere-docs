@@ -1,0 +1,2083 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Quote Vendor Services API",
+    "description": "Access to manage quotation and purchase agreement information in John Deere Sales Center - Quote (JDSC Quote).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://quote-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 as used by John Deere Dealer Solutions APIs.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "openid": "OpenID Connect",
+              "profile": "User profile",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid request parameters."
+              }
+            }
+          }
+        }
+      },
+      "QuotesFilterRequest": {
+        "type": "object",
+        "description": "Search criteria for quotes. All fields except limit and offset are required by the API.",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "example": "D-078901"
+          },
+          "storeId": {
+            "type": "string",
+            "example": "ST-001"
+          },
+          "status": {
+            "type": "string",
+            "example": "ACTIVE"
+          },
+          "fromDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-01-01"
+          },
+          "toDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-31"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "example": 50
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          }
+        },
+        "additionalProperties": true
+      },
+      "DeletedQuotesFilterRequest": {
+        "type": "object",
+        "description": "Search criteria for deleted quotes. All fields except limit and offset are required.",
+        "properties": {
+          "dealerId": {
+            "type": "string",
+            "example": "D-078901"
+          },
+          "deletedAfter": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-01-01T00:00:00Z"
+          },
+          "limit": {
+            "type": "integer",
+            "example": 50
+          },
+          "offset": {
+            "type": "integer",
+            "example": 0
+          }
+        },
+        "additionalProperties": true
+      },
+      "TradeInsDeleteRequest": {
+        "type": "object",
+        "description": "Identifies trade-ins to remove from a quote.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "tradeInIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "TI-001",
+              "TI-002"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "AddInventoryEquipmentRequest": {
+        "type": "object",
+        "description": "At least one field is required per API contract.",
+        "properties": {
+          "inventoryEquipmentId": {
+            "type": "string",
+            "example": "INV-EQ-445566"
+          },
+          "stockNumber": {
+            "type": "string",
+            "example": "SN-887766"
+          },
+          "modelNumber": {
+            "type": "string",
+            "example": "8R410"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CreateQuoteRequest": {
+        "type": "object",
+        "description": "Creates a blank quote for a customer. At least one identifying field is required.",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "example": "CUST-00123456"
+          },
+          "dealerId": {
+            "type": "string",
+            "example": "D-078901"
+          },
+          "storeId": {
+            "type": "string",
+            "example": "ST-001"
+          }
+        },
+        "additionalProperties": true
+      },
+      "QuoteFromMasterRequest": {
+        "type": "object",
+        "properties": {
+          "masterQuoteId": {
+            "type": "string",
+            "example": "MQ-20260001"
+          },
+          "customerId": {
+            "type": "string",
+            "example": "CUST-00123456"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CopyQuoteRequest": {
+        "type": "object",
+        "properties": {
+          "sourceQuoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "customerId": {
+            "type": "string",
+            "example": "CUST-00998877"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CopyEquipmentRequest": {
+        "type": "object",
+        "properties": {
+          "sourceQuoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "targetQuoteId": {
+            "type": "string",
+            "example": "QT-20260002"
+          },
+          "equipmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "EQ-001",
+              "EQ-002"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "QuoteSummary": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Spring equipment package"
+          },
+          "status": {
+            "type": "string",
+            "example": "DRAFT"
+          }
+        },
+        "additionalProperties": true
+      },
+      "QuoteCalculations": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Quote pricing and calculation breakdown."
+      },
+      "TradeInDetail": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "SupportingDocumentsList": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "EquipmentList": {
+        "type": "object",
+        "properties": {
+          "equipment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentItem"
+            }
+          }
+        }
+      },
+      "EquipmentItem": {
+        "type": "object",
+        "properties": {
+          "equipmentId": {
+            "type": "string",
+            "example": "EQ-00445566"
+          },
+          "modelNumber": {
+            "type": "string",
+            "example": "8R410"
+          }
+        },
+        "additionalProperties": true
+      },
+      "PurchaseAgreementDetail": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "UpdateQuoteNameRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Updated quote title"
+          }
+        },
+        "additionalProperties": true
+      },
+      "DeleteQuotesRequest": {
+        "type": "object",
+        "properties": {
+          "quoteIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "QT-20260001",
+              "QT-20260002"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "DeleteEquipmentRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "equipmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "EQ-001",
+              "EQ-002"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "UpdateExpirationDateRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "expirationDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-30"
+          }
+        },
+        "additionalProperties": true
+      },
+      "UpdateStoreLocationRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "storeId": {
+            "type": "string",
+            "example": "ST-002"
+          }
+        },
+        "additionalProperties": true
+      },
+      "UpdateQuoteStatusRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "status": {
+            "type": "string",
+            "example": "SUBMITTED"
+          }
+        },
+        "additionalProperties": true
+      },
+      "UpdateSalespersonRequest": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "salespersonId": {
+            "type": "string",
+            "example": "SP-00045"
+          }
+        },
+        "additionalProperties": true
+      },
+      "UpdateCustomerRequest": {
+        "type": "object",
+        "description": "At least one of primaryCustomer or secondaryCustomer should be present.",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "example": "QT-20260001"
+          },
+          "primaryCustomer": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "secondaryCustomer": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "IncentivesList": {
+        "type": "object",
+        "properties": {
+          "incentives": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "DeliveryDocumentDetail": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "QuotesFilterResponse": {
+        "type": "object",
+        "properties": {
+          "quotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteSummary"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "example": 42
+          }
+        }
+      },
+      "AgreementDetail": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/om/cert/vendor/v1/quotes/filter": {
+      "post": {
+        "operationId": "filterQuotes",
+        "summary": "Get Quotes",
+        "description": "Filter quotes based on search criteria. All request input values except limit and offset are required.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/filter' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"fromDate\":\"2026-01-01\",\"toDate\":\"2026-12-31\",\"limit\":50,\"offset\":0}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotesFilterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Filtered quote list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotesFilterResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/deleted-quotes": {
+      "post": {
+        "operationId": "filterDeletedQuotes",
+        "summary": "Get Deleted Quotes",
+        "description": "Filter deleted quotes. All request input values except limit and offset are required.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/deleted-quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerId\":\"D-078901\",\"limit\":25,\"offset\":0}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletedQuotesFilterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/trade-ins": {
+      "delete": {
+        "operationId": "deleteTradeIns",
+        "summary": "Delete Trade-Ins",
+        "description": "Delete multiple trade-ins associated with a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/trade-ins' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"tradeInIds\":[\"TI-001\"]}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeInsDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Trade-ins deleted."
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/inventory-equipment": {
+      "post": {
+        "operationId": "addInventoryEquipment",
+        "summary": "Add inventory equipment to a quote",
+        "description": "Add inventory equipment to a quote. Any field in the request body may satisfy the requirement.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/inventory-equipment' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"inventoryEquipmentId\":\"INV-EQ-445566\"}'"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quote identifier."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddInventoryEquipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/quote": {
+      "post": {
+        "operationId": "createQuote",
+        "summary": "Create Quote",
+        "description": "Create a blank quote for a customer. Add equipment using Add Inventory Equipment afterward.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"customerId\":\"CUST-00123456\",\"dealerId\":\"D-078901\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quote created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/quote-from-master": {
+      "post": {
+        "operationId": "createQuoteFromMaster",
+        "summary": "Create Quote from Master Quote",
+        "description": "Create a new quote from a master quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-from-master' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"masterQuoteId\":\"MQ-20260001\",\"customerId\":\"CUST-00123456\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteFromMasterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quote created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/copy-quote": {
+      "post": {
+        "operationId": "copyQuote",
+        "summary": "Create Copy Quote",
+        "description": "Create a copy of an existing quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/copy-quote' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"sourceQuoteId\":\"QT-20260001\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quote copied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/copy-equipment": {
+      "post": {
+        "operationId": "copyEquipment",
+        "summary": "Copy Equipment",
+        "description": "Copy equipment associated with a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/copy-equipment' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"sourceQuoteId\":\"QT-20260001\",\"targetQuoteId\":\"QT-20260002\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyEquipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}": {
+      "get": {
+        "operationId": "getQuoteDetails",
+        "summary": "Get Quote Details",
+        "description": "High-level quote information. For line-item detail use equipment, trade-in, purchase agreement, and recap PDF endpoints.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quote details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/calculations": {
+      "get": {
+        "operationId": "getQuoteCalculations",
+        "summary": "Get Quote Calculations",
+        "description": "Retrieve calculations for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/calculations' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calculations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteCalculations"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}": {
+      "get": {
+        "operationId": "getTradeInDetails",
+        "summary": "Get Trade-In Details",
+        "description": "Trade-in details for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-ins/TI-00112233' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tradeInId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trade-in detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeInDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/trade-ins/{tradeInId}/supporting-documents": {
+      "get": {
+        "operationId": "getTradeInSupportingDocuments",
+        "summary": "Get Trade-In Supporting Documents",
+        "description": "Supporting documents for a trade-in.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-ins/TI-00112233/supporting-documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tradeInId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportingDocumentsList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/trade-in": {
+      "get": {
+        "operationId": "getTradeInsList",
+        "summary": "Get Trade-Ins List",
+        "description": "List trade-ins for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/trade-in' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/supporting-documents": {
+      "get": {
+        "operationId": "getQuoteSupportingDocuments",
+        "summary": "Get Quote Supporting Documents",
+        "description": "Supporting documents for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/supporting-documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/recap-pdf": {
+      "get": {
+        "operationId": "getRecapPdf",
+        "summary": "Get Recap PDF",
+        "description": "PDF recap for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/recap-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/demo-agreement/{quoteId}": {
+      "get": {
+        "operationId": "getDemoAgreementDetails",
+        "summary": "Get Demo Agreement Details",
+        "description": "Demo agreement details by quote id.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/demo-agreement/QT-20260001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Demo agreement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/rental-agreement/{quoteId}": {
+      "get": {
+        "operationId": "getRentalAgreementDetails",
+        "summary": "Get Rental Agreement Details",
+        "description": "Rental agreement details by quote id.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/rental-agreement/QT-20260001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rental agreement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/rental-agreement/{quoteId}/pdf": {
+      "get": {
+        "operationId": "getRentalAgreementPdf",
+        "summary": "Get Rental Agreement PDF",
+        "description": "PDF for the rental agreement.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/rental-agreement/QT-20260001/pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/demo-agreement/{quoteId}/pdf": {
+      "get": {
+        "operationId": "getDemoAgreementPdf",
+        "summary": "Get Demo Agreement PDF",
+        "description": "PDF for the demo agreement.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/demo-agreement/QT-20260001/pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/proposal-pdf": {
+      "get": {
+        "operationId": "getProposalPdf",
+        "summary": "Get Proposal PDF",
+        "description": "Proposal PDF for a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/proposal-pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/equipment": {
+      "get": {
+        "operationId": "getEquipmentList",
+        "summary": "Get Equipment List",
+        "description": "All equipment lines on a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}": {
+      "get": {
+        "operationId": "getEquipmentDetails",
+        "summary": "Get Equipment Details",
+        "description": "Single equipment line on a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment/EQ-00445566' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "equipmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/equipment/{equipmentId}/photos-and-documents": {
+      "get": {
+        "operationId": "getEquipmentPhotosAndDocuments",
+        "summary": "Get Equipment Photos and Documents",
+        "description": "Photos and documents for an equipment line.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/equipment/EQ-00445566/photos-and-documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "equipmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/purchase-agreements/{quoteId}/pdf": {
+      "get": {
+        "operationId": "getPurchaseAgreementPdf",
+        "summary": "Get Purchase Agreement PDF",
+        "description": "Purchase agreement PDF.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/purchase-agreements/QT-20260001/pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/purchase-agreements/{quoteId}": {
+      "get": {
+        "operationId": "getPurchaseAgreementDetails",
+        "summary": "Get Purchase Agreement Details",
+        "description": "Purchase agreement details.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/purchase-agreements/QT-20260001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase agreement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseAgreementDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/quote-name": {
+      "patch": {
+        "operationId": "updateQuoteName",
+        "summary": "Update Quote Name",
+        "description": "Update quote name. Any field in the body may satisfy the requirement.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-name' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"name\":\"Revised title\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuoteNameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/quotes": {
+      "delete": {
+        "operationId": "deleteQuotes",
+        "summary": "Delete Quotes",
+        "description": "Delete multiple quotes in one request.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quotes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteIds\":[\"QT-20260001\",\"QT-20260002\"]}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteQuotesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Quotes deleted."
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/equipment": {
+      "delete": {
+        "operationId": "deleteEquipment",
+        "summary": "Delete Equipment",
+        "description": "Delete one or more equipment lines from a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/equipment' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"equipmentIds\":[\"EQ-001\"]}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteEquipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Equipment deleted."
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/expiration-date": {
+      "patch": {
+        "operationId": "updateQuoteExpirationDate",
+        "summary": "Update Quote Expiration Date",
+        "description": "Update the quote expiration date.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/expiration-date' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"expirationDate\":\"2026-08-31\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExpirationDateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/store-location": {
+      "patch": {
+        "operationId": "updateStoreLocation",
+        "summary": "Update Store Location",
+        "description": "Update the store location on a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/store-location' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"storeId\":\"ST-002\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStoreLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/quote-status": {
+      "patch": {
+        "operationId": "updateQuoteStatus",
+        "summary": "Update Quote Status",
+        "description": "Update quote workflow status.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/quote-status' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"status\":\"SUBMITTED\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuoteStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/salesperson": {
+      "patch": {
+        "operationId": "updateSalesperson",
+        "summary": "Update Salesperson",
+        "description": "Update the salesperson on a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/salesperson' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"salespersonId\":\"SP-00045\"}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSalespersonRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/customer": {
+      "patch": {
+        "operationId": "updateCustomer",
+        "summary": "Update Customer",
+        "description": "Update customers on a quote. At least one of primaryCustomer or secondaryCustomer should be present.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/customer' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"quoteId\":\"QT-20260001\",\"primaryCustomer\":{\"customerId\":\"CUST-001\"}}'"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/quotes/{quoteId}/incentives": {
+      "get": {
+        "operationId": "getQuoteIncentives",
+        "summary": "Get All Quote Incentives",
+        "description": "Incentives applied to a quote.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/quotes/QT-20260001/incentives' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incentives.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncentivesList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/delivery-documents/{quoteId}": {
+      "get": {
+        "operationId": "getDeliveryDocumentDetails",
+        "summary": "Get Delivery Document Details",
+        "description": "Delivery document details by quote ID.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/delivery-documents/QT-20260001' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quoteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivery document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryDocumentDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/om/cert/vendor/v1/delivery-documents/{deliveryDocumentId}/pdf": {
+      "get": {
+        "operationId": "generateDeliveryDocumentPdf",
+        "summary": "Generate Delivery Document PDF",
+        "description": "PDF for a delivery document by delivery document ID.",
+        "security": [
+          {
+            "OAuth2": [
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://quote-api-sandbox.deere.com/om/cert/vendor/v1/delivery-documents/DD-99887766/pdf' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deliveryDocumentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF document bytes.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

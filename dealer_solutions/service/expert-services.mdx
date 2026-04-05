@@ -1,0 +1,455 @@
+---
+title: "Expert Services API"
+description: "Adopt, modify, and manage jobs and checklists using John Deere published service content across your dealership."
+---
+
+## Overview
+
+Expert Services is an application that allows dealers to adopt, modify, and manage jobs and checklists. John Deere publishes jobs and checklists for many equipment models and adds content regularly. Dealers can adopt and tailor that content for their customers and geography.
+
+Integrating with Expert Services helps large dealer organizations quote service work consistently. Each location can work from the same content, and updates propagate as soon as they are published.
+
+<CardGroup cols={2}>
+  <Card title="Checklists & jobs" icon="clipboard-list">
+    Retrieve checklist definitions, list jobs, fetch a job by ID, and create ad-hoc jobs when standard content does not apply.
+  </Card>
+  <Card title="Search" icon="magnifying-glass">
+    Search across jobs and checklists to find the right procedure or work package quickly.
+  </Card>
+  <Card title="Documents" icon="file-lines">
+    Download documents by RACF ID and UUID, or by Expert Services document ID, when your workflow needs attachments or PDFs.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using the authorization code flow or client credentials, consistent with other Dealer Solutions APIs.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **OAuth 2.0**. You can use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine integrations.
+
+**OAuth scope required for these endpoints:** `axiom` (unless your product documentation specifies a different scope).
+
+### Client credentials (machine-to-machine)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+### Authorization code (interactive users)
+
+For three-legged OAuth, direct the user to the authorization server with `response_type=code`, your **client ID**, **redirect URI** (URL-encoded), **state**, and the **scopes** required for this API (including `axiom` as documented). Exchange the authorization code at the token endpoint for an access token. Request the `offline_access` scope if you need a refresh token.
+
+<Note>
+  If callback URLs do not sync correctly, users may see a **400 Bad Redirect** after authentication. Ensure redirect URIs are saved on Developer.Deere.com and contact support if redirects fail in testing.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://expertservices-api-sandbox.deere.com
+```
+
+API paths are rooted under `/delsol/cert/expertservices`.
+
+---
+
+## Endpoints
+
+### Get checklist details by checklist ID
+
+Returns the full checklist for the given checklist identifier.
+
+```
+GET /delsol/cert/expertservices/api/checklists/{id}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="id" type="string" required>
+  Checklist identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/checklists/CHK-9f3a2b1c' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: */*'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="id" type="string">
+  Checklist identifier.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Display title for the checklist.
+</ResponseField>
+
+<ResponseField name="modelFamily" type="string">
+  Equipment model family the checklist applies to.
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Ordered checklist tasks or inspection steps (see `sequence`, `description`, `required` on each item).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/checklists/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "id": "CHK-9f3a2b1c",
+  "title": "50-hour engine service",
+  "modelFamily": "6M Series",
+  "items": [
+    {
+      "sequence": 1,
+      "description": "Inspect engine air filter",
+      "required": true
+    }
+  ]
+}
+```
+
+---
+
+### Get job details by ID
+
+Returns job details for the supplied job identifier.
+
+```
+GET /delsol/cert/expertservices/api/jobs/{id}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="id" type="string" required>
+  Job identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs/JOB-77aa11bb' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="id" type="string">
+  Job identifier.
+</ResponseField>
+
+<ResponseField name="checklistId" type="string">
+  Associated checklist identifier when the job was created from a checklist.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Job title.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Job status (for example `OPEN`).
+</ResponseField>
+
+<ResponseField name="equipment" type="object">
+  Optional equipment reference (`pin`, `model`).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/jobs/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get job details (list)
+
+Returns jobs available to the caller. Optional query parameters may filter or paginate results when supported by the environment.
+
+```
+GET /delsol/cert/expertservices/api/jobs
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField query="status" type="string">
+  Filter by job status when supported.
+</ParamField>
+
+<ParamField query="pageSize" type="integer">
+  Maximum number of jobs to return when pagination is supported.
+</ParamField>
+
+<ParamField query="pageToken" type="string">
+  Opaque cursor from a previous response.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="jobs" type="array">
+  List of job objects (`id`, `checklistId`, `title`, `status`, `equipment`, and other fields as returned by the service).
+</ResponseField>
+
+<ResponseField name="nextPageToken" type="string">
+  Cursor for the next page when pagination is supported.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/jobs">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Create an ad-hoc job
+
+Creates a dealer-defined job that is not tied to a standard published checklist.
+
+```
+POST /delsol/cert/expertservices/api/jobs
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField body="title" type="string" required>
+  Title for the ad-hoc job.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional longer description of the work.
+</ParamField>
+
+<ParamField body="equipment" type="object">
+  Optional equipment reference (`pin`, `model`).
+</ParamField>
+
+<ParamField body="priority" type="string">
+  Priority when supported (`LOW`, `NORMAL`, `HIGH`).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/jobs' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"title":"Customer-requested hydraulic diagnosis","description":"Diagnose slow lift on front loader.","equipment":{"pin":"1XYZ12345ABCD6789","model":"6120M"},"priority":"NORMAL"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="id" type="string">
+  Identifier of the created job.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Job title.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial status (for example `OPEN`).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /delsol/cert/expertservices/api/jobs">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Search job and checklist details
+
+Searches jobs and checklists using the supplied query parameters.
+
+```
+GET /delsol/cert/expertservices/api/search
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField query="q" type="string">
+  Free-text search string.
+</ParamField>
+
+<ParamField query="type" type="string">
+  Restrict results to `job`, `checklist`, or `all` when supported.
+</ParamField>
+
+<ParamField query="modelFamily" type="string">
+  Filter by equipment model family when supported.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/search?q=engine%20service&type=all' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="checklists" type="array">
+  Matching checklist summaries (`id`, `title`, `modelFamily`).
+</ResponseField>
+
+<ResponseField name="jobs" type="array">
+  Matching job summaries (`id`, `title`, `status`).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/search">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get document by RACF ID and UUID
+
+Downloads a document using the dealer RACF identifier and document UUID. Responses are binary; use the `Accept` header as required by your integration (the product examples use `multipart/form-data`).
+
+```
+GET /delsol/cert/expertservices/api/documents/{RACF_ID}/{UUID}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="RACF_ID" type="string" required>
+  Dealer RACF identifier.
+</ParamField>
+
+<ParamField path="UUID" type="string" required>
+  Document UUID.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/documents/DEALER123/550e8400-e29b-41d4-a716-446655440000' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: multipart/form-data'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/documents/{RACF_ID}/{UUID}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get document by document ID
+
+Downloads a document using the Expert Services document identifier.
+
+```
+GET /delsol/cert/expertservices/api/documents/{documentId}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="documentId" type="string" required>
+  Expert Services document identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://expertservices-api-sandbox.deere.com/delsol/cert/expertservices/api/documents/DOC-4411aabb' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: multipart/form-data'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /delsol/cert/expertservices/api/documents/{documentId}">
+  Test this endpoint interactively with your access token.
+</Card>

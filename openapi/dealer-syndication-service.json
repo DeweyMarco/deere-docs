@@ -1,0 +1,270 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer Syndication Service API",
+    "description": "John Deere Parts cart integration for portal dealers. Enables retrieval of cart details when customers browse the Parts Catalog and return to the dealer portal for checkout.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdpcheckout-api-sandbox.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Portal Dealer V1 integration requires the `axiom` scope. Use the authorization code flow for interactive users (see product documentation), or the client credentials grant for machine-to-machine access.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access (including portal syndication)"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "CartLineItem": {
+        "type": "object",
+        "description": "A single line in the syndicated parts cart.",
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "description": "Line identifier within the cart.",
+            "example": "LINE-0001"
+          },
+          "partNumber": {
+            "type": "string",
+            "description": "John Deere part number.",
+            "example": "RE504836"
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Quantity requested.",
+            "example": 2
+          },
+          "description": {
+            "type": "string",
+            "description": "Catalog description for the part.",
+            "example": "Fuel Filter"
+          },
+          "unitPrice": {
+            "type": "number",
+            "description": "Unit price in the dealer's currency when available.",
+            "example": 24.99
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code.",
+            "example": "USD"
+          }
+        }
+      },
+      "CartDetails": {
+        "type": "object",
+        "description": "Cart details returned for a portal dealer integration.",
+        "properties": {
+          "cartId": {
+            "type": "string",
+            "description": "Unique cart identifier (matches the `cart-id` path parameter).",
+            "example": "cart-9f3c2a1b8e7d"
+          },
+          "dealerAccountId": {
+            "type": "string",
+            "description": "Dealer account identifier (matches the `dealer-account-id` path parameter).",
+            "example": "D-123456"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current cart lifecycle status.",
+            "example": "READY_FOR_CHECKOUT",
+            "enum": ["OPEN", "READY_FOR_CHECKOUT", "TRANSFERRED", "EXPIRED", "CANCELLED"]
+          },
+          "lineItems": {
+            "type": "array",
+            "description": "Parts and quantities in the cart.",
+            "items": {
+              "$ref": "#/components/schemas/CartLineItem"
+            }
+          },
+          "itemCount": {
+            "type": "integer",
+            "description": "Total number of line items.",
+            "example": 3
+          },
+          "subtotal": {
+            "type": "number",
+            "description": "Cart subtotal before tax and fees when pricing is available.",
+            "example": 189.47
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code for monetary fields.",
+            "example": "USD"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the cart was last modified.",
+            "example": "2026-04-02T14:22:10Z"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/dealer-syndication-service-v1-sandbox/{dealer-account-id}/cart/{cart-id}": {
+      "get": {
+        "operationId": "getPortalDealerCart",
+        "summary": "Get cart details (Portal Dealer V1)",
+        "description": "Returns cart details for portal dealers when integrating the John Deere Parts Catalog cart with the dealer's portal checkout experience.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "dealer-account-id",
+            "in": "path",
+            "required": true,
+            "description": "Identifier for the dealer account associated with the cart.",
+            "schema": {
+              "type": "string",
+              "example": "D-123456"
+            }
+          },
+          {
+            "name": "cart-id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the Parts Catalog cart to retrieve.",
+            "schema": {
+              "type": "string",
+              "example": "cart-9f3c2a1b8e7d"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://jdpcheckout-api-sandbox.deere.com/digcust/dealer-syndication-service-v1-sandbox/D-123456/cart/cart-9f3c2a1b8e7d' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved cart details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDetails"
+                },
+                "example": {
+                  "cartId": "cart-9f3c2a1b8e7d",
+                  "dealerAccountId": "D-123456",
+                  "status": "READY_FOR_CHECKOUT",
+                  "lineItems": [
+                    {
+                      "lineId": "LINE-0001",
+                      "partNumber": "RE504836",
+                      "quantity": 2,
+                      "description": "Fuel Filter",
+                      "unitPrice": 24.99,
+                      "currency": "USD"
+                    },
+                    {
+                      "lineId": "LINE-0002",
+                      "partNumber": "AR87351",
+                      "quantity": 1,
+                      "description": "Hydraulic Hose",
+                      "unitPrice": 139.49,
+                      "currency": "USD"
+                    }
+                  ],
+                  "itemCount": 2,
+                  "subtotal": 189.47,
+                  "currency": "USD",
+                  "updatedAt": "2026-04-02T14:22:10Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not have the required `axiom` scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required 'axiom' scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cart not found for the given dealer account and cart identifiers.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No cart found for the specified identifiers."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

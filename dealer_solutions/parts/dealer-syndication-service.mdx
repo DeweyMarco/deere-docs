@@ -1,0 +1,242 @@
+---
+title: "Dealer Syndication Service API"
+description: "Portal Dealer V1 integration for John Deere Parts cart data — retrieve cart details when customers return from the Parts Catalog to your dealer portal."
+---
+
+## Overview
+
+The Dealer Syndication Service supports **John Deere Parts cart integration with the dealer's portal**. Known customers can use the dealer portal to browse diagrams and search parts in the John Deere Parts Catalog, add items to the cart, choose **Proceed to Checkout**, and complete the purchase on the dealer site.
+
+This API exposes **Portal Dealer V1** operations so your integration can retrieve **cart details** for portal dealers after that handoff.
+
+<CardGroup cols={2}>
+  <Card title="Parts Catalog handoff" icon="cart-shopping">
+    Customers build a cart in the Parts Catalog, then return to the dealer portal to finish checkout.
+  </Card>
+  <Card title="Cart details for portals" icon="rectangle-list">
+    Fetch cart contents and metadata using dealer account and cart identifiers.
+  </Card>
+  <Card title="OAuth scope: axiom" icon="shield-halved">
+    Authenticate with the same Dealer Solutions patterns used across John Deere APIs.
+  </Card>
+  <Card title="Sandbox base URL" icon="flask">
+    Use the sandbox host for development and testing before production rollout.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication (OAuth 2)
+
+John Deere Dealer Solutions APIs support **OAuth 2**. Depending on your architecture, you may use the **authorization code** flow (three-legged, interactive users) or the **client credentials** grant (machine-to-machine).
+
+### Three-legged OAuth (authorization code)
+
+Use this flow when an end user signs in with John Deere and your application receives an authorization code.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. You will use these credentials to sign API requests.
+
+    On the **OAuth Profile** page of your application (under application Details), add one or more **Callback URLs (Redirect URI)**. Add multiple entries with **Add**, then **Save**. If callback URLs do not sync correctly, users may see a **400 Bad Redirect** after authentication — contact John Deere support to manually sync your callback with the OAuth provider if needed.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Discover the authorization and token endpoints and required scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Direct the user to the authorization server with `response_type=code`, the required **OAuth scopes** (including `axiom` for this API), **client ID**, **state**, and **redirect URI**. The `redirect_uri` query parameter must be **URL-encoded** (for example, `https://example.client.com/callback` becomes `https%3A%2F%2Fexample.client.com%2Fcallback`).
+
+    Request **offline_access** if you need a **refresh token** (12-hour access tokens; refresh tokens expire after 365 days without use).
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code at the token endpoint using grant type `authorization_code`, including the code and redirect URI. Access tokens expire after **12 hours**.
+  </Step>
+  <Step title="Refresh the access token (optional)">
+    Use grant type `refresh_token` with the stored refresh token before the access token expires so users are not prompted for scope again unless new scopes are requested.
+  </Step>
+</Steps>
+
+### Client credentials
+
+Use this flow for server-to-server calls without an interactive user.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Obtain a **Client Key** and **Client Secret**. In the **Security** section of your application, define at least one **Callback URL (Redirect URI)** — even if not strictly required for client credentials, add a placeholder such as `https://localhost:9090/callback` to satisfy syncing requirements, then **Save**.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    **POST** the token endpoint with grant type `client_credentials` and scope `axiom`. Send **Client ID and Secret** in the HTTP **Authorization** header using **HTTP Basic Auth** — not in the POST body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Example response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      Access tokens expire after **12 hours**. Obtain a new token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://jdpcheckout-api-sandbox.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get cart details (Portal Dealer V1)
+
+Returns **cart details** for portal dealers for the given dealer account and cart identifiers.
+
+```
+GET /digcust/dealer-syndication-service-v1-sandbox/{dealer-account-id}/cart/{cart-id}
+```
+
+**OAuth Scope Required:** `axiom`
+
+<ParamField path="dealer-account-id" type="string" required>
+  Dealer account identifier for the cart context.
+</ParamField>
+
+<ParamField path="cart-id" type="string" required>
+  Identifier of the Parts Catalog cart to retrieve.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://jdpcheckout-api-sandbox.deere.com/digcust/dealer-syndication-service-v1-sandbox/D-123456/cart/cart-9f3c2a1b8e7d' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="cartId" type="string">
+  Cart identifier (matches `cart-id`).
+</ResponseField>
+
+<ResponseField name="dealerAccountId" type="string">
+  Dealer account identifier (matches `dealer-account-id`).
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Cart status (for example `OPEN`, `READY_FOR_CHECKOUT`, `TRANSFERRED`, `EXPIRED`, `CANCELLED`).
+</ResponseField>
+
+<ResponseField name="lineItems" type="array">
+  Line items in the cart.
+  <Expandable title="lineItems">
+    <ResponseField name="lineId" type="string">
+      Line identifier within the cart.
+    </ResponseField>
+    <ResponseField name="partNumber" type="string">
+      John Deere part number.
+    </ResponseField>
+    <ResponseField name="quantity" type="number">
+      Requested quantity.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Catalog description when available.
+    </ResponseField>
+    <ResponseField name="unitPrice" type="number">
+      Unit price when pricing is returned.
+    </ResponseField>
+    <ResponseField name="currency" type="string">
+      ISO 4217 currency code for monetary fields on the line.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="itemCount" type="integer">
+  Number of line items in the cart.
+</ResponseField>
+
+<ResponseField name="subtotal" type="number">
+  Cart subtotal when pricing is available.
+</ResponseField>
+
+<ResponseField name="currency" type="string">
+  ISO 4217 currency code for cart-level monetary fields.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the last cart update.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /digcust/dealer-syndication-service-v1-sandbox/{dealer-account-id}/cart/{cart-id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "cartId": "cart-9f3c2a1b8e7d",
+  "dealerAccountId": "D-123456",
+  "status": "READY_FOR_CHECKOUT",
+  "lineItems": [
+    {
+      "lineId": "LINE-0001",
+      "partNumber": "RE504836",
+      "quantity": 2,
+      "description": "Fuel Filter",
+      "unitPrice": 24.99,
+      "currency": "USD"
+    }
+  ],
+  "itemCount": 1,
+  "subtotal": 49.98,
+  "currency": "USD",
+  "updatedAt": "2026-04-02T14:22:10Z"
+}
+```

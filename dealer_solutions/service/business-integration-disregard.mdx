@@ -1,0 +1,253 @@
+---
+title: "Business Integration Disregard API"
+description: "Cancel work orders that are no longer required, fetch localized disregard reasons, and align follow-up work with Dealer Business System (DBS)."
+---
+
+## Overview
+
+The Business Integration Disregard Service provides endpoints for canceling work orders when they are no longer needed. After a work order is canceled, your integration can send an alert back to DBS so new work orders can be created when appropriate.
+
+<CardGroup cols={2}>
+  <Card title="Disregard reasons" icon="list">
+    Retrieve all disregard reasons for a locale so users can pick a valid reason before canceling a work order.
+  </Card>
+  <Card title="Disregard work order" icon="xmark">
+    Cancel a work order using the event business key and the selected disregard reason.
+  </Card>
+  <Card title="DBS alignment" icon="arrows-rotate">
+    Use the disregard flow when work was planned in error, duplicated, or superseded by another process.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using the authorization code flow or client credentials, consistent with other Dealer Solutions APIs.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **OAuth 2.0**. You can use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine integrations.
+
+### Client credentials (machine-to-machine)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, as well as the available scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant type. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "axiom"
+    }
+    ```
+
+    <Note>
+      The access token expires after **12 hours**. Refresh it by repeating this step before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+### Authorization code (interactive users)
+
+For three-legged OAuth, direct the user to the authorization server with `response_type=code`, your **client ID**, **redirect URI** (URL-encoded), **state**, and the **scopes** required for this API (see your product documentation). Exchange the authorization code at the token endpoint for an access token. Request the `offline_access` scope if you need a refresh token.
+
+<Note>
+  If callback URLs do not sync correctly, users may see a **400 Bad Redirect** after authentication. Ensure redirect URIs are saved on Developer.Deere.com and contact support if redirects fail in testing.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://extintegration-sandbox-api.deere.com
+```
+
+API paths are rooted under `/digcust/cert-bi`.
+
+---
+
+## Endpoints
+
+### Get disregard reasons
+
+Returns disregard reasons for the requested locale so the client can populate a picker before disregarding a work order.
+
+```
+GET /digcust/cert-bi/disregards/reasons
+```
+
+**OAuth Scope Required:** `axiom` (or the scope listed in your product documentation for this API)
+
+<ParamField query="locale" type="string">
+  BCP 47 locale tag (for example `en-US`). When omitted, the service may apply a default locale.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://extintegration-sandbox-api.deere.com/digcust/cert-bi/disregards/reasons?locale=en-US' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<Note>The response body is a JSON **array** of objects. Each object includes the following fields.</Note>
+
+<ResponseField name="id" type="string">
+  Stable identifier for the disregard reason. Pass this as `reasonId` when calling `PUT /digcust/cert-bi/disregards/{id}`.
+</ResponseField>
+
+<ResponseField name="reasonCode" type="string">
+  Machine-readable code for the reason.
+</ResponseField>
+
+<ResponseField name="displayText" type="string">
+  Localized label shown to the user.
+</ResponseField>
+
+<ResponseField name="locale" type="string">
+  Locale for this reason row.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /digcust/cert-bi/disregards/reasons">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+[
+  {
+    "id": "DR-1001",
+    "reasonCode": "CUSTOMER_CANCELLED",
+    "displayText": "Customer cancelled the request",
+    "locale": "en-US"
+  },
+  {
+    "id": "DR-1002",
+    "reasonCode": "DUPLICATE_WORK_ORDER",
+    "displayText": "Duplicate work order",
+    "locale": "en-US"
+  }
+]
+```
+
+---
+
+### Disregard a work order
+
+Cancels the work order for the given **event business key** using the disregard **reason** selected by the user.
+
+```
+PUT /digcust/cert-bi/disregards/{id}
+```
+
+**OAuth Scope Required:** `axiom` (or the scope listed in your product documentation for this API)
+
+<ParamField path="id" type="string" required>
+  Event business key for the alert or work order to disregard.
+</ParamField>
+
+<ParamField body="reasonId" type="string" required>
+  Identifier from `GET /digcust/cert-bi/disregards/reasons` for the reason being applied.
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional free-text context for audit or support.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://extintegration-sandbox-api.deere.com/digcust/cert-bi/disregards/EVT-7b2c9a1d4e5f' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"reasonId":"DR-1001","comment":"Customer no longer needs the repair."}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="eventBusinessKey" type="string">
+  Event business key that was disregarded.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Outcome status (for example `DISREGARDED`).
+</ResponseField>
+
+<ResponseField name="disregardedAt" type="string">
+  ISO 8601 timestamp when the disregard was recorded.
+</ResponseField>
+
+<ResponseField name="reasonId" type="string">
+  Reason identifier that was applied.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /digcust/cert-bi/disregards/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "eventBusinessKey": "EVT-7b2c9a1d4e5f",
+  "status": "DISREGARDED",
+  "disregardedAt": "2026-04-04T18:22:10Z",
+  "reasonId": "DR-1001"
+}
+```
+
+<Note>
+  Some environments may return **204 No Content** on success with no response body.
+</Note>

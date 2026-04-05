@@ -1,0 +1,352 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Business Integration Disregard API",
+    "description": "Cancel work orders that are no longer required and retrieve disregard reasons by locale. After a work order is canceled, clients can alert Dealer Business System (DBS) to create new work orders as needed.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://extintegration-sandbox-api.deere.com",
+      "description": "Sandbox (cert-bi)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Use the authorization code flow (three-legged) for interactive users, or the client credentials grant for machine-to-machine access. Refer to the product documentation for the scope required for each operation.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DisregardReason": {
+        "type": "object",
+        "description": "A localized reason that can be selected when disregarding a work order.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier for the disregard reason.",
+            "example": "DR-1001"
+          },
+          "reasonCode": {
+            "type": "string",
+            "description": "Machine-readable code for the reason.",
+            "example": "CUSTOMER_CANCELLED"
+          },
+          "displayText": {
+            "type": "string",
+            "description": "Human-readable label for the selected locale.",
+            "example": "Customer cancelled the request"
+          },
+          "locale": {
+            "type": "string",
+            "description": "BCP 47 locale tag for this entry.",
+            "example": "en-US"
+          }
+        }
+      },
+      "DisregardRequest": {
+        "type": "object",
+        "description": "Payload used when disregarding a work order for the given event business key.",
+        "required": ["reasonId"],
+        "properties": {
+          "reasonId": {
+            "type": "string",
+            "description": "Identifier of the disregard reason to apply, typically from `GET /digcust/cert-bi/disregards/reasons`.",
+            "example": "DR-1001"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional free-text context for audit or support.",
+            "example": "Customer no longer needs the repair."
+          }
+        }
+      },
+      "DisregardResponse": {
+        "type": "object",
+        "description": "Acknowledgement of a successful disregard operation.",
+        "properties": {
+          "eventBusinessKey": {
+            "type": "string",
+            "description": "Event business key that was disregarded.",
+            "example": "EVT-7b2c9a1d4e5f"
+          },
+          "status": {
+            "type": "string",
+            "description": "Result status.",
+            "example": "DISREGARDED"
+          },
+          "disregardedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the disregard was recorded.",
+            "example": "2026-04-04T18:22:10Z"
+          },
+          "reasonId": {
+            "type": "string",
+            "description": "Reason identifier that was applied.",
+            "example": "DR-1001"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/cert-bi/disregards/reasons": {
+      "get": {
+        "operationId": "getDisregardReasons",
+        "summary": "Get disregard reasons",
+        "description": "Returns all disregard reasons for the requested locale so users can pick a valid reason before disregarding a work order.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "description": "BCP 47 locale tag (for example `en-US`, `fr-CA`). When omitted, the API may apply a default locale.",
+            "schema": {
+              "type": "string",
+              "example": "en-US"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://extintegration-sandbox-api.deere.com/digcust/cert-bi/disregards/reasons?locale=en-US' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of disregard reasons for the locale.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DisregardReason"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "DR-1001",
+                    "reasonCode": "CUSTOMER_CANCELLED",
+                    "displayText": "Customer cancelled the request",
+                    "locale": "en-US"
+                  },
+                  {
+                    "id": "DR-1002",
+                    "reasonCode": "DUPLICATE_WORK_ORDER",
+                    "displayText": "Duplicate work order",
+                    "locale": "en-US"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/cert-bi/disregards/{id}": {
+      "put": {
+        "operationId": "disregardWorkOrder",
+        "summary": "Disregard a work order",
+        "description": "Cancels the work order associated with the given event business key (`id`) using the disregard reason supplied in the body.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Event business key for the alert or work order to disregard.",
+            "schema": {
+              "type": "string",
+              "example": "EVT-7b2c9a1d4e5f"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisregardRequest"
+              },
+              "example": {
+                "reasonId": "DR-1001",
+                "comment": "Customer no longer needs the repair."
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://extintegration-sandbox-api.deere.com/digcust/cert-bi/disregards/EVT-7b2c9a1d4e5f' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"reasonId\":\"DR-1001\",\"comment\":\"Customer no longer needs the repair.\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Work order was disregarded successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisregardResponse"
+                },
+                "example": {
+                  "eventBusinessKey": "EVT-7b2c9a1d4e5f",
+                  "status": "DISREGARDED",
+                  "disregardedAt": "2026-04-04T18:22:10Z",
+                  "reasonId": "DR-1001"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Disregard accepted with no response body."
+          },
+          "400": {
+            "description": "Bad request. Invalid identifier, unknown reason, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The supplied reasonId is not valid for this operation."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No work order or event found for the supplied event business key.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No active work order found for the given event business key."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
