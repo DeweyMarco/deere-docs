@@ -1,0 +1,346 @@
+---
+title: "Operations Center — Operators"
+description: "List, create, update, and delete operators in an organization; subscribe to operator events via the Data Subscription Service."
+---
+
+## Overview
+
+**Operators** represent people or entities used in Operations Center for an organization. Use these endpoints under **`/platform/organizations/{orgId}/operators`** to manage operators and follow **`links`** for discovery.
+
+<CardGroup cols={2}>
+  <Card title="List & read" icon="list">
+    **GET** `/platform/organizations/{orgId}/operators` and **GET** `/platform/organizations/{orgId}/operators/{id}` — list or read a single operator (**`ag1`**).
+  </Card>
+  <Card title="Create & update" icon="pencil">
+    **POST** and **PUT** require **`ag2`**. Send **`Content-Type: application/vnd.deere.axiom.v3+json`** with a body that matches the platform contract.
+  </Card>
+  <Card title="Delete" icon="trash">
+    **DELETE** `/platform/organizations/{orgId}/operators` removes all operators for the org; **DELETE** `.../operators/{id}` removes one operator. Both require **`ag3`**.
+  </Card>
+  <Card title="Events & OAuth" icon="bell">
+    **Operator events** fire on create, update, archive/unarchive, or delete. Delivered via the **Data Subscription Service** with a required **`orgId`** filter. Complete **connections** when **`connections`** appears on **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+### Endpoints overview
+
+| Operation | Method & path |
+| --- | --- |
+| List operators | **GET** `/platform/organizations/{orgId}/operators` |
+| Create operator | **POST** `/platform/organizations/{orgId}/operators` |
+| Delete all operators | **DELETE** `/platform/organizations/{orgId}/operators` |
+| View operator | **GET** `/platform/organizations/{orgId}/operators/{id}` |
+| Update operator | **PUT** `/platform/organizations/{orgId}/operators/{id}` |
+| Delete operator | **DELETE** `/platform/organizations/{orgId}/operators/{id}` |
+
+---
+
+## Operator events (Data Subscription Service)
+
+**Operator events** fire when an operator is **added**, **modified**, or **deleted** (including archive and unarchive). Subscriptions are created through the **Data Subscription Service**. The client must specify an **`orgId`** filter when creating a subscription. Other filters are optional. Filter values are **arrays**, so multiple **`orgId`** values can be requested in one subscription.
+
+Prefer **one organization per subscription**: you cannot change the list of **`orgId`** values after creation, and the subscription ends if the user loses access to any listed organization.
+
+### Operator event statuses
+
+| Status | Description |
+| --- | --- |
+| **ARCHIVED** | Operator is archived. |
+| **AVAILABLE** | Operator is not archived and is available to use. |
+
+### Operator event actions
+
+| Action | Description |
+| --- | --- |
+| **CREATED** | Operator was created. |
+| **DELETED** | Operator was deleted. |
+| **MODIFIED** | Update, archive, or unarchive. |
+
+### Operator event filters (metadata)
+
+| Filter | Required | Example | Description |
+| --- | --- | --- | --- |
+| **orgId** | Yes | `"123456"` | Organization the operator belongs to. |
+| **status** | No | `"ACTIVE"` | Operator status. |
+| **action** | No | `"CREATED"` | Action that occurred. |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`ag1`**, **`ag2`**, **`ag3`** as required for the calls you make), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Operators APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**. For **POST**/**PUT**, send **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag1` | **GET** list operators, **GET** single operator |
+| `ag2` | **POST** create operator, **PUT** update operator |
+| `ag3` | **DELETE** all operators for an org, **DELETE** a single operator |
+
+Request only scopes your application needs. User permissions cap what the connection allows.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (writes) |
+
+Optional: **`Accept-Encoding: gzip`** where supported.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`**, and **`values`**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported. Use **`showLinks=none`** or filtered **`showLinks`** to trim HATEOAS payloads.
+
+---
+
+## Endpoints
+
+### Retrieve all operators for an organization
+
+```text
+GET /platform/organizations/{orgId}/operators
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/operators">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/operators`.
+</Card>
+
+---
+
+### Create an operator
+
+```text
+POST /platform/organizations/{orgId}/operators
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"Example Operator"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/operators">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/operators`.
+</Card>
+
+---
+
+### Delete all operators for an organization
+
+```text
+DELETE /platform/organizations/{orgId}/operators
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+This removes **every** operator for the organization.
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/operators">
+  Interactive reference for **DELETE** `/platform/organizations/{orgId}/operators`.
+</Card>
+
+---
+
+### Retrieve an operator by id
+
+```text
+GET /platform/organizations/{orgId}/operators/{id}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Operator id.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/operators/{id}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/operators/{id}`.
+</Card>
+
+---
+
+### Update an operator
+
+```text
+PUT /platform/organizations/{orgId}/operators/{id}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Operator id.
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+Send the operator resource fields required by the platform in the request body.
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"Updated Operator"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/operators/{id}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/operators/{id}`.
+</Card>
+
+---
+
+### Delete an operator
+
+```text
+DELETE /platform/organizations/{orgId}/operators/{id}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Operator id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/operators/{id}">
+  Interactive reference for **DELETE** `/platform/organizations/{orgId}/operators/{id}`.
+</Card>
+
+---
+
+## Additional notes
+
+- **403 / terms:** Some orgs return **403** with **X-Deere-Terms-Location** when user action is required (RCA). Navigate the user to that URL when possible.
+- **Discovery:** Follow **`links`** from **GET** `/platform/organizations` and operator responses rather than hard-coding resource URLs.

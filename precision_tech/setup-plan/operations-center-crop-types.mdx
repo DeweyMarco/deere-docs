@@ -1,0 +1,399 @@
+---
+title: "Operations Center — Crop Types"
+description: "Retrieve global crop type catalogs and organization-scoped crop type lists on the John Deere platform."
+---
+
+## Overview
+
+**Crop types** identify crops used in **Operations Center** and related precision workflows. These endpoints return the **system catalog**, a **single** crop type by **name** or **id** (same URL pattern), or crop types **for a specific organization**.
+
+<CardGroup cols={2}>
+  <Card title="Global catalog" icon="list">
+    **GET** `/platform/cropTypes` lists available crop types. **GET** `/platform/cropTypes/{name}` returns one crop type; the path value may be a **name** or **id** per platform behavior.
+  </Card>
+  <Card title="Organization scope" icon="building">
+    **GET** `/platform/organizations/{organizationId}/cropTypes` lists crop types for that organization.
+  </Card>
+  <Card title="Localization" icon="globe">
+    Optional **Accept-Language** selects preferred language for localized strings. See [Accept-Language](#accept-language) for supported tags.
+  </Card>
+  <Card title="OAuth" icon="key">
+    All endpoints require **`ag1`**. Complete **connections** when **`connections`** appears on **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+### Endpoints overview
+
+| Operation | Method & path |
+| --- | --- |
+| Retrieve all crop types | **GET** `/platform/cropTypes` |
+| View a specific crop type | **GET** `/platform/cropTypes/{name}` |
+| Retrieve crop types for an organization | **GET** `/platform/organizations/{organizationId}/cropTypes` |
+
+<Note>
+  The platform documents **GET** `/cropTypes/{name}` and **GET** `/cropTypes/{id}` as the same route: one path segment identifies the crop type by **name** or **id**. This reference uses **`{name}`** in the path; pass whichever identifier your workflow uses.
+</Note>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scope **`ag1`**, **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Crop Types APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scope for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag1` | Locations Access Level 1 — view locations (includes crop type reads) |
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+
+Optional: **`Accept-Language`** (see below), **`Accept-Encoding: gzip`** where supported.
+
+### Accept-Language
+
+Supported language tags include: **bg**, **cs**, **da**, **de**, **el**, **en**, **es**, **et**, **fi**, **fr**, **hr**, **hu**, **is**, **it**, **ja**, **kk**, **lt**, **lv**, **mk**, **nl**, **no**, **pl**, **pt**, **pt_BR**, **ro**, **ru**, **sk**, **sl**, **sr**, **sv**, **th**, **tr**, **uk**, **zh**.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`**, and **`values`**. Where supported, use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim HATEOAS payloads.
+
+---
+
+## Representation reference (units & types)
+
+The following **representations** define allowed units and enumerations used across precision APIs (including crop and application workflows). Use them when interpreting or validating measurement fields returned by or sent to the platform.
+
+### vrTillageDepthTarget
+
+Defines units allowed to specify **target tillage depth** for a tillage operation.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| in | 3 | 1 | -100.0 | 100.0 | English |
+| cm | 3 | 1 | -254.0 | 254.0 | Metric |
+| in | 3 | 1 | -100.0 | 100.0 | Mixed |
+
+### vrSeedRateMassTarget
+
+Defines units allowed to specify **target seed mass per area** for a seeding operation.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| lb1ac-1 | 5 | 1 | 0.0 | 99999.9 | English |
+| ton1ac-1 | 5 | 1 | 0.0 | 99999.9 | English |
+| lb1[ft2]-1 | 5 | 1 | 0.0 | 99999.9 | English |
+| kg1ha-1 | 5 | 1 | 0.0 | 99999.9 | Metric |
+| t1ha-1 | 5 | 1 | 0.0 | 99999.9 | Metric |
+| kg1[m2]-1 | 5 | 1 | 0.0 | 99999.9 | Metric |
+| lb1ac-1 | 5 | 1 | 0.0 | 99999.9 | Mixed |
+| kg1[ft2]-1 | 5 | 1 | 0.0 | 99999.9 | Mixed |
+| kg1ac-1 | 5 | 1 | 0.0 | 99999.9 | Mixed |
+
+### vrSeedRateSeedsTarget
+
+Defines units allowed to specify **seeds per area** for a seeding operation.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| seeds1ac-1 | 8 | 0 | 0 | 99999999 | English |
+| thndSeeds1ac-1 | 6 | 1 | 0.0 | 100000.0 | English |
+| seeds1[ft2]-1 | 4 | 1 | 0.0 | 9999.9 | English |
+| seeds1ha-1 | 8 | 0 | 0 | 99999999 | Metric |
+| thndSeeds1ha-1 | 6 | 1 | 0.0 | 100000.0 | Metric |
+| seeds1[m2]-1 | 4 | 1 | 0.0 | 9999.9 | Metric |
+| seeds1ac-1 | 8 | 0 | 0 | 99999999 | Mixed |
+| seeds1[ft2]-1 | 4 | 1 | 0.0 | 9999.9 | Mixed |
+
+### vrAppRateMassTarget
+
+Defines units allowed to specify **average target application mass rate** per area.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| lb1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| ton1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| ozm1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| ozm1[ft2]-1 | 4 | 2 | 0.00 | 9999.99 | English |
+| kg1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| t1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| g1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| mg1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| dg1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| dg1[mm2]-1 | 5 | 1 | 0.0 | 99999.9 | Metric |
+| mg1[m2]-1 | 4 | 0 | 0 | 9999 | Metric |
+| g1[m2]-1 | 4 | 0 | 0 | 9999 | Metric |
+| kg1[m2]-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| lb1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| kg1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ton1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ozm1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| t1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| g1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| mg1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| dg1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+
+### vrAppRateVolumeTarget
+
+Defines units allowed to specify **average target application volume rate** per area.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| gal1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| qt1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| pt1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| floz1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| l1ha-1 | 6 | 2 | 0.00 | 935395.53 | Metric |
+| ml1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| kl1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| ul1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| dl1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| [m3]1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| gal1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| kl1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| qt1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| pt1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| floz1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ul1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ml1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| l1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| dl1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+
+### vrSolutionRateLiquid
+
+Defines units allowed to specify **liquid solution rate** per area.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| gal1ac-1 | 5 | 3 | 0.000 | 99999.999 | English |
+| qt1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| pt1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| floz1ac-1 | 5 | 2 | 0.00 | 99999.99 | English |
+| l1ha-1 | 5 | 3 | 0.000 | 99999.999 | Metric |
+| ml1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| kl1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| ul1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| dl1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| [m3]1ha-1 | 5 | 2 | 0.00 | 99999.99 | Metric |
+| gal1ac-1 | 5 | 3 | 0.000 | 99999.999 | Mixed |
+| kl1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| qt1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| pt1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| floz1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ul1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| ml1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| l1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+| dl1ac-1 | 5 | 2 | 0.00 | 99999.99 | Mixed |
+
+### vrAppRateVolumePerVolumeTarget
+
+Defines units allowed to specify **target application rate** for SmartApply: volume of chemical per volume of crop canopy.
+
+| Unit of measure | Digits | Decimal | Min value | Max value | Measurement system |
+| --- | --- | --- | --- | --- | --- |
+| floz1[ft3]-1 | 3 | 2 | 0.00 | 999.99 | English |
+| l1[m3]-1 | 3 | 2 | 0.00 | 999.99 | Metric |
+| floz1[ft3]-1 | 3 | 2 | 0.00 | 999.99 | Imperial |
+| floz1[ft3]-1 | 3 | 2 | 0.00 | 999.99 | Mixed |
+
+### dtProjectionType
+
+Allowed values for the **coordinate system** of a guidance line.
+
+| Defined type value | Calculation method |
+| --- | --- |
+| dtiProjectionDeere | Deere |
+| dtiNonJohnDeere1 | BeeLine |
+| dtiNonJohnDeere2 | Trimble |
+
+### dtSignalType
+
+Allowed values for **signal type** used for boundary data.
+
+| Value |
+| --- |
+| dtiSignalTypeUnknown |
+| dtiSignalTypeDigitized |
+| dtiSignalTypeNoDiff |
+| dtiSignalTypeUnknownDiff |
+| dtiSignalTypeWAAS |
+| dtiSignalTypeSF1 |
+| dtiSignalTypeSF2 |
+| dtiSignalTypeRTKX |
+| dtiSignalTypeRTK |
+| dtiSignalTypeSF3 |
+| dtiSignalTypeSFRTK |
+| dtiSignalTypeNonJdDiff |
+| dtiSignalTypeJdDiff |
+
+---
+
+## Endpoints
+
+### Retrieve all crop types
+
+```text
+GET /platform/cropTypes
+```
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100 (where paging applies).
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+<ParamField header="Accept-Language" type="string">
+  Preferred language for localized strings (optional).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/cropTypes?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Language: en'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/cropTypes">
+  Interactive reference for **GET** `/platform/cropTypes`.
+</Card>
+
+---
+
+### View a specific crop type
+
+```text
+GET /platform/cropTypes/{name}
+```
+
+<ParamField path="name" type="string" required>
+  Crop type **name** or **id** (URL-encoded if required). The platform accepts either identifier in this path segment.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+<ParamField header="Accept-Language" type="string">
+  Preferred language for localized strings (optional).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/cropTypes/corn" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Language: en'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/cropTypes/{name}">
+  Interactive reference for **GET** `/platform/cropTypes/{name}`.
+</Card>
+
+---
+
+### Retrieve all crop types for a specific organization
+
+```text
+GET /platform/organizations/{organizationId}/cropTypes
+```
+
+<ParamField path="organizationId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+<ParamField header="Accept-Language" type="string">
+  Preferred language for localized strings (optional).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/cropTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Language: en'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/cropTypes">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/cropTypes`.
+</Card>
+
+---
+
+## Additional notes
+
+- **403 / terms:** Some orgs return **403** with **X-Deere-Terms-Location** when user action is required (RCA). Navigate the user to that URL when possible.
+- **Discovery:** Follow **`links`** from **GET** `/platform/organizations` rather than hard-coding resource URLs.

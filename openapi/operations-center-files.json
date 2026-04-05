@@ -1,0 +1,792 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Files API",
+    "description": "Upload, list, download, and share **compressed zip** files in MyJohnDeere Operations Center, and submit **wireless data transfer (WDT)** requests to send files to displays. File payloads are typically **zip** archives; contents vary by precision-ag format.\n\n**Two-step upload:** **POST** `/platform/organizations/{orgId}/files` creates a file record ( **`Location`** header returns the new file id), then **PUT** `/platform/files/{fileId}` uploads bytes.\n\n**Download size:** Files **under 50 MB** can be downloaded in one response. Larger files require **chunked** download via **`Range`** or **`offset`** / **`size`** query parameters (header takes precedence if both are used).\n\n**File transfer limit:** Transfers to machines are limited to **800 MB** per file.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) unless downloading binary content. Collections use **CollectionPage** where applicable.\n\n**eTags:** **GET** `/platform/organizations/{orgId}/fileTransfers` does **not** support eTags.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Files",
+      "description": "List, create metadata, view or download, and upload file content."
+    },
+    {
+      "name": "File transfers",
+      "description": "Submit and poll wireless data transfer requests to machines."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere platform APIs. File CRUD endpoints require **`files`** and **`ag3`**. File transfer endpoints require **`files`** only. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag3": "Locations Access Level 3 — manage locations and production data (required with files for most file APIs)",
+              "files": "Files API access and file transfers",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 12 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "FileResource": {
+        "type": "object",
+        "description": "A file resource with HATEOAS links such as **owningOrganization**, **partnerships**, **initiateFileTransfer**, **wdtCapableMachines** (varies by endpoint).",
+        "additionalProperties": true,
+        "example": {
+          "@type": "File",
+          "id": "55",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/files/55"
+            },
+            {
+              "@type": "Link",
+              "rel": "owningOrganization",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/73"
+            }
+          ]
+        }
+      },
+      "FileTransferResource": {
+        "type": "object",
+        "description": "A file transfer request with links to **file** and **machine**.",
+        "additionalProperties": true
+      },
+      "CreateFileRequest": {
+        "type": "object",
+        "description": "Request body for creating a file id (Axiom v3 JSON). Structure matches platform expectations for empty or minimal metadata creation.",
+        "additionalProperties": true
+      },
+      "FileTransferRequestBody": {
+        "type": "object",
+        "description": "POST body selecting a file and machine for WDT (Axiom v3 JSON). Follow platform examples and links from file resources.",
+        "additionalProperties": true
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    },
+    "parameters": {
+      "AcceptAxiomV3": {
+        "name": "Accept",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      },
+      "AcceptEncodingGzip": {
+        "name": "Accept-Encoding",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "enum": ["gzip"] }
+      }
+    }
+  },
+  "paths": {
+    "/platform/files": {
+      "get": {
+        "tags": ["Files"],
+        "operationId": "listFiles",
+        "summary": "List Files",
+        "description": "Retrieves the list of files available to the caller. Each file may link to **owningOrganization** and **partnerships**.\n\n**OAuth scopes:** `files`, `ag3`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/files`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag3"] }],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/files?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged files (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (access, scope, or RCA).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/files/{fileId}": {
+      "get": {
+        "tags": ["Files"],
+        "operationId": "getFile",
+        "summary": "View or Download a File",
+        "description": "View file **metadata** with `Accept: application/vnd.deere.axiom.v3+json`, or download the **zip/binary** body with `application/zip`, `application/octet-stream`, or related types.\n\nOnly files **smaller than 50 MB** download in full at once. For larger files, use **`Range: bytes=start-end`** or **`offset`** and **`size`** query parameters (Range takes precedence).\n\nResponse links may include **owningOrganization**, **partnerships**, **initiateFileTransfer**, **wdtCapableMachines**.\n\n**OAuth scopes:** `files`, `ag3`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/files/{fileId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag3"] }],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "description": "File id returned from create or list responses.",
+            "schema": { "type": "string", "example": "55" }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Byte offset for chunked download (used with **`size`**; overridden by **`Range`** if both sent).",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "description": "Number of bytes to return when using offset-based chunking.",
+            "schema": { "type": "integer", "minimum": 1, "example": 1000000 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for metadata, or a zip/octet-stream/multipart type to download content.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/vnd.deere.axiom.v3+json",
+                "application/zip",
+                "application/octet-stream",
+                "application/x-zip",
+                "application/x-zip-compressed",
+                "multipart/mixed"
+              ]
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "description": "Byte range for partial content, e.g. `bytes=0-1000`.",
+            "schema": { "type": "string", "example": "bytes=0-1000" }
+          },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (metadata)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/files/55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (download zip)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/files/55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/zip' \\\n  --output file.zip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata (JSON) or file bytes.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResource" }
+              },
+              "application/zip": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/octet-stream": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "206": {
+            "description": "Partial content when using Range or offset/size.",
+            "content": {
+              "application/zip": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/octet-stream": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Files"],
+        "operationId": "uploadFile",
+        "summary": "Upload or Update a File",
+        "description": "Uploads or replaces file content for an existing file id (create the id with **POST** `/platform/organizations/{orgId}/files` first).\n\n**Content-Type** may be `application/octet-stream`, `application/zip`, `application/x-zip`, `application/x-zip-compressed`, `multipart/form-data`, or `multipart/mixed`.\n\n**OAuth scopes:** `files`, `ag3`\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/files/{fileId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag3"] }],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "55" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": { "type": "string", "format": "binary" }
+            },
+            "application/zip": {
+              "schema": { "type": "string", "format": "binary" }
+            },
+            "application/x-zip": {
+              "schema": { "type": "string", "format": "binary" }
+            },
+            "application/x-zip-compressed": {
+              "schema": { "type": "string", "format": "binary" }
+            },
+            "multipart/form-data": {
+              "schema": { "type": "object", "additionalProperties": true }
+            },
+            "multipart/mixed": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/files/55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/zip' \\\n  --data-binary @upload.zip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload accepted; response may include updated file metadata.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResource" }
+              }
+            }
+          },
+          "204": {
+            "description": "Success with no body."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/files": {
+      "get": {
+        "tags": ["Files"],
+        "operationId": "listOrganizationFiles",
+        "summary": "List an Organization's Files",
+        "description": "Lists files for an organization with pagination. Links may include **owningOrganization**, **partnerships**, **initiateFileTransfer** / **sendFileToMachine**, and **wdtCapableMachines** / **machinesEligibleToReceiveFile**.\n\n**OAuth scopes:** `files`, `ag3`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/files`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": { "type": "string", "example": "73" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/73/files?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged files (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Files"],
+        "operationId": "createFile",
+        "summary": "Create a File ID",
+        "description": "Creates a new file record in the organization. The **`Location`** response header contains the URI of the new file (includes the generated **file id**). Use that id with **PUT** `/platform/files/{fileId}` to upload content.\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json` for the request body when sending metadata.\n\n**OAuth scopes:** `files`, `ag3`\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/files`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "73" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateFileRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/73/files' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created. Follow **`Location`** for the new file URI.",
+            "headers": {
+              "Location": {
+                "description": "URI of the created file resource (includes file id).",
+                "schema": { "type": "string", "example": "https://sandboxapi.deere.com/platform/files/55" }
+              }
+            },
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/fileTransfers": {
+      "get": {
+        "tags": ["File transfers"],
+        "operationId": "listOrganizationFileTransfers",
+        "summary": "Get File Transfers by Organization",
+        "description": "Returns all file transfer requests for an organization. Response entries link to **file** and **machine**.\n\n**This API does not support eTags.**\n\n**OAuth scope:** `files`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fileTransfers`",
+        "security": [{ "OAuth2AuthorizationCode": ["files"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "73" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/73/fileTransfers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged file transfers.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["File transfers"],
+        "operationId": "createFileTransfer",
+        "summary": "Submit a File Transfer Request",
+        "description": "Select a file and machine to queue a transfer to the machine display. Files **larger than 800 MB** cannot use this API.\n\nResponse links include **file** and **machine**.\n\n**OAuth scope:** `files`\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/fileTransfers`",
+        "security": [{ "OAuth2AuthorizationCode": ["files"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "73" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/FileTransferRequestBody" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/73/fileTransfers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"file\":{\"id\":\"55\"},\"machine\":{\"id\":\"MACHINE_ID\"}}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transfer request created or accepted.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileTransferResource" }
+              }
+            }
+          },
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileTransferResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fileTransfers": {
+      "get": {
+        "tags": ["File transfers"],
+        "operationId": "listFileTransfers",
+        "summary": "List File Transfer Requests",
+        "description": "Lists file transfer requests (status polling). Each item links to **file** and **machine**.\n\n**OAuth scope:** `files`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fileTransfers`",
+        "security": [{ "OAuth2AuthorizationCode": ["files"] }],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fileTransfers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged file transfers.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fileTransfers/{id}": {
+      "get": {
+        "tags": ["File transfers"],
+        "operationId": "getFileTransfer",
+        "summary": "View a File Transfer Request",
+        "description": "Returns a single file transfer request by id, with links to **file** and **machine**.\n\n**OAuth scope:** `files`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fileTransfers/{id}`",
+        "security": [{ "OAuth2AuthorizationCode": ["files"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "File transfer request id.",
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fileTransfers/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File transfer resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileTransferResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

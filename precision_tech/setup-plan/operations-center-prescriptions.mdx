@@ -1,0 +1,57 @@
+---
+title: "Operations Center — Prescriptions"
+description: "Prescription (Rx) maps variable-rate agronomic instructions across field zones for application, seeding, and tillage—supporting productivity, cost control, and sustainable practices."
+---
+
+## Overview
+
+A **prescription (Rx)** is a set of agronomic instructions for **application**, **seeding**, and **tillage** operations. It applies inputs—such as seeds, fertilizers, pesticides, or tillage depth—at **variable rates** across **zones** within a field.
+
+Prescriptions are built to **optimize productivity**, **reduce input costs**, and support **sustainable** farming practices.
+
+<CardGroup cols={2}>
+  <Card title="Variable-rate zones" icon="map">
+    Rates change by zone so each part of the field receives the intended treatment instead of a single flat rate.
+  </Card>
+  <Card title="Operations" icon="tractor">
+    Common uses include planting, spraying, spreading, and depth-controlled tillage tied to prescription geometry and rates.
+  </Card>
+  <Card title="Related platform APIs" icon="link">
+    Upload and manage prescription-related **files**, contribute **map layers** (including prescription-type layers), and plan work using **fields**, **boundaries**, and **guidance** elsewhere in this documentation.
+  </Card>
+  <Card title="Get started" icon="book">
+    Use [Developer.Deere.com](https://developer.deere.com/) for OAuth applications, scopes, and sandbox access to John Deere platform APIs.
+  </Card>
+</CardGroup>
+
+---
+
+## Related documentation
+
+There is **no standalone Prescriptions REST API** published in OpenAPI for this documentation set. Use these areas when integrating prescription workflows:
+
+| Topic | Where to look |
+| --- | --- |
+| Prescription and shapefile files | [Operations Center — Files](/precision_tech/work-results/operations-center-files) |
+| Map layers with `PRESCRIPTION` type | [Operations Center — Map Layers](/precision_tech/insights-monitoring/operations-center-map-layers) |
+| Field context | [Operations Center — Fields](/precision_tech/setup-plan/operations-center-fields), [Boundaries](/precision_tech/setup-plan/operations-center-boundaries) |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**, and request the scopes required for **Files**, **Map Layers**, and other resources you call.
+
+<Steps>
+  <Step title="Register your application">
+    In the developer portal, register **Redirect URIs** that match your app exactly; mismatched URIs can return **400 Bad Redirect**.
+  </Step>
+  <Step title="Request tokens">
+    Complete the authorization code flow to obtain **access** and **refresh** tokens. Include an `Authorization` header whose value is `Bearer` followed by your access token.
+  </Step>
+  <Step title="Use the right base URL">
+    Use the documented **sandbox** or **production** host for each API (for example `https://sandboxapi.deere.com` for platform APIs). Paths belong in the request URL, not in the server host.
+  </Step>
+</Steps>
+
+For step-by-step examples, see any **Operations Center** API guide in this section (for example [Fields](/precision_tech/setup-plan/operations-center-fields))—the OAuth pattern is the same across Precision Tech APIs.

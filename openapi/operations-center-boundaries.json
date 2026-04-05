@@ -1,0 +1,806 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Field Boundaries API",
+    "description": "A **boundary** is a multipolygon describing the bounds of a **field**. It contains one or more **exterior** rings and may include **interior** rings (obstacles such as waterways or ditches).\n\nIn Operations Center, field boundaries are **optional**: a field may have zero, one, or many boundaries. When multiple boundaries exist, one is often marked **active**. Fields without boundaries may still hold other data. If your solution requires a boundary, you can **generate** one from a **Field Operation**.\n\n**Webhooks:** For frequent polling, subscribe to **Boundary Events** via the **Data Subscription Service**.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) unless otherwise noted. Collections may use **CollectionPage** (`total`, `links`, `values`).\n\n**Paging:** Where supported, use `itemLimit` (10–100, multiples of 10) and `pageOffset`.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Boundaries",
+      "description": "List, create, read, update, delete, and generate field boundaries."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. Boundary endpoints require **`ag1`**, **`ag2`**, or **`ag3`** depending on the operation. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (read boundaries)",
+              "ag2": "Locations Access Level 2 — analyze production data (generate boundary from field operation)",
+              "ag3": "Locations Access Level 3 — manage locations and production data (create/update/delete boundaries)",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "AcceptAxiomV3": {
+        "name": "Accept",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      },
+      "AcceptEncodingGzip": {
+        "name": "Accept-Encoding",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "enum": ["gzip"] }
+      },
+      "ContentTypeAxiomV3": {
+        "name": "Content-Type",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 2 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "MeasurementAsDouble": {
+        "type": "object",
+        "description": "Area or other measurement with unit.",
+        "properties": {
+          "value": { "type": "number", "format": "double", "example": 64.5 },
+          "unit": { "type": "string", "example": "ac" }
+        }
+      },
+      "Point": {
+        "type": "object",
+        "properties": {
+          "lat": { "type": "number", "example": 41.123456 },
+          "lon": { "type": "number", "example": -93.654321 }
+        },
+        "additionalProperties": true
+      },
+      "Ring": {
+        "type": "object",
+        "description": "Closed ring; first and last point should match. Minimum polygon is a triangle (4 points including closure).",
+        "properties": {
+          "points": {
+            "type": "array",
+            "minItems": 4,
+            "items": { "$ref": "#/components/schemas/Point" }
+          },
+          "type": {
+            "type": "string",
+            "description": "Ring role: typically `exterior` (field border) or `interior` (exclusion).",
+            "enum": ["exterior", "interior"]
+          },
+          "passable": { "type": "boolean", "default": true }
+        }
+      },
+      "Polygon": {
+        "type": "object",
+        "properties": {
+          "rings": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/Ring" }
+          }
+        }
+      },
+      "Multipolygon": {
+        "type": "object",
+        "properties": {
+          "polygons": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Polygon" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "Extent": {
+        "type": "object",
+        "description": "Axis-aligned bounding box enclosing the boundary.",
+        "properties": {
+          "xmin": { "type": "number" },
+          "ymin": { "type": "number" },
+          "xmax": { "type": "number" },
+          "ymax": { "type": "number" }
+        },
+        "additionalProperties": true
+      },
+      "BoundaryResource": {
+        "type": "object",
+        "description": "Field boundary (Axiom). May appear alone or inside a `boundaries` collection on a field. `signalType` values align with **dtSignalType** in the John Deere representation system.",
+        "properties": {
+          "@type": { "type": "string", "example": "Boundary" },
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "description": "Display name (often the field name)." },
+          "area": { "$ref": "#/components/schemas/MeasurementAsDouble" },
+          "multipolygon": { "$ref": "#/components/schemas/Multipolygon" },
+          "extent": { "$ref": "#/components/schemas/Extent" },
+          "active": { "type": "boolean", "default": false, "description": "When true, this is the active boundary for the field (others become inactive)." },
+          "signalType": {
+            "type": "string",
+            "description": "GNSS / digitization signal class.",
+            "example": "dtiSignalTypeRTK"
+          },
+          "irrigated": { "type": "boolean" },
+          "sourceType": {
+            "type": "string",
+            "description": "Non-**External** values may require a license."
+          },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "Boundary",
+          "id": "c303004d-beb8-471d-b144-c44bb5318e55",
+          "name": "North 80",
+          "active": true,
+          "multipolygon": {
+            "polygons": [
+              {
+                "rings": [
+                  {
+                    "type": "exterior",
+                    "passable": true,
+                    "points": [
+                      { "lat": 41.1, "lon": -93.6 },
+                      { "lat": 41.11, "lon": -93.6 },
+                      { "lat": 41.11, "lon": -93.59 },
+                      { "lat": 41.1, "lon": -93.6 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "BoundaryCreateRequest": {
+        "type": "object",
+        "description": "Create a boundary with a geometry collection for the field. Structure follows platform Axiom boundary representation.",
+        "additionalProperties": true,
+        "example": {
+          "name": "Generated boundary",
+          "active": true,
+          "multipolygon": {
+            "polygons": [
+              {
+                "rings": [
+                  {
+                    "type": "exterior",
+                    "points": [
+                      { "lat": 41.1, "lon": -93.6 },
+                      { "lat": 41.11, "lon": -93.6 },
+                      { "lat": 41.11, "lon": -93.59 },
+                      { "lat": 41.1, "lon": -93.6 }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "BoundaryUpdateRequest": {
+        "type": "object",
+        "description": "Update payload must include **name**, **active**, **irrigated**, **sourceType**, and **multipolygons**. Setting **active** to true marks other boundaries on the same field inactive. A license may be required for **sourceType** values other than **External**.",
+        "required": ["name", "active", "irrigated", "sourceType", "multipolygons"],
+        "properties": {
+          "name": { "type": "string" },
+          "active": { "type": "boolean" },
+          "irrigated": { "type": "boolean" },
+          "sourceType": { "type": "string", "example": "External" },
+          "multipolygons": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Polygon" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/boundaries": {
+      "get": {
+        "tags": ["Boundaries"],
+        "operationId": "listBoundariesByOrganization",
+        "summary": "View Boundaries in an Organization",
+        "description": "Lists all **field boundaries** for the organization. Use links or embed patterns to resolve **fields** and **owningOrganizations** as returned by the API.\n\n**OAuth scope:** `ag1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/boundaries`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/boundaries?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged boundaries (**CollectionPage**) or list per platform conventions.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (access, scope, or restricted org).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/fields/{fieldId}/boundaries": {
+      "get": {
+        "tags": ["Boundaries"],
+        "operationId": "listBoundariesByField",
+        "summary": "View the Boundaries of a Field",
+        "description": "Lists all **field boundaries** for the given organization and field.\n\n**OAuth scope:** `ag1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/boundaries`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e56" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e56/boundaries' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Field boundaries for the field.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Boundaries"],
+        "operationId": "createBoundary",
+        "summary": "Create a Field Boundary",
+        "description": "Creates a **field boundary** with a geometry collection for the field.\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`\n\n**OAuth scope:** `ag3`\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/boundaries`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e56" }
+          },
+          { "$ref": "#/components/parameters/ContentTypeAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/BoundaryCreateRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e56/boundaries' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"North 80\",\"active\":true,\"multipolygon\":{\"polygons\":[{\"rings\":[{\"type\":\"exterior\",\"points\":[{\"lat\":41.1,\"lon\":-93.6},{\"lat\":41.11,\"lon\":-93.6},{\"lat\":41.11,\"lon\":-93.59},{\"lat\":41.1,\"lon\":-93.6}]}]}]}}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Created or returned boundary (per platform).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BoundaryResource" }
+              }
+            }
+          },
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BoundaryResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (invalid geometry or payload).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}": {
+      "get": {
+        "tags": ["Boundaries"],
+        "operationId": "getBoundaryById",
+        "summary": "Get a Specific Boundary",
+        "description": "Retrieves a single **field boundary**. Webhook payloads may link to this resource.\n\n**OAuth scope:** `ag1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e56" }
+          },
+          {
+            "name": "boundaryId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e56/boundaries/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Boundary resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BoundaryResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Boundaries"],
+        "operationId": "updateBoundary",
+        "summary": "Update a Boundary",
+        "description": "Updates a **field boundary**. The body must include **name**, **active**, **irrigated**, **sourceType**, and **multipolygons**. If **active** is set to true, other boundaries on the same field become inactive. A license may be required to set **sourceType** to a value other than **External**.\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`\n\n**OAuth scope:** `ag3`\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e56" }
+          },
+          {
+            "name": "boundaryId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          { "$ref": "#/components/parameters/ContentTypeAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/BoundaryUpdateRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e56/boundaries/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"North 80\",\"active\":true,\"irrigated\":false,\"sourceType\":\"External\",\"multipolygons\":[{\"rings\":[{\"type\":\"exterior\",\"points\":[{\"lat\":41.1,\"lon\":-93.6},{\"lat\":41.11,\"lon\":-93.6},{\"lat\":41.11,\"lon\":-93.59},{\"lat\":41.1,\"lon\":-93.6}]}]}]}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated boundary.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BoundaryResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Boundaries"],
+        "operationId": "deleteBoundary",
+        "summary": "Delete a Boundary",
+        "description": "Deletes a **field boundary**. Use **`Content-Type: application/vnd.deere.axiom.v3+json`** on the request as documented for the platform.\n\n**OAuth scope:** `ag3`\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e56" }
+          },
+          {
+            "name": "boundaryId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Typically no response body on success.",
+            "schema": { "type": "string", "example": "*/*" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e56/boundaries/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully (no content)."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fieldOperations/{operationId}/boundary": {
+      "get": {
+        "tags": ["Boundaries"],
+        "operationId": "generateBoundaryFromFieldOperation",
+        "summary": "Generate a Boundary from a Field Operation",
+        "description": "Returns a **generated boundary** that surrounds the area worked by the **field operation**. Gaps in coverage appear as **interior** rings. Use the response to adjust the name, remove unwanted interiors, then **POST** the boundary to persist it.\n\n**HTTP 400** may be returned when:\n- The field already has an **active** boundary (prefer the existing boundary).\n- The field was **merged** (the operation may cover only part of the merged field).\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fieldOperations/{operationId}/boundary`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "description": "Field operation id.",
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/boundary' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated boundary (not yet persisted).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BoundaryResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot generate (active boundary exists, merged field, or invalid operation).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

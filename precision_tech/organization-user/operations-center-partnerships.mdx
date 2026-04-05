@@ -1,0 +1,310 @@
+---
+title: "Operations Center — Partnerships"
+description: "List and manage partnerships between Operations Center organizations, and assign or request partnership permissions."
+---
+
+## Overview
+
+**Partnerships** describe business relationships between two organizations in Operations Center. An organization may or may not belong to a partnership. Partnered organizations can share files individually or automatically, and can record the type of relationship (for example grower and agronomist). This differs from **organizations**: a user must be a member of an organization, while their organization may or may not participate in a partnership.
+
+<CardGroup cols={2}>
+  <Card title="List partners" icon="list">
+    **GET** `/platform/partnerships` — partnerships with links to **`fromPartnership`**, **`toPartnership`**, **`delete`**, **`permissions`**, and **`contactInvitation`**.
+  </Card>
+  <Card title="Request partnership" icon="paper-plane">
+    **POST** `/platform/partnerships` — send an invitation from an organization; discover org ids with **GET** `/platform/organizations`.
+  </Card>
+  <Card title="Partnership detail" icon="link">
+    **GET** `/platform/partnerships/{token}` — same link set as the list item; pending invites may only expose the invitee email on **`toPartnership`**.
+  </Card>
+  <Card title="Permissions" icon="shield">
+    **GET** / **POST** `/platform/partnerships/{token}/permissions` — view and assign permissions; **GET** does **not** support eTags.
+  </Card>
+</CardGroup>
+
+<Note>
+  For **pending** partnerships after **POST** `/platform/partnerships`, the **`contactInvitationId`** may be used as the path **`{token}`** when calling **POST** `/platform/partnerships/{token}/permissions`.
+</Note>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatches can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize and exchange the code">
+    Redirect the user to authorize with the scopes your app needs. **POST** the token endpoint with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a **`connections`** link appears, redirect the user **once per session** to complete access. When **`manage_connections`** appears, the app–org connection is established.
+  </Step>
+  <Step title="Call the Partnerships API">
+    Send **`Authorization: Bearer {token}`**, **`Accept: application/vnd.deere.axiom.v3+json`**, and for mutating calls **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for this API
+
+| Operation | Scope |
+| --- | --- |
+| **GET** `/platform/partnerships`, **GET** `.../{token}`, **GET** `.../{token}/permissions` | `org1` |
+| **POST** `/platform/partnerships`, **DELETE** `.../{token}`, **POST** `.../{token}/permissions` | `org2` |
+
+Request only scopes your integration needs. Effective permissions cannot exceed what the connecting user has in Team Manager / Connections.
+
+---
+
+## Request headers
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (required on **POST** bodies) |
+
+Optional: **`Accept-Encoding: gzip`** where the platform supports compression.
+
+---
+
+## Status and permission types
+
+**Partnership status** values include: **`PENDING`**, **`ACCEPTED`**, **`REVOKED`**, **`REJECTED`**, **`CHANGE_REQUEST`**.
+
+**Permission types** should match **Team Manager** (permission **type** and **`permissionId`**). Examples: **`shareAllFields`** (5001), **`viewAndOperateJobs`** (3001), **`viewDetailsAndMapLocation`** (4001), **`viewOnListAndMap`** (2001), **`viewPeopleAndPreferences`** (1001), **`rda`** (2004), **`setupAndWDT`** (2005), **`viewFinancialData`** (6001), **`makeCSCConnection`** (8001). See the API reference **info** description for the full table.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Use the production platform host from your environment for non-sandbox workloads.
+
+---
+
+## Endpoints
+
+### List partners
+
+Returns partnerships for the caller. Each item includes hypermedia **links** for **`fromPartnership`**, **`toPartnership`**, **`delete`**, **`permissions`**, and **`contactInvitation`**.
+
+```text
+GET /platform/partnerships
+```
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated: multiples of 10, up to 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset aligned with `itemLimit`.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  `none` to omit links, or comma-separated `rel` names to filter.
+</ParamField>
+
+**OAuth scope:** `org1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/partnerships" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+#### Response links (typical)
+
+<ResponseField name="links[].rel" type="string">
+  **`fromPartnership`**, **`toPartnership`**, **`delete`**, **`permissions`**, **`contactInvitation`** — use URIs from the response rather than hard-coding paths.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/partnerships">
+  Interactive reference for **GET** `/platform/partnerships`.
+</Card>
+
+---
+
+### Request a partnership
+
+Sends an email to create a partnership from an organization in the body. Query **GET** `/platform/organizations` first for available **organization ids**.
+
+```text
+POST /platform/partnerships
+```
+
+**OAuth scope:** `org2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/partnerships" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"fromOrganization":{"id":"283480"},"inviteeEmail":"advisor@example.com"}'
+```
+
+</CodeGroup>
+
+<Note>
+  Replace the JSON body with the fields required by your integration; the platform may return validation errors for incomplete or invalid payloads (**400**).
+</Note>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/partnerships">
+  Interactive reference for **POST** `/platform/partnerships`.
+</Card>
+
+---
+
+### Get partnership details
+
+```text
+GET /platform/partnerships/{token}
+```
+
+<ParamField path="token" type="string" required>
+  Partnership id from API responses (or invitation id when following **`contactInvitation`**).
+</ParamField>
+
+**OAuth scope:** `org1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/partnerships/{token}">
+  Interactive reference for **GET** `/platform/partnerships/{token}`.
+</Card>
+
+---
+
+### Delete a partnership
+
+```text
+DELETE /platform/partnerships/{token}
+```
+
+<ParamField path="token" type="string" required>
+  Partnership identifier.
+</ParamField>
+
+**OAuth scope:** `org2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/partnerships/{token}">
+  Interactive reference for **DELETE** `/platform/partnerships/{token}`.
+</Card>
+
+---
+
+### View permissions in a partnership
+
+Returns permissions one partner assigned the other. The response also links to the assign-permissions action. **This endpoint does not support eTags.**
+
+```text
+GET /platform/partnerships/{token}/permissions
+```
+
+<ParamField path="token" type="string" required>
+  Partnership token; for pending flows, this may be the **`contactInvitationId`** per product documentation.
+</ParamField>
+
+**OAuth scope:** `org1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token/permissions" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/partnerships/{token}/permissions">
+  Interactive reference for **GET** `/platform/partnerships/{token}/permissions`.
+</Card>
+
+---
+
+### Request or assign permissions
+
+Updates or requests permissions for a partner. To enable file sharing, assign or request the relevant permission types.
+
+```text
+POST /platform/partnerships/{token}/permissions
+```
+
+<ParamField path="token" type="string" required>
+  Partnership token, or **`contactInvitationId`** for a **pending** partnership when assigning permissions after **POST** `/platform/partnerships`.
+</ParamField>
+
+**OAuth scope:** `org2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token/permissions" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"permissions":[{"permissionId":3001,"granted":true}]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/partnerships/{token}/permissions">
+  Interactive reference for **POST** `/platform/partnerships/{token}/permissions`.
+</Card>
+
+---
+
+## Common errors
+
+| HTTP | When to expect it |
+| --- | --- |
+| **400** | Invalid body on **POST** calls; invalid refresh token on **POST** OAuth `/token`. |
+| **401** | Expired or invalid access token. |
+| **403** | Missing scopes, no access to the resource, or organization in a **restricted** state (RCA — check `X-Deere-Warning` / `X-Deere-Terms-Location`). |
+| **404** | Stale or unknown resource id — resolve ids from recent API responses. |
+| **429** | Rate limited — honor **`Retry-After`**. |
+| **503** | Service issue — backoff; honor **`Retry-After`** when present. |
+
+---
+
+## Required Customer Action (RCA)
+
+Some **403** responses require user action (for example terms acceptance). Use headers and body hints to send the user to the correct Operations Center flow.

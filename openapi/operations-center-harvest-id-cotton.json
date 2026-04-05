@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Harvest ID Cotton API",
+    "description": "**Harvest ID (HID) Cotton** exposes cotton harvest data down to each **cotton module**. Logged attributes include module identity, RFID, wrap time and location, drop location, agronomic measures (variety, moisture, diameter, weight, area), machine PIN, operator, gin and producer names, and comments. An RFID chip in the module wrap lets farmers and gins track modules from field to gin to grading.\n\nList responses return **HID Cotton modules** for an organization (filtered by **user-level access**). Retrieve a single module by **serial number**.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`). Collections use **CollectionPage** (`total`, `links`, `values`) where applicable.\n\n**Paging:** Use `itemLimit` (multiples of **10**, up to **2000**) and `pageOffset` on the list endpoint.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Harvest ID Cotton",
+      "description": "List and retrieve cotton HID (Harvest Identification) modules for an organization."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere platform APIs. HID Cotton endpoints require **`files`** and **`ag2`**. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag2": "Locations Access Level 2 — analyze production data (required with files for HID Cotton)",
+              "files": "Files API access (required with ag2 for HID Cotton)",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 42 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HarvestIdentificationModuleResource" }
+          }
+        }
+      },
+      "HarvestIdentificationModuleResource": {
+        "type": "object",
+        "description": "A Harvest Identification cotton module. Typical attributes include organization and field identifiers, serial and RFID numbers, wrap and drop locations, variety, moisture, diameter, weight, area, machine PIN, operator, gin and producer names, and comments. Exact property names follow platform Axiom conventions; use links for related resources where returned.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "HarvestIdentificationModule",
+          "serialNumber": "JD-HIM-2025-0001842",
+          "rfidNumber": "E20000112233445566778899",
+          "organizationId": "283480",
+          "fieldId": "0f38f7e1-299d-4823-aafc-13be555605ed",
+          "variety": "PHY 440 W",
+          "moisturePercent": 11.2,
+          "diameterInches": 96,
+          "weightPounds": 2280,
+          "areaAcres": 12.4,
+          "machinePin": "****12",
+          "operator": "J. Smith",
+          "ginName": "Example Gin Co.",
+          "producerName": "Spahn Ranch",
+          "comments": "Module tagged at field edge.",
+          "wrapTimestamp": "2025-10-15T14:22:01.000Z",
+          "wrapLocation": { "latitude": 34.0522, "longitude": -100.2437 },
+          "dropLocation": { "latitude": 34.051, "longitude": -100.241 },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/harvestIdentificationModules/JD-HIM-2025-0001842"
+            },
+            {
+              "@type": "Link",
+              "rel": "organization",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+            }
+          ]
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    },
+    "parameters": {
+      "AcceptAxiomV3": {
+        "name": "Accept",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      },
+      "AcceptEncodingGzip": {
+        "name": "Accept-Encoding",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "enum": ["gzip"] }
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/harvestIdentificationModules": {
+      "get": {
+        "tags": ["Harvest ID Cotton"],
+        "operationId": "listHarvestIdentificationModules",
+        "summary": "List Harvest Identification (cotton) modules",
+        "description": "Returns the list of **HID Cotton** modules available for the given **organization id**, filtered by **user-level access**.\n\n**OAuth scopes:** `files`, `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/harvestIdentificationModules`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag2"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **2000**.",
+            "schema": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 2000,
+              "multipleOf": 10,
+              "example": 50
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset (aligned with `itemLimit`; default page size is often **10**).",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/harvestIdentificationModules?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged HID modules (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (access, scope, missing connection, or RCA).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/harvestIdentificationModules/{serialNumber}": {
+      "get": {
+        "tags": ["Harvest ID Cotton"],
+        "operationId": "getHarvestIdentificationModule",
+        "summary": "Get a Harvest Identification module by serial number",
+        "description": "Retrieves a **single HID Cotton module** by **serial number** within the organization.\n\n**OAuth scopes:** `files`, `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/harvestIdentificationModules/{serialNumber}`",
+        "security": [{ "OAuth2AuthorizationCode": ["files", "ag2"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "serialNumber",
+            "in": "path",
+            "required": true,
+            "description": "Module serial number.",
+            "schema": { "type": "string", "example": "JD-HIM-2025-0001842" }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/harvestIdentificationModules/JD-HIM-2025-0001842' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HID module resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/HarvestIdentificationModuleResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Module not found or id not valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

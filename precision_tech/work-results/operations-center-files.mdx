@@ -1,0 +1,522 @@
+---
+title: "Operations Center — Files"
+description: "List, upload, download, and share precision-ag files in Operations Center, and submit wireless data transfer (WDT) requests to displays."
+---
+
+## Overview
+
+Nearly every file exposed through the MyJohnDeere **Files** APIs is a **compressed zip** archive. Zip contents vary by format; Operations Center supports many proprietary and standard types. For proprietary Deere formats, **ADAPT** plugins can read and write data (see Deere offline SDK documentation).
+
+Using the Files APIs, you can:
+
+- **List** files globally or per organization, with HATEOAS links to ownership and sharing.
+- **Create** a file id, then **upload** zip/binary content in a second request.
+- **Download** or inspect metadata; use **chunked** download for files **50 MB or larger**.
+- **Transfer** files to WDT-capable displays (subject to an **800 MB** transfer limit).
+
+<CardGroup cols={2}>
+  <Card title="Two-step upload" icon="upload">
+    **POST** `/platform/organizations/{orgId}/files` creates the record ( **`Location`** header has the new id), then **PUT** `/platform/files/{fileId}` sends the bytes.
+  </Card>
+  <Card title="Chunked download" icon="download">
+    Full download works under **50 MB**. Above that, use **`Range`** or **`offset`** / **`size`** (Range wins if both are sent).
+  </Card>
+  <Card title="File transfers (WDT)" icon="wifi">
+    **POST** `/platform/organizations/{orgId}/fileTransfers` queues a file to a machine; poll **GET** `/platform/fileTransfers` or **GET** `/platform/fileTransfers/{id}` for status.
+  </Card>
+  <Card title="OAuth 2.0 (`files` + `ag3`)" icon="lock">
+    File CRUD endpoints require **`files`** and **`ag3`**. File transfer endpoints require **`files`** only. Complete **connections** when **GET** `/platform/organizations` returns a **`connections`** link.
+  </Card>
+</CardGroup>
+
+<Note>
+  For operational **documentation** data without managing zip files directly, consider the **Field Operations** API as a simpler consumption path.
+</Note>
+
+### File types (conceptual)
+
+Files are classified by the **type of data** they contain. One zip can include multiple data types; labeling follows priority (for example, setup + Rx may be labeled **Setup**; setup + documentation may be labeled **Doc**).
+
+| Category | Description |
+| --- | --- |
+| **Setup** | Configuration to prepare a machine for a task: fields, boundaries, guidance, products, jobs/tasks/work orders, etc. |
+| **Rx** | Prescription maps with zones and application rates (seeding or application). |
+| **Doc** | Data recorded in the field (sensors, point-by-point location). |
+
+---
+
+## Rx shapefiles (ESRI)
+
+John Deere displays support proprietary prescriptions and **ESRI shapefile**-based prescriptions. A shapefile prescription requires:
+
+- The shapefile must live in a directory named **`Rx`**.
+- A complete shapefile includes **`.shp`**, **`.shx`**, and **`.dbf`**.
+- Geometries must be **Polygon** or **MultiPolygon** using **WGS84** coordinates.
+- At least one numeric **Rate** column (unit optional; user may confirm units at selection). Optional **`zone_color`** column (ARGB).
+
+**Suggested zip naming**
+
+```text
+<Client>_<Farm>_<Field>_<Product>.zip
+Rx/
+  <Client>_<Farm>_<Field>_<Product>.shp
+  <Client>_<Farm>_<Field>_<Product>.shx
+  <Client>_<Farm>_<Field>_<Product>.dbf
+```
+
+**Rate column naming (≤ 10 characters)** helps users pick units on displays, for example: `gal_p_ac`, `floz_p_ac`, `ml_p_ha`, `L_p_ha`, `lb_p_ac`, `g_p_ac`, `kg_p_ac`, `ton_p_ac`, `tonnes_p_h`.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`files`**, **`ag3`** for file CRUD; **`files`** for transfers), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Files APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`** for JSON responses (unless downloading binary content).
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Typical use |
+| --- | --- |
+| `files` | Files API access and file transfers (required for all endpoints in this guide). |
+| `ag3` | Required **with** `files` for list/create/upload/download file endpoints (manage locations and production data). |
+
+Request only scopes your application needs. User permissions cap what the connection can do.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` (metadata and collections) |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (JSON bodies); `application/zip` or `application/octet-stream` (uploads) |
+| `Range` | `bytes=start-end` (optional chunked download) |
+| `Accept-Encoding` | `gzip` (optional; where supported) |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`** (`nextPage` / `previousPage`), and **`values`**. Default page size is often **10**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.
+
+Use **`showLinks=none`** or filtered **`showLinks`** values to reduce HATEOAS payload size.
+
+---
+
+## Reference tables
+
+### File type codes
+
+| Number | Type | Description |
+| --- | --- | --- |
+| 0 | SETUP | Attributes for accurate execution and documentation (client, farm, field, boundary, guidance, products, machines, implements, operators, offsets). |
+| 1 | PRESCRIPTION | Rate control by zone inside a boundary. |
+| 2 | INVALID | Unsupported format; cannot process, download, or send to machine. |
+| 3 | UNKNOWN | Not fully uploaded or still processing; type updates when processed. |
+| 4 | DOC | Operational data from a display (seeding, harvest, application, tillage, other). |
+| 5 | JDBACKUP | N/A |
+| 6 | HIC | Cotton module quality attributes (7760 + Application Controller). |
+| 7 | TIMBERLINK | N/A |
+| 8 | EXPORT | Processed/edited field data export (shapefile). |
+| 11 | TIMBERMATIC | N/A |
+| 12 | CROP_INSURANCE | Work data |
+| 13 | PDF | PDF file |
+| 14 | ISO_SETUP | N/A |
+| 15 | BOUNDARY | N/A |
+| 16 | TIMBERMANAGER | N/A |
+| 17 | SUGAR_HARVEST | Sugar harvest documentation |
+| 20 | CONSTRUCTION | Project files and as-worked data |
+
+Timestamps use **ISO 8601**.
+
+### File formats (examples)
+
+| Format | Manufacturer | Notes |
+| --- | --- | --- |
+| GS2_1800 | John Deere | GreenStar 2 1800 |
+| GS2_2600 | John Deere | GreenStar 2 2600 |
+| GS2_CommandCenter | John Deere | Command Center |
+| GS3_2630 | John Deere | GreenStar 3 2630 |
+| GS4_4600 | John Deere | GreenStar 4 / 46xx |
+| IntegraVersaPlugin | AgLeader | Not readable via John Deere SDKs |
+| RavenPlugin | Raven | Via Slingshot API; not readable via John Deere SDKs |
+| AdmWrappedPlugin | Various | Third-party data wrapped to ADAPT |
+
+### File activity types (selection)
+
+Examples include: **UPLOADED**, **RECEIVED_FROM_MACHINE**, **RENAMED**, **OUTGOING_SHARE_PENDING**, **INCOMING_SHARE_ACCEPTED**, **TRANSFERRED_TO_MACHINE**, **FILE_PROCESSING_SUCCESS**, **FILE_PROCESSING_FAILED**, **FILE_ARCHIVED**, **FIELD_EXPORT_SUCCESS**, and many others returned in activity feeds.
+
+### File source
+
+`MACHINE`, `ORGANIZATION`, `ADS_DATA_MANAGER`, `MOBILE_DATA_LEAP`, `STREAMING_DATA_PLATFORM`, `GEOSPATIAL_INFORMATION_SYSTEM`, `GEN4_BUNDLE`
+
+### File status
+
+`UPLOAD_PENDING`, `IN_PROGRESS`, `READY`
+
+### File transfer status
+
+| Value | Definition |
+| --- | --- |
+| WDT_IN_PROCESS | Transfer in progress to the display |
+| WDT_SUCCESS | Transferred successfully |
+| WDT_FAILED | Transfer failed |
+| WDT_AVAILABLE_TO_DISPLAY | On 2630 and Gen 4 displays |
+| WDT_OPERATOR_ACCEPTED | Accepted by operator |
+| WDT_OPERATOR_REJECTED | Rejected by operator |
+| WDT_INVALID_FILE | Display cannot read file |
+| WDT_ERROR | Internal error |
+| WDT_QUEUED | Ready to go to the display |
+
+---
+
+## Endpoints
+
+### List Files
+
+```text
+GET /platform/files
+```
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scopes:** `files`, `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/files?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/files">
+  Interactive reference for **GET** `/platform/files`.
+</Card>
+
+---
+
+### View or download a file
+
+```text
+GET /platform/files/{fileId}
+```
+
+<ParamField path="fileId" type="string" required>
+  File id from **POST** create response or lists.
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Byte offset for chunked download (use with **`size`**).
+</ParamField>
+
+<ParamField query="size" type="integer">
+  Byte length for chunked download.
+</ParamField>
+
+<ParamField header="Range" type="string">
+  `bytes=start-end`; overrides **`offset`** / **`size`** if both are provided.
+</ParamField>
+
+<ParamField header="Accept" type="string">
+  `application/vnd.deere.axiom.v3+json` for metadata; `application/zip`, `application/octet-stream`, or related types for binary download.
+</ParamField>
+
+**OAuth scopes:** `files`, `ag3`
+
+<CodeGroup>
+
+```bash cURL (metadata)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/files/55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+```bash cURL (download)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/files/55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/zip' \
+  --output file.zip
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/files/{fileId}">
+  Interactive reference for **GET** `/platform/files/{fileId}`.
+</Card>
+
+---
+
+### Upload or update a file
+
+```text
+PUT /platform/files/{fileId}
+```
+
+<ParamField path="fileId" type="string" required>
+  Target file id (created with **POST** `/platform/organizations/{orgId}/files`).
+</ParamField>
+
+**Content-Type** may be `application/octet-stream`, `application/zip`, `application/x-zip`, `application/x-zip-compressed`, `multipart/form-data`, or `multipart/mixed`.
+
+**OAuth scopes:** `files`, `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/files/55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/zip' \
+  --data-binary @upload.zip
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/files/{fileId}">
+  Interactive reference for **PUT** `/platform/files/{fileId}`.
+</Card>
+
+---
+
+### List an organization's files
+
+```text
+GET /platform/organizations/{orgId}/files
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scopes:** `files`, `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/73/files?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/files">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/files`.
+</Card>
+
+---
+
+### Create a file id
+
+```text
+POST /platform/organizations/{orgId}/files
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+Use **`Content-Type: application/vnd.deere.axiom.v3+json`**. The **`Location`** response header points to the new file (includes the generated id).
+
+**OAuth scopes:** `files`, `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/73/files" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/files">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/files`.
+</Card>
+
+---
+
+### Submit a file transfer request
+
+```text
+POST /platform/organizations/{orgId}/fileTransfers
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+Maximum file size for this API: **800 MB**.
+
+**OAuth scope:** `files`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/73/fileTransfers" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"file":{"id":"55"},"machine":{"id":"<machine_id>"}}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/fileTransfers">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/fileTransfers`.
+</Card>
+
+---
+
+### Get file transfers by organization
+
+```text
+GET /platform/organizations/{orgId}/fileTransfers
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**This API does not support eTags.**
+
+**OAuth scope:** `files`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/73/fileTransfers" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fileTransfers">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fileTransfers`.
+</Card>
+
+---
+
+### List file transfer requests
+
+```text
+GET /platform/fileTransfers
+```
+
+**OAuth scope:** `files`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fileTransfers" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fileTransfers">
+  Interactive reference for **GET** `/platform/fileTransfers`.
+</Card>
+
+---
+
+### View a file transfer request
+
+```text
+GET /platform/fileTransfers/{id}
+```
+
+<ParamField path="id" type="string" required>
+  File transfer request id.
+</ParamField>
+
+**OAuth scope:** `files`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fileTransfers/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fileTransfers/{id}">
+  Interactive reference for **GET** `/platform/fileTransfers/{id}`.
+</Card>
+
+---
+
+## Additional notes
+
+- **HATEOAS:** Responses include **links** for related resources (`owningOrganization`, `partnerships`, `initiateFileTransfer`, `wdtCapableMachines`, etc.). Follow only links your token can access.
+- **Compression:** Many APIs honor **`Accept-Encoding: gzip`** for responses.
+- **Errors:** Handle **400**, **401**, **403** (including missing scopes and RCA flows), **404**, **429** (respect **`Retry-After`**), and **503** per platform guidance.

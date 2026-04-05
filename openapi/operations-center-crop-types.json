@@ -1,0 +1,350 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Crop Types API",
+    "description": "**Crop types** describe the crops available in John Deere **Operations Center** and related precision workflows. Use these endpoints to retrieve the **global** catalog, resolve a **single** crop type by **name** or **id**, or list crop types **scoped to an organization**.\n\n**Accept:** `application/vnd.deere.axiom.v3+json`.\n\n**Accept-Language:** Optional on reads; controls localized labels where the API returns language-specific text (see supported language tags in product documentation).\n\n**Paging:** List responses may use **CollectionPage** (`total`, `links`, `values`) with **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**Links:** Responses may include HATEOAS **`links`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim payloads.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Crop types",
+      "description": "Read crop type catalogs and organization-scoped crop type lists."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Crop type endpoints require **`ag1`**. Complete the **connections** flow when **GET** `/platform/organizations` returns a **`connections`** link. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (clients, farms, fields, crop types)",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "AcceptAxiomV3": {
+        "name": "Accept",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      },
+      "AcceptLanguage": {
+        "name": "Accept-Language",
+        "in": "header",
+        "required": false,
+        "description": "Preferred language for localized strings in the response (e.g. `en`, `de`, `pt_BR`).",
+        "schema": { "type": "string", "example": "en" }
+      },
+      "AcceptEncodingGzip": {
+        "name": "Accept-Encoding",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "enum": ["gzip"] }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CropType": {
+        "type": "object",
+        "description": "A crop type resource (Axiom). The platform may expose **`name`**, **`id`**, and **`links`**; exact fields follow the live API.",
+        "properties": {
+          "@type": { "type": "string", "example": "CropType" },
+          "id": { "type": "string", "description": "Crop type identifier.", "example": "1" },
+          "name": { "type": "string", "description": "Crop type name or code.", "example": "corn" },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DeereLink" }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "CropType",
+          "id": "1",
+          "name": "corn",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/cropTypes/corn"
+            }
+          ]
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 120 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DeereLink" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CropType" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/cropTypes": {
+      "get": {
+        "tags": ["Crop types"],
+        "operationId": "listCropTypes",
+        "summary": "Retrieve all crop types",
+        "description": "Returns the list of **available crop types** in the system.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/cropTypes`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100** (where paging applies).",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptLanguage" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/cropTypes?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Language: en' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crop types collection (**CollectionPage** or array per platform conventions).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/CollectionPage" },
+                    {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CropType" }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (access, scope, or restricted org).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/cropTypes/{name}": {
+      "get": {
+        "tags": ["Crop types"],
+        "operationId": "getCropTypeByNameOrId",
+        "summary": "View a specific crop type",
+        "description": "Returns **details** for a single crop type. The path segment may be a crop type **name** or **id** as supported by the platform (both route shapes are documented in the product API reference).\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/cropTypes/{name}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Crop type **name** or **id** (URL-encoded if needed).",
+            "schema": { "type": "string", "example": "corn" }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptLanguage" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/cropTypes/corn' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Language: en'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crop type resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CropType" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Crop type not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/cropTypes": {
+      "get": {
+        "tags": ["Crop types"],
+        "operationId": "listCropTypesForOrganization",
+        "summary": "Retrieve all crop types for a specific organization",
+        "description": "Returns **all crop types** available for the given **organization**.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{organizationId}/cropTypes`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptLanguage" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/cropTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Language: en'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization crop types (**CollectionPage** or array per platform conventions).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/CollectionPage" },
+                    {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CropType" }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

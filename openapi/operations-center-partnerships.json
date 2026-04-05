@@ -1,0 +1,752 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Partnerships API",
+    "description": "Manage **partnerships** between Operations Center organizations: list partners, request partnerships, view or delete a partnership, and view or assign **permissions** within a partnership.\n\nPartnerships represent business relationships between two organizations. Partnered organizations can share files individually or automatically. An organization may or may not belong to a partnership; this differs from **membership**, where a user must belong to an organization.\n\n**Accept / Content-Type:** Use `application/vnd.deere.axiom.v3+json` for request and response bodies where applicable.\n\n**Paging:** Collection responses may use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is often **10**; use **`itemLimit`** and **`pageOffset`** where supported on platform list APIs.\n\n**Partnership status values:** `PENDING`, `ACCEPTED`, `REVOKED`, `REJECTED`, `CHANGE_REQUEST`.\n\n**Permission types** (align with Team Manager; `permissionId` is the stable identifier):\n\n| Permission | Level | Type | permissionId |\n| --- | --- | --- | --- |\n| Share All Fields | — | shareAllFields | 5001 |\n| Share Few Fields | — | shareFewFields | 5002 |\n| Jobs | 1 | viewAndOperateJobs | 3001 |\n| Jobs | 2 | createJobsAndViewResults | 3002 |\n| Locations | 1 | viewDetailsAndMapLocation | 4001 |\n| Locations | 2 | historicResultsAndEditing | 4002 |\n| Locations | 3 | assetManage | 4003 |\n| Equipment | 1 | viewOnListAndMap | 2001 |\n| Equipment | 2 | analyzeAndEdit | 2002 |\n| Equipment | 3 | manageFleet | 2003 |\n| Organizations | 1 | viewPeopleAndPreferences | 1001 |\n| Organizations | 2 | managePeopleAndPreferences | 1002 |\n| RDA | — | rda | 2004 |\n| Setup | — | setupAndWDT | 2005 |\n| Financials | 1 | viewFinancialData | 6001 |\n| Financials | 2 | modifyFinancialData | 6002 |\n| Connections | — | makeCSCConnection | 8001 |",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Partnerships",
+      "description": "Partnership resources under `/platform/partnerships`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Complete the **connections** flow when **GET** `/platform/organizations` returns a `connections` link. Partnership endpoints require **`org1`** (read) or **`org2`** (create, delete, assign permissions) as noted per operation. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "org1": "Organization Management Access Level 1 — view staff, operators, and partners",
+              "org2": "Organization Management Access Level 2 — modify staff, operators, and partners",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation: e.g. `self`, `fromPartnership`, `toPartnership`, `delete`, `permissions`, `contactInvitation`, `nextPage`.",
+            "example": "permissions"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Partnership": {
+        "type": "object",
+        "description": "A partnership between two organizations. Response **links** often include **`fromPartnership`** (initiator), **`toPartnership`** (invited org or invitee), **`delete`**, **`permissions`**, and **`contactInvitation`** (invitation id). If the partnership is not yet accepted, **`toPartnership`** may only expose the invited user’s email.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Partnership"
+          },
+          "status": {
+            "type": "string",
+            "description": "Partnership lifecycle status.",
+            "enum": ["PENDING", "ACCEPTED", "REVOKED", "REJECTED", "CHANGE_REQUEST"],
+            "example": "ACCEPTED"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "Partnership",
+          "status": "PENDING",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fromPartnership",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/100"
+            },
+            {
+              "@type": "Link",
+              "rel": "toPartnership",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/200"
+            },
+            {
+              "@type": "Link",
+              "rel": "delete",
+              "uri": "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token"
+            },
+            {
+              "@type": "Link",
+              "rel": "permissions",
+              "uri": "https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token/permissions"
+            },
+            {
+              "@type": "Link",
+              "rel": "contactInvitation",
+              "uri": "https://sandboxapi.deere.com/platform/contactInvitations/inv-001"
+            }
+          ]
+        }
+      },
+      "PartnershipList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Partnership"
+        }
+      },
+      "PartnershipRequestBody": {
+        "type": "object",
+        "description": "Request body to initiate a partnership. Discover the **source organization id** via **GET** `/platform/organizations`. Exact required fields follow the platform contract returned by the API and your product configuration.",
+        "additionalProperties": true,
+        "example": {
+          "fromOrganization": {
+            "id": "283480"
+          },
+          "inviteeEmail": "advisor@example.com"
+        }
+      },
+      "PartnershipPermissions": {
+        "type": "object",
+        "description": "Permissions in a partnership. May include a link to **assign** permissions. **Note:** **GET** `/platform/partnerships/{token}/permissions` does **not** support eTags.",
+        "properties": {
+          "@type": {
+            "type": "string"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartnershipPermission"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "PartnershipPermission": {
+        "type": "object",
+        "description": "A single permission row (shape follows Team Manager).",
+        "properties": {
+          "permissionId": {
+            "type": "integer",
+            "description": "Stable permission identifier (see product documentation table).",
+            "example": 3001
+          },
+          "type": {
+            "type": "string",
+            "description": "Permission type key (e.g. `viewAndOperateJobs`).",
+            "example": "viewAndOperateJobs"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AssignPartnershipPermissionsBody": {
+        "type": "object",
+        "description": "Update a partner permission or request a permission from a partner. To enable file sharing, assign or request the relevant permission types. **Pending partnerships:** after **POST** `/platform/partnerships`, use the **`contactInvitationId`** as **`partnershipId`** / path **`token`** when assigning permissions for that pending request.",
+        "additionalProperties": true,
+        "example": {
+          "permissions": [
+            {
+              "permissionId": 3001,
+              "granted": true
+            }
+          ]
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/partnerships": {
+      "get": {
+        "tags": ["Partnerships"],
+        "operationId": "listPartnerships",
+        "summary": "List partners",
+        "description": "Returns partnerships (partners) for the caller. Each item includes **links** such as:\n\n- **`fromPartnership`** — organization that initiated the partnership\n- **`toPartnership`** — organization the request was sent to (if not accepted, only the invited user’s email may be returned)\n- **`delete`** — delete the partnership\n- **`permissions`** — permissions for the partnership\n- **`contactInvitation`** — id for the partnership request\n\n**OAuth scope:** **`org1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/partnerships`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of partnerships (array or CollectionPage with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnershipList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Partnerships"],
+        "operationId": "requestPartnership",
+        "summary": "Request a partnership",
+        "description": "Sends an email request to create a partnership from an organization identified in the body. Use **GET** `/platform/organizations` first to discover organization ids available to the user.\n\n**OAuth scope:** **`org2`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/partnerships`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org2"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnershipRequestBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"fromOrganization\":{\"id\":\"283480\"},\"inviteeEmail\":\"advisor@example.com\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Partnership request created or accepted (exact status depends on API).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Partnership"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Partnership request created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Partnership"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/partnerships/{token}": {
+      "get": {
+        "tags": ["Partnerships"],
+        "operationId": "getPartnership",
+        "summary": "Get partnership details",
+        "description": "Returns a single partnership. Response **links** include **`fromPartnership`**, **`toPartnership`** (pending: may only show invitee email), **`delete`**, **`permissions`**, and **`contactInvitation`**.\n\n**OAuth scope:** **`org1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/partnerships/{token}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Partnership identifier (or invitation id for pending flows — follow links from list/create responses).",
+            "schema": {
+              "type": "string",
+              "example": "abc123-partnership-token"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Partnership resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Partnership"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Partnership not found or id no longer valid.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Partnerships"],
+        "operationId": "deletePartnership",
+        "summary": "Delete a partnership",
+        "description": "Deletes the partnership identified by **`token`**.\n\n**OAuth scope:** **`org2`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/partnerships/{token}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org2"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Partnership identifier.",
+            "schema": {
+              "type": "string",
+              "example": "abc123-partnership-token"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Partnership deleted."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/partnerships/{token}/permissions": {
+      "get": {
+        "tags": ["Partnerships"],
+        "operationId": "listPartnershipPermissions",
+        "summary": "View permissions in a partnership",
+        "description": "Returns permissions one partner has assigned the other. The response links to the **assign permissions** resource for updates. **This API does not support eTags.**\n\n**OAuth scope:** **`org1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/partnerships/{token}/permissions`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Partnership or pending invitation token (use **contactInvitation** id for pending partnership permission requests per product notes).",
+            "schema": {
+              "type": "string",
+              "example": "abc123-partnership-token"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token/permissions' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permissions payload (may include `values` and `links` including assign action).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnershipPermissions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Partnerships"],
+        "operationId": "assignPartnershipPermissions",
+        "summary": "Request or assign permissions",
+        "description": "Updates a partner permission or requests a permission from a partner. Assign relevant permission types to enable **file sharing** within the partnership.\n\n**Pending partnerships:** after **POST** `/platform/partnerships`, the **`partnershipId`** for permission calls may be the **`contactInvitationId`**; use that value as **`{token}`** in the path when applicable.\n\n**OAuth scope:** **`org2`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/partnerships/{token}/permissions`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org2"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Partnership token or contact invitation id for pending requests.",
+            "schema": {
+              "type": "string",
+              "example": "abc123-partnership-token"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignPartnershipPermissionsBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/partnerships/abc123-partnership-token/permissions' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"permissions\":[{\"permissionId\":3001,\"granted\":true}]}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permissions updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnershipPermissions"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Update accepted with no body."
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,971 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Clients API",
+    "description": "A **client** is the **grower** and/or **Operations Center user** associated with a specific **farm** within an organization’s location hierarchy.\n\n**Accept / Content-Type:** Use `application/vnd.deere.axiom.v3+json` for request and response bodies where applicable.\n\n**Paging:** List responses may use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is often **10**; use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**Links:** Responses include HATEOAS **`links`**. A client detail response typically links to **`fields`**, **`farms`**, and **`owningOrganization`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim payloads.\n\n**Permissions:** Creating, updating, or deleting a client requires **Locations Level 3** (OAuth scope **`ag3`**). New clients are created with **active** status.\n\n**Events:** Subscribe to **Client Events** via the **Data Subscription Service** when you need push-style updates (requires **`orgId`** filter; other filters optional).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Clients",
+      "description": "Client resources under `/platform/organizations/{orgId}/clients`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Complete the **connections** flow when **GET** `/platform/organizations` returns a **`connections`** link. Client endpoints require **`ag1`** (read) and/or **`ag3`** (create/update/delete) as noted per operation. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (clients, farms, fields)",
+              "ag3": "Locations Access Level 3 — manage locations and production data (create/update/delete clients)",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation: e.g. `self`, `fields`, `farms`, `owningOrganization`, `nextPage`, `previousPage`.",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Client": {
+        "type": "object",
+        "description": "A client (grower / Operations Center user) under an organization. Response **links** often include **`fields`** (field the client belongs to), **`farms`** (farm for the client), and **`owningOrganization`** (owning org).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Client"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client identifier.",
+            "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "Client",
+          "id": "c303004d-beb8-471d-b144-c44bb5318e55",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55"
+            },
+            {
+              "@type": "Link",
+              "rel": "fields",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55/fields"
+            },
+            {
+              "@type": "Link",
+              "rel": "farms",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55/farms"
+            },
+            {
+              "@type": "Link",
+              "rel": "owningOrganization",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+            }
+          ]
+        }
+      },
+      "ClientList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Client"
+        }
+      },
+      "ClientCreateUpdateBody": {
+        "type": "object",
+        "description": "Request body to create or update a client. Exact fields follow the platform contract; include all required properties for **PUT** updates per API behavior.",
+        "additionalProperties": true,
+        "example": {
+          "name": "Example Grower Client"
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "FarmListResponse": {
+        "description": "List of farms for the client, or a **CollectionPage**. Each farm may link to **`fields`**, **`clients`**, and **`owningOrganization`**.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CollectionPage"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        ]
+      },
+      "FieldListResponse": {
+        "description": "Field(s) for the client. Response links may include **`boundaries`**, **`clients`**, **`farms`**, and **`owningOrganization`**.",
+        "type": "object",
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/clients": {
+      "get": {
+        "tags": ["Clients"],
+        "operationId": "listClientsInOrganization",
+        "summary": "List clients in an organization",
+        "description": "Returns all **clients** for the organization.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/clients`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Clients for the organization (array or CollectionPage with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ClientList"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Clients"],
+        "operationId": "createClient",
+        "summary": "Create a client",
+        "description": "Creates a new **client** in the target organization. Requires **Locations Level 3** permission. All new clients are created with **active** status.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/clients`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreateUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Example Grower Client\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client created (or 201 depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Client created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/clients/{clientId}": {
+      "get": {
+        "tags": ["Clients"],
+        "operationId": "getClient",
+        "summary": "View a client",
+        "description": "Returns a single client. Response **links** typically include **`fields`**, **`farms`**, and **`owningOrganization`**.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/clients/{clientId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "Client id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Client not found or id not valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Clients"],
+        "operationId": "updateClient",
+        "summary": "Update a client",
+        "description": "Updates an existing client. Requires **Locations Level 3** permission in the target organization.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/clients/{clientId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreateUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Updated Client Name\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Clients"],
+        "operationId": "deleteClient",
+        "summary": "Delete a client",
+        "description": "Deletes a client. Requires **Locations Level 3** permission in the target organization.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/clients/{clientId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client deleted (or 204 No Content depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No content — delete succeeded."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/clients/{clientId}/farms": {
+      "get": {
+        "tags": ["Clients"],
+        "operationId": "listClientFarms",
+        "summary": "View a client's farms",
+        "description": "Returns **farms** belonging to the client. For each farm, **links** may include **`fields`**, **`clients`**, and **`owningOrganization`**.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/clients/{clientId}/farms`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "Client id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55/farms' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Farms for the client.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FarmListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/clients/{clientId}/fields": {
+      "get": {
+        "tags": ["Clients"],
+        "operationId": "listClientFields",
+        "summary": "View a client's fields",
+        "description": "Returns the **field(s)** associated with the client. Response **links** may include **`boundaries`**, **`clients`**, **`farms`**, and **`owningOrganization`**.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/clients/{clientId}/fields`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/clients/c303004d-beb8-471d-b144-c44bb5318e55/fields' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Field resource(s) for the client.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    }
+  }
+}

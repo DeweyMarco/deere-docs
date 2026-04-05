@@ -1,0 +1,1324 @@
+---
+title: "Operations Center — Products"
+description: "Manage seed varieties, chemicals, fertilizers, tank mixes, and dry blends for Operations Center organizations on the John Deere platform."
+---
+
+## Overview
+
+**Products** are the digital representation of physical inputs—**varieties**, **chemicals**, **fertilizers**, **tank mixes**, and **dry blends**—used when planning work, executing plans, and analyzing results in **Operations Center**. These APIs let you **read** an organization’s lists, **add** custom items, **update** them, **search** reference catalogs, and **associate** reference products to an organization.
+
+<CardGroup cols={2}>
+  <Card title="Varieties" icon="leaf">
+    List and maintain **seed varieties**; search the **reference** catalog; set **overrides** when importing reference varieties.
+  </Card>
+  <Card title="Chemicals & fertilizers" icon="flask">
+    CRUD for org-scoped **chemicals** and **fertilizers**, plus **reference** search, **documents**, and **PATCH** overrides.
+  </Card>
+  <Card title="Mixes & blends" icon="layers">
+    **Tank mixes** and **dry blends** combine components that must already exist on the organization.
+  </Card>
+  <Card title="Supporting resources" icon="file-text">
+    **Product companies**, **active ingredients** (`/isg`), and **document** payloads with embedded PDFs.
+  </Card>
+</CardGroup>
+
+### Products catalog (categories)
+
+| Category | Description | Example |
+| --- | --- | --- |
+| Crop types | Commodity for the year; varieties must use a supported crop type from **`/cropTypes`**. | `CORN_WET` (shown as “Corn” in UIs) |
+| Varieties | Branded seed for a crop type | Pioneer variety for corn |
+| Chemicals | Crop protection (herbicide, insecticide, fungicide, etc.) | Glyphosate products |
+| Fertilizers | Nutrients and manure | Dry fertilizer analysis |
+| Tank mixes | One or more chemicals/fertilizers plus a **carrier** (e.g. water) | Spray tank recipe |
+| Dry blends | Two or more chemicals or fertilizers | Dry blend product |
+
+### Where products appear
+
+Customers manage products in **Product Manager** in Operations Center. Products are also used in **Setup File Creator**, **Work Planner**, **Field Analyzer**, and related tools.
+
+### Endpoints overview
+
+| Area | Operations |
+| --- | --- |
+| Varieties | Org list/create/read/update; reference search; associate; documents; PATCH overrides |
+| Chemicals / Fertilizers | Org list/create/read/update; reference search; associate; documents; PATCH overrides |
+| Tank mixes | List, create, read, update |
+| Dry blends | Create, list, read, update |
+| Other | Product companies; active ingredients; product documents |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** (authorization code grant). Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes **`eq1`** and/or **`eq2`** (and **`offline_access`** if you need refresh tokens), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Products APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**. For **POST**, **PUT**, and **PATCH**, also send **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Typical use |
+| --- | --- |
+| `eq1` | **GET** — view products and reference catalogs |
+| `eq2` | **POST**, **PUT**, **PATCH** — create and update products |
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (writes only) |
+
+Optional: **`Accept-Encoding: gzip`**, **`showLinks`** query parameter.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Platform routes use the **`/platform/…`** prefix. **Active ingredients** use **`/isg/activeIngredients`** on the same host.
+
+---
+
+## Getting started
+
+1. **Read existing lists** — **GET** organization **varieties**, **chemicals**, **fertilizers**, and **tank mixes** so you do not duplicate entries.
+2. **Resolve crop types** — Before **POST** varieties, use **GET** `/platform/cropTypes` (or org crop types) so **`cropName`** is valid.
+3. **Create** — **POST** custom varieties, chemicals, fertilizers, tank mixes, or dry blends; or **POST** `associateToOrg` after finding a reference **erid**.
+4. **Update** — **PUT** or **PATCH** (overrides) when correcting metadata, archive state, or composition.
+
+<Note>
+  Reference **POST** bodies may be empty where the platform allows; custom **POST**/**PUT** payloads must match the live Axiom contract for each resource type.
+</Note>
+
+---
+
+## Paging, links, and search
+
+- List responses may use **CollectionPage** with **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`**.
+- **`GET /platform/varieties`**, **`GET /platform/chemicals`**, and **`GET /platform/fertilizers`** require **one of** `searchString`, `productName`, or `brandName`. Results are capped at **100** items.
+
+---
+
+## Additional type information
+
+### Chemicals — material classification and type
+
+**Material classification:** `LIQUID`, `DRY`, `GAS`.
+
+**Type:** `ADDITIVE`, `FUNGICIDE`, `INSECTICIDE`, `HERBICIDE`, `GROWTH_REGULATOR`, `NITROGEN_STABILIZER`, `ADJUVANT`, `DEFOLIANT`.
+
+### Fertilizers — material classification and type
+
+**Material classification:** `LIQUID`, `DRY`, `GAS`.
+
+**Type:** `FERTILIZER`, `MANURE`.
+
+### Tank mixes — units
+
+Material classification values align with chemicals/fertilizers. Rate **units** may use **ADAPT**-style strings (for example `gal1ac-1`, `floz1ac-2`). See John Deere **ADAPT** unit documentation for the full set of allowed unit strings.
+
+---
+
+## Endpoints
+
+### Reference catalog search parameters
+
+For **GET** `/platform/varieties`, **GET** `/platform/chemicals`, and **GET** `/platform/fertilizers`:
+
+<ParamField query="searchString" type="string">
+  Matches **name** or **companyName**. Ignored if `productName` or `brandName` is set.
+</ParamField>
+
+<ParamField query="productName" type="string">
+  Exact match to company name (per platform rules).
+</ParamField>
+
+<ParamField query="brandName" type="string">
+  Exact match to company name; **case sensitive**.
+</ParamField>
+
+---
+
+### View varieties for an organization
+
+Retrieves a collection of varieties for the organization.
+
+```text
+GET /platform/organizations/{organizationId}/varieties
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/varieties">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/varieties`.
+</Card>
+
+---
+
+### Add a variety
+
+Adds a custom variety to the organization. name+cropName must be unique. cropName must be a supported crop (see `/cropTypes`). Client-supplied `id` enables offline create (201 or 409 if id exists).
+
+```text
+POST /platform/organizations/{organizationId}/varieties
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{organizationId}/varieties">
+  Interactive reference for **POST** `/platform/organizations/{organizationId}/varieties`.
+</Card>
+
+---
+
+### View a specific variety
+
+Returns the variety with the given erid.
+
+```text
+GET /platform/organizations/{organizationId}/varieties/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/varieties/{erid}">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/varieties/{erid}`.
+</Card>
+
+---
+
+### Update a single variety
+
+Rename, archive/unarchive, or change manufacturer or crop type.
+
+```text
+PUT /platform/organizations/{organizationId}/varieties/{erid}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{organizationId}/varieties/{erid}">
+  Interactive reference for **PUT** `/platform/organizations/{organizationId}/varieties/{erid}`.
+</Card>
+
+---
+
+### Associate a reference variety to an organization
+
+Associates a reference variety from the global catalog to your organization.
+
+```text
+POST /platform/varieties/{erid}/associateToOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/varieties/ERID/associateToOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/varieties/{erid}/associateToOrg/{organizationId}">
+  Interactive reference for **POST** `/platform/varieties/{erid}/associateToOrg/{organizationId}`.
+</Card>
+
+---
+
+### Search reference catalog varieties
+
+Searches the reference catalog (max 100 results). Either `searchString`, `productName`, or `brandName` is required. If `productName` or `brandName` is set, `searchString` is ignored.
+
+```text
+GET /platform/varieties
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/varieties?searchString=corn' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/varieties">
+  Interactive reference for **GET** `/platform/varieties`.
+</Card>
+
+---
+
+### Get a single reference variety
+
+Single variety from industry data sources (e.g. CDMS).
+
+```text
+GET /platform/varieties/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/varieties/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/varieties/{erid}">
+  Interactive reference for **GET** `/platform/varieties/{erid}`.
+</Card>
+
+---
+
+### Reference documents for a seed variety
+
+Documents for the variety from industry sources.
+
+```text
+GET /platform/varieties/{erid}/documents
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/varieties/ERID/documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/varieties/{erid}/documents">
+  Interactive reference for **GET** `/platform/varieties/{erid}/documents`.
+</Card>
+
+---
+
+### Set organization overrides for a reference variety
+
+Sets isCarrier, archived, registration, and other overrides when importing a reference variety.
+
+```text
+PATCH /platform/varieties/{erid}/setOverridesForOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://sandboxapi.deere.com/platform/varieties/ERID/setOverridesForOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /platform/varieties/{erid}/setOverridesForOrg/{organizationId}">
+  Interactive reference for **PATCH** `/platform/varieties/{erid}/setOverridesForOrg/{organizationId}`.
+</Card>
+
+---
+
+### Retrieve unified list of chemicals in your organization
+
+Chemicals in the organization (custom and reference).
+
+```text
+GET /platform/organizations/{organizationId}/chemicals
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/chemicals">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/chemicals`.
+</Card>
+
+---
+
+### Add chemical
+
+Adds a custom chemical to the organization. See product documentation for carrier, type, and offline `id` semantics (201 / 409).
+
+```text
+POST /platform/organizations/{organizationId}/chemicals
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{organizationId}/chemicals">
+  Interactive reference for **POST** `/platform/organizations/{organizationId}/chemicals`.
+</Card>
+
+---
+
+### Retrieve a specific chemical from the organization
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/chemicals/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/chemicals/{erid}">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/chemicals/{erid}`.
+</Card>
+
+---
+
+### Update a single chemical
+
+OAuth scope: `eq2`
+
+```text
+PUT /platform/organizations/{organizationId}/chemicals/{erid}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{organizationId}/chemicals/{erid}">
+  Interactive reference for **PUT** `/platform/organizations/{organizationId}/chemicals/{erid}`.
+</Card>
+
+---
+
+### Associate a reference chemical to an organization
+
+OAuth scope: `eq2`
+
+```text
+POST /platform/chemicals/{erid}/associateToOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/chemicals/ERID/associateToOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/chemicals/{erid}/associateToOrg/{organizationId}">
+  Interactive reference for **POST** `/platform/chemicals/{erid}/associateToOrg/{organizationId}`.
+</Card>
+
+---
+
+### Reference list of all known chemicals
+
+Industry catalog search (max 100). Either `searchString`, `productName`, or `brandName` is required.
+
+```text
+GET /platform/chemicals
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/chemicals?searchString=example' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/chemicals">
+  Interactive reference for **GET** `/platform/chemicals`.
+</Card>
+
+---
+
+### Get a single reference chemical
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/chemicals/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/chemicals/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/chemicals/{erid}">
+  Interactive reference for **GET** `/platform/chemicals/{erid}`.
+</Card>
+
+---
+
+### Reference documents for a chemical
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/chemicals/{erid}/documents
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/chemicals/ERID/documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/chemicals/{erid}/documents">
+  Interactive reference for **GET** `/platform/chemicals/{erid}/documents`.
+</Card>
+
+---
+
+### Set organization overrides for a reference chemical
+
+OAuth scope: `eq2`
+
+```text
+PATCH /platform/chemicals/{erid}/setOverridesForOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://sandboxapi.deere.com/platform/chemicals/ERID/setOverridesForOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /platform/chemicals/{erid}/setOverridesForOrg/{organizationId}">
+  Interactive reference for **PATCH** `/platform/chemicals/{erid}/setOverridesForOrg/{organizationId}`.
+</Card>
+
+---
+
+### Retrieve unified list of fertilizers in your organization
+
+Fertilizers in the organization (custom and reference).
+
+```text
+GET /platform/organizations/{organizationId}/fertilizers
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/fertilizers">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/fertilizers`.
+</Card>
+
+---
+
+### Add fertilizer
+
+Adds a custom fertilizer to the organization. See product documentation for carrier, type, and offline `id` semantics (201 / 409).
+
+```text
+POST /platform/organizations/{organizationId}/fertilizers
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{organizationId}/fertilizers">
+  Interactive reference for **POST** `/platform/organizations/{organizationId}/fertilizers`.
+</Card>
+
+---
+
+### Retrieve a specific fertilizer from the organization
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/fertilizers/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/fertilizers/{erid}">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/fertilizers/{erid}`.
+</Card>
+
+---
+
+### Update a single fertilizer
+
+OAuth scope: `eq2`
+
+```text
+PUT /platform/organizations/{organizationId}/fertilizers/{erid}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{organizationId}/fertilizers/{erid}">
+  Interactive reference for **PUT** `/platform/organizations/{organizationId}/fertilizers/{erid}`.
+</Card>
+
+---
+
+### Associate a reference fertilizer to an organization
+
+OAuth scope: `eq2`
+
+```text
+POST /platform/fertilizers/{erid}/associateToOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/fertilizers/ERID/associateToOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/fertilizers/{erid}/associateToOrg/{organizationId}">
+  Interactive reference for **POST** `/platform/fertilizers/{erid}/associateToOrg/{organizationId}`.
+</Card>
+
+---
+
+### Reference list of all known fertilizers
+
+Industry catalog search (max 100). Either `searchString`, `productName`, or `brandName` is required.
+
+```text
+GET /platform/fertilizers
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/fertilizers?searchString=example' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fertilizers">
+  Interactive reference for **GET** `/platform/fertilizers`.
+</Card>
+
+---
+
+### Get a single reference fertilizer
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/fertilizers/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/fertilizers/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fertilizers/{erid}">
+  Interactive reference for **GET** `/platform/fertilizers/{erid}`.
+</Card>
+
+---
+
+### Reference documents for a fertilizer
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/fertilizers/{erid}/documents
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/fertilizers/ERID/documents' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fertilizers/{erid}/documents">
+  Interactive reference for **GET** `/platform/fertilizers/{erid}/documents`.
+</Card>
+
+---
+
+### Set organization overrides for a reference fertilizer
+
+OAuth scope: `eq2`
+
+```text
+PATCH /platform/fertilizers/{erid}/setOverridesForOrg/{organizationId}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url 'https://sandboxapi.deere.com/platform/fertilizers/ERID/setOverridesForOrg/283480' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /platform/fertilizers/{erid}/setOverridesForOrg/{organizationId}">
+  Interactive reference for **PATCH** `/platform/fertilizers/{erid}/setOverridesForOrg/{organizationId}`.
+</Card>
+
+---
+
+### Retrieve tank mixes for an organization
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/tankMixes
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/tankMixes">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/tankMixes`.
+</Card>
+
+---
+
+### Create a tank mix
+
+Components must already exist in the organization. name must be unique. Optional client `orgUniqueErid` for offline create (201 / 409).
+
+```text
+POST /platform/organizations/{organizationId}/tankMixes
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{organizationId}/tankMixes">
+  Interactive reference for **POST** `/platform/organizations/{organizationId}/tankMixes`.
+</Card>
+
+---
+
+### View a specific tank mix
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/tankMixes/{id}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="id" type="string" required>Tank mix id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes/TANK_MIX_ID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/tankMixes/{id}">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/tankMixes/{id}`.
+</Card>
+
+---
+
+### Update a tank mix
+
+Update metadata and composition.
+
+```text
+PUT /platform/organizations/{organizationId}/tankMixes/{id}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="id" type="string" required>Tank mix id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes/TANK_MIX_ID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{organizationId}/tankMixes/{id}">
+  Interactive reference for **PUT** `/platform/organizations/{organizationId}/tankMixes/{id}`.
+</Card>
+
+---
+
+### Create a dry blend
+
+Components must exist in the organization. Optional client `erid` for offline create (201 / 409).
+
+```text
+POST /platform/organizations/{organizationId}/dryBlends
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{organizationId}/dryBlends">
+  Interactive reference for **POST** `/platform/organizations/{organizationId}/dryBlends`.
+</Card>
+
+---
+
+### Retrieve dry blends for an organization
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/dryBlends
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/dryBlends">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/dryBlends`.
+</Card>
+
+---
+
+### Retrieve a specific dry blend
+
+OAuth scope: `eq1`
+
+```text
+GET /platform/organizations/{organizationId}/dryBlends/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/dryBlends/{erid}">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/dryBlends/{erid}`.
+</Card>
+
+---
+
+### Update a dry blend
+
+Name, archival status, and components.
+
+```text
+PUT /platform/organizations/{organizationId}/dryBlends/{erid}
+```
+
+**OAuth scope:** `eq2`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"..."}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{organizationId}/dryBlends/{erid}">
+  Interactive reference for **PUT** `/platform/organizations/{organizationId}/dryBlends/{erid}`.
+</Card>
+
+---
+
+### Retrieve product companies for an organization
+
+Unified list of custom and reference product companies.
+
+```text
+GET /platform/organizations/{organizationId}/productCompanies
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="organizationId" type="string" required>Organization id.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/organizations/283480/productCompanies' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{organizationId}/productCompanies">
+  Interactive reference for **GET** `/platform/organizations/{organizationId}/productCompanies`.
+</Card>
+
+---
+
+### List available active ingredients
+
+Returns all available active ingredients.
+
+```text
+GET /isg/activeIngredients
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/isg/activeIngredients' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/activeIngredients">
+  Interactive reference for **GET** `/isg/activeIngredients`.
+</Card>
+
+---
+
+### Document details with embedded PDF
+
+Document metadata with embedded gzip+base64 PDF payload.
+
+```text
+GET /platform/documents/{erid}
+```
+
+**OAuth scope:** `eq1`
+
+<ParamField path="erid" type="string" required>Resource **erid**.</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url 'https://sandboxapi.deere.com/platform/documents/ERID' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/documents/{erid}">
+  Interactive reference for **GET** `/platform/documents/{erid}`.
+</Card>
+
+---
+

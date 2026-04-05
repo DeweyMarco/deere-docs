@@ -1,0 +1,534 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Field Operations API",
+    "description": "A **Field Operation** represents data collected while working in a field—primarily tillage, seeding, application, and harvest layers. These endpoints expose much of the same information as **Field Analyzer** in MyJohnDeere Operations Center: metadata, area and material totals, map images with legends, and point-level data via **shapefile** export.\n\n**Field Operations vs Map Layers:** Map images can come from this API or the **Map Layers** API. Field Operations are data processed internally by Field Analyzer; **Map Layers** are contributed by another tool into Operations Center.\n\n**Webhooks / volume:** New operational data can appear quickly and payloads can be large. For frequent polling, consider the **Data Subscription Service** to receive webhooks when new Field Operations are available.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) unless otherwise noted. Collections use **CollectionPage** (`total`, `links`, `values`) where applicable.\n\n**Paging:** Use `itemLimit` (10–100, multiples of 10) and `pageOffset` on list endpoints where supported.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Field operations",
+      "description": "List and read field operations; asynchronous shapefile download."
+    },
+    {
+      "name": "Measurements",
+      "description": "Measurement types and map images (JSON totals or image media type)."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. Field Operations endpoints require **`ag2`**. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations",
+              "ag2": "Locations Access Level 2 — analyze production data (Field Operations)",
+              "ag3": "Locations Access Level 3 — manage locations and production data",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 3 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "FieldOperationResource": {
+        "type": "object",
+        "description": "A Field Operation resource (Axiom). Includes links such as **organization**, **field**, and **self**.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "FieldOperation",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "operationType": "harvest",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          ]
+        }
+      },
+      "MeasurementTypesList": {
+        "type": "object",
+        "description": "Collection of measurement type entries for a field operation.",
+        "additionalProperties": true
+      },
+      "MeasurementDetailJson": {
+        "type": "object",
+        "description": "Measurement detail with totals and legend metadata when using `Accept: application/vnd.deere.axiom.v3+json`.",
+        "additionalProperties": true
+      },
+      "ShapefileAcceptedResponse": {
+        "type": "object",
+        "description": "Body may be empty or minimal when **202 Accepted** — processing in progress; poll the same URL.",
+        "additionalProperties": true
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    },
+    "parameters": {
+      "AcceptAxiomV3": {
+        "name": "Accept",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+      },
+      "AcceptEncodingGzip": {
+        "name": "Accept-Encoding",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "enum": ["gzip"] }
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/fields/{fieldId}/fieldOperations": {
+      "get": {
+        "tags": ["Field operations"],
+        "operationId": "listFieldOperations",
+        "summary": "List Field Operations",
+        "description": "Returns logical structures representing agronomic operations performed in a **field**. Supported types include seeding, application, harvest, tillage, and others. A single operation may span consecutive days.\n\nEach field operation includes links to **organization**, **field**, and **self**, and may link to measurements.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/fieldOperations`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": { "type": "string", "example": "0f38f7e1-299d-4823-aafc-13be555605ed" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" },
+          { "$ref": "#/components/parameters/AcceptEncodingGzip" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/0f38f7e1-299d-4823-aafc-13be555605ed/fieldOperations?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged Field Operations (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (access or scope).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fieldOperations/{operationId}": {
+      "get": {
+        "tags": ["Field operations"],
+        "operationId": "getFieldOperationById",
+        "summary": "View a Field Operation",
+        "description": "Returns metadata for a single field operation, with links to **organization**, **field**, and **self**. Webhook notifications may reference this endpoint.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fieldOperations/{operationId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "description": "Field operation id.",
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Field Operation resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FieldOperationResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fieldOps/{operationId}": {
+      "get": {
+        "tags": ["Field operations"],
+        "operationId": "downloadFieldOperationShapefile",
+        "summary": "Asynchronous Shapefile Download",
+        "description": "Requests an **ESRI Shapefile** for the Field Operation. See the shapefile overview for file layout (`.shp`, `.dbf`, `.shx`, `.prj`, `.json`) and column semantics.\n\n**Expected responses:**\n- **202 Accepted** — work queued; **repeat the same GET** until you receive **307**.\n- **307 Temporary Redirect** — shapefile ready; follow **`Location`** (pre-signed URL, valid at least one hour). Download with a plain **GET** to that URL **without** OAuth signing or extra auth headers.\n- **406 Not Acceptable** — a shapefile cannot be generated.\n\nThe first call may return **202** or **307** depending on whether an up-to-date file already exists. Processing may take up to **30 minutes**. Poll with exponential backoff starting at **5** seconds: `secondsToWait = 5 * 2^(attempt - 1)`.\n\n**Note:** This flow does **not** support webhooks. In Postman, disable **automatically follow redirects** when testing redirects.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fieldOps/{operationId}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "description": "Field operation id.",
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "shapeType",
+            "in": "query",
+            "required": false,
+            "description": "Strongly recommended. **Point** or **Polygon** — affects output size and semantics.",
+            "schema": { "type": "string", "enum": ["Point", "Polygon"], "example": "Point" }
+          },
+          {
+            "name": "resolution",
+            "in": "query",
+            "required": false,
+            "description": "Strongly recommended. **EachSection** (legacy default, very large Point files), **EachSensor**, or **OneHertz**. Polygon + EachSection is not supported.",
+            "schema": {
+              "type": "string",
+              "enum": ["EachSection", "EachSensor", "OneHertz"],
+              "example": "EachSensor"
+            }
+          },
+          {
+            "name": "Accept-UOM-System",
+            "in": "header",
+            "required": false,
+            "description": "When present, influences metric vs imperial units in exported attributes (else organization preferences apply). Exact units are in the bundled `.json` metadata file.",
+            "schema": { "type": "string", "example": "metric" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOps/a1b2c3d4-e5f6-7890-abcd-ef1234567890?shapeType=Point&resolution=EachSensor' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-UOM-System: metric' \\\n  --dump-header -"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted — processing. Poll the same URL with backoff until **307**.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ShapefileAcceptedResponse" }
+              }
+            }
+          },
+          "307": {
+            "description": "Temporary redirect — **`Location`** header contains the pre-signed download URL (plain GET, no OAuth).",
+            "headers": {
+              "Location": {
+                "description": "Pre-signed URL for the shapefile archive.",
+                "schema": { "type": "string", "format": "uri" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "406": {
+            "description": "Not Acceptable — shapefile cannot be generated for this operation."
+          }
+        }
+      }
+    },
+    "/platform/fieldOperations/{operationId}/measurementTypes": {
+      "get": {
+        "tags": ["Measurements"],
+        "operationId": "listFieldOperationMeasurementTypes",
+        "summary": "List a Field Operation's Measurement Types",
+        "description": "Returns measurement types available for a field operation.\n\n**Target** measurements describe what the machine attempted; **Result** measurements describe what was accomplished (often varying spatially).\n\n**Note:** `carting` and construction operation types are **not** supported at this time for measurements.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fieldOperations/{operationId}/measurementTypes`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          { "$ref": "#/components/parameters/AcceptAxiomV3" }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Measurement types (collection or **CollectionPage** per platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MeasurementTypesList" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fieldOperations/{operationId}/measurementTypes/{measurementType}": {
+      "get": {
+        "tags": ["Measurements"],
+        "operationId": "getFieldOperationMeasurementType",
+        "summary": "Get details about a Measurement Type (JSON or map image)",
+        "description": "Returns details for a specific **measurement type**, including aggregated totals when using JSON, or a **map image** when using the image media type.\n\nThis endpoint supports **two** `Accept` values:\n- **`application/vnd.deere.axiom.v3+json`** — response includes totals (and legend metadata as applicable).\n- **`application/vnd.deere.axiom.v3.image+json`** — map image representation (see platform behavior for Base64 vs binary).\n\nMap images use **Web Mercator**; they will not align with WGS 84 background imagery unless you use a Web Mercator basemap.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/fieldOperations/{operationId}/measurementTypes/{measurementType}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "measurementType",
+            "in": "path",
+            "required": true,
+            "description": "Measurement type key (for example `SeedingRateResult`).",
+            "schema": { "type": "string", "example": "SeedingRateResult" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use JSON for totals or `application/vnd.deere.axiom.v3.image+json` for the image layer.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/vnd.deere.axiom.v3+json",
+                "application/vnd.deere.axiom.v3.image+json"
+              ],
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (JSON totals)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes/SeedingRateResult' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (map image)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes/SeedingRateResult' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3.image+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Measurement detail (format depends on **Accept**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MeasurementDetailJson" }
+              },
+              "application/vnd.deere.axiom.v3.image+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Image layer payload per platform (may include Base64 image and legend).",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

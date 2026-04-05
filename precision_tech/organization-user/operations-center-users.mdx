@@ -1,0 +1,224 @@
+---
+title: "Operations Center — Users"
+description: "View John Deere platform user profile information, including links to organizations and files."
+---
+
+## Overview
+
+The **Operations Center Users** API lets a client retrieve **user profile** information for a John Deere platform user. A logged-in user can call this endpoint with **their own user name** to view details such as first and last name and account name. The response includes hypermedia **links** to related resources.
+
+<CardGroup cols={2}>
+  <Card title="View user info" icon="user">
+    **GET** `/platform/users/{userName}` — profile fields, account status, applications (when returned), and **links** to **organizations** and **files**.
+  </Card>
+  <Card title="Related resources" icon="link">
+    Follow **`rel=organizations`** for organizations the user belongs to, and **`rel=files`** for the user’s files (see platform file APIs for details).
+  </Card>
+  <Card title="Account status" icon="circle-check">
+    Account validation may appear as **Validated**, **Validation Started**, or **Not Validated**.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Use the authorization code flow; request scopes required for your endpoints. Complete the **connections** step after token exchange when a `connections` link is returned from **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant for external applications. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched or unregistered URIs can produce **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    **GET** the authorize URL with `response_type=code`, required **scopes**, **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your application. Request only scopes your app needs.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`, the code, **redirect_uri**, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access (connections)">
+    After you have an access token, call **GET** `/platform/organizations`. If the response includes a link with **`rel=connections`**, redirect the user **once per session** to that URI so they can grant your application access to the right organizations. You may append a **`redirect_uri`** query parameter (URL-encoded, and registered on your app) to return the user to your app when finished.
+
+    When access is fully established, **`connections`** is replaced by **`manage_connections`** in the links for that organization.
+  </Step>
+  <Step title="Call the Users API">
+    Send **`Authorization: Bearer {token}`** on every request and **`Accept: application/vnd.deere.axiom.v3+json`** for these platform endpoints.
+  </Step>
+  <Step title="Refresh tokens (optional)">
+    **POST** the same token URL with `grant_type=refresh_token`, the refresh token, `redirect_uri`, optional `scope`, **client_id**, and **client_secret** before the access token expires.
+  </Step>
+</Steps>
+
+### OAuth scopes (summary)
+
+Request only the scopes required for your endpoints. If the connecting user has lower permissions than the scopes you request, only their effective permissions apply. See the scope table in Developer documentation for each product area (organization, equipment, locations, files, financials, work plans, and more).
+
+---
+
+## Request headers
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+
+Optional: **`Accept-Encoding: gzip`** when the API supports compression.
+
+---
+
+## Additional information
+
+### User account statuses
+
+Typical values:
+
+- **Validated**
+- **Validation Started**
+- **Not Validated**
+
+### Applications
+
+Applications associated with an account may include: **JD Link**; **My Equipment (Legacy)**; **AgLogic**; **Operations Center**; **JD Financial Self Service**; **Stellar**; **JD University**; **JD Parts**.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Production callers should use the production platform host provided in your environment and documentation.
+
+---
+
+## Endpoints
+
+### View user info
+
+Returns information about the user, such as first and last name and the account name. A logged-in user can use this call to view **their own** information.
+
+The response includes **links** to:
+
+- **organizations** — organizations to which the user belongs.
+- **files** — files belonging to the user.
+
+```text
+GET /platform/users/{userName}
+```
+
+<ParamField path="userName" type="string" required>
+  John Deere platform user name. For self-service, use the authenticated user’s own user name.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  `none` to omit links, or comma-separated `rel` names to filter links where supported.
+</ParamField>
+
+**OAuth scope:** request the scopes documented for this endpoint and your related API calls in Developer documentation.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/users/jdoe" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+#### Response fields (typical)
+
+<ResponseField name="@type" type="string">
+  Resource type discriminator (for example `User`).
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  User first name.
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  User last name.
+</ResponseField>
+
+<ResponseField name="accountName" type="string">
+  John Deere account name.
+</ResponseField>
+
+<ResponseField name="accountStatus" type="string">
+  One of **Validated**, **Validation Started**, **Not Validated** (when returned).
+</ResponseField>
+
+<ResponseField name="applications" type="array">
+  Applications tied to the account, when returned (for example JD Link, Operations Center).
+</ResponseField>
+
+<ResponseField name="links" type="array">
+  HATEOAS links. Often includes **`rel=self`**, **`rel=organizations`**, and **`rel=files`**.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/users/{userName}">
+  Interactive reference for **GET** `/platform/users/{userName}`.
+</Card>
+
+#### Sample response
+
+Exact **`uri`** values for **`links`** come from the API; use them as opaque URLs.
+
+```json
+{
+  "@type": "User",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "accountName": "jane.doe@example.com",
+  "accountStatus": "Validated",
+  "applications": ["JD Link", "Operations Center"],
+  "links": [
+    {
+      "@type": "Link",
+      "rel": "self",
+      "uri": "https://sandboxapi.deere.com/platform/users/jdoe"
+    },
+    {
+      "@type": "Link",
+      "rel": "organizations",
+      "uri": "https://sandboxapi.deere.com/platform/users/jdoe/organizations"
+    },
+    {
+      "@type": "Link",
+      "rel": "files",
+      "uri": "https://sandboxapi.deere.com/platform/users/jdoe/files"
+    }
+  ]
+}
+```
+
+---
+
+## Common errors
+
+| HTTP | When to expect it |
+| --- | --- |
+| **400** | Malformed request body on mutating calls; or invalid/expired refresh token on **POST** `/token`. |
+| **401** | Expired or invalid access token; refresh or re-authorize. |
+| **403** | User cannot access the resource; missing OAuth scopes; client lacks API license; or organization in a **restricted** state (RCA — see `X-Deere-Warning` / `X-Deere-Terms-Location`). |
+| **404** | User name is not valid or not accessible — resolve identifiers from fresh API responses. |
+| **429** | Rate limited — wait for **`Retry-After`** when present. |
+| **503** | Service issue — exponential backoff; honor **`Retry-After`** when present. |
+
+---
+
+## Links (HATEOAS)
+
+Responses use **links** to discover next steps and related APIs. If you do not have access to a link, the API may return **403**. Only links that correspond to public Developer documentation are intended for external applications. You can often use **`showLinks=none`** or **`showLinks=rel1,rel2`** to control payload size.
+
+---
+
+## Required Customer Action (RCA)
+
+Some **403** responses indicate the organization must complete terms or other actions. Check **`X-Deere-Warning`**, **`X-Deere-Terms-Location`**, and the response body; direct the user to the terms URL when possible.

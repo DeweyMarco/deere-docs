@@ -1,0 +1,790 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Operators API",
+    "description": "An **operator** is a person or entity used in Operations Center workflows for an organization. Use these endpoints to list, create, update, and delete operators under **`/platform/organizations/{orgId}/operators`**.\n\n**Accept / Content-Type:** Use `application/vnd.deere.axiom.v3+json` for request and response bodies where applicable.\n\n**Paging:** List responses may use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is often **10**; use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**Links:** Responses include HATEOAS **`links`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim payloads.\n\n**Permissions (OAuth scopes per endpoint):** **`ag1`** (read), **`ag2`** (create/update), **`ag3`** (delete). These align with **Locations** access levels for viewing and managing location-related data.\n\n**Events:** **Operator events** (create, modify, delete) are delivered via the **Data Subscription Service**. Subscriptions require an **`orgId`** filter; other filters are optional. Prefer one organization per subscription.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Operators",
+      "description": "Operator resources under `/platform/organizations/{orgId}/operators`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Complete the **connections** flow when **GET** `/platform/organizations` returns a **`connections`** link. Operator endpoints require **`ag1`** (read), **`ag2`** (create/update), and/or **`ag3`** (delete) as noted per operation. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (clients, farms, fields, operators)",
+              "ag2": "Locations Access Level 2 — view and analyze production data; create/update operators",
+              "ag3": "Locations Access Level 3 — manage locations and production data; delete operators",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation: e.g. `self`, `owningOrganization`, `nextPage`, `previousPage`.",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Operator": {
+        "type": "object",
+        "description": "An operator in an organization. Exact fields follow the platform contract.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Operator"
+          },
+          "id": {
+            "type": "string",
+            "description": "Operator identifier.",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "Operator",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            {
+              "@type": "Link",
+              "rel": "owningOrganization",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+            }
+          ]
+        }
+      },
+      "OperatorList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Operator"
+        }
+      },
+      "OperatorCreateUpdateBody": {
+        "type": "object",
+        "description": "Request body to create or update an operator. Include all required properties per the platform contract.",
+        "additionalProperties": true,
+        "example": {
+          "name": "Example Operator"
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/operators": {
+      "get": {
+        "tags": ["Operators"],
+        "operationId": "listOperatorsInOrganization",
+        "summary": "Retrieve all operators for an organization",
+        "description": "Returns the list of **operators** in the system for the provided organization id.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/operators`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operators for the organization (array or CollectionPage with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OperatorList"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Operators"],
+        "operationId": "createOperator",
+        "summary": "Create an operator",
+        "description": "Creates a new **operator** for the organization.\n\n**OAuth scope:** **`ag2`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/operators`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag2"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorCreateUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Example Operator\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator created (or 201 depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operator"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Operator created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operator"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag2` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Operators"],
+        "operationId": "deleteAllOperatorsInOrganization",
+        "summary": "Delete all operators for an organization",
+        "description": "Deletes **every** operator in the system for the provided organization id.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/operators`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All operators deleted (no content)."
+          },
+          "200": {
+            "description": "Delete completed (response shape depends on platform).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/operators/{id}": {
+      "get": {
+        "tags": ["Operators"],
+        "operationId": "getOperator",
+        "summary": "Retrieve an operator by id",
+        "description": "Returns a specific **operator** in the organization for the provided operator id.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/operators/{id}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Operator id.",
+            "schema": {
+              "type": "string",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operator"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator not found or id not valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Operators"],
+        "operationId": "updateOperator",
+        "summary": "Update an operator",
+        "description": "Updates an existing **operator** for the provided operator id. Send operator data in the request body per the platform contract.\n\n**OAuth scope:** **`ag2`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/operators/{id}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag2"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Operator id.",
+            "schema": {
+              "type": "string",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorCreateUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Updated Operator\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operator"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag2` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Operators"],
+        "operationId": "deleteOperator",
+        "summary": "Delete an operator",
+        "description": "Deletes a specific **operator** in the organization for the provided operator id.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/operators/{id}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Operator id.",
+            "schema": {
+              "type": "string",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/operators/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Operator deleted (no content)."
+          },
+          "200": {
+            "description": "Delete completed.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    }
+  }
+}

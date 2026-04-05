@@ -1,0 +1,4136 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Products API",
+    "description": "**Products** represent inputs (seed varieties, chemicals, fertilizers, tank mixes, dry blends) used in **Operations Center**. Use these endpoints to **list**, **create**, **update**, and **associate** reference catalog items for an organization.\n\n**Accept / Content-Type:** `application/vnd.deere.axiom.v3+json` for JSON bodies and responses.\n\n**Paging:** Collections may use **CollectionPage** (`total`, `links`, `values`). Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**OAuth:** Read operations typically require **`eq1`**; create/update operations require **`eq2`** (Equipment access — Setup File Creator, Products, WDT). Complete **connections** when **GET** `/platform/organizations` returns a **`connections`** link.\n\n**Links:** Responses may include HATEOAS **`links`**. Use **`showLinks=none`** to trim payloads.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox (`/platform/…` and `/isg/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Varieties",
+      "description": "Organization varieties and reference catalog varieties."
+    },
+    {
+      "name": "Chemicals",
+      "description": "Organization chemicals and reference catalog chemicals."
+    },
+    {
+      "name": "Fertilizers",
+      "description": "Organization fertilizers and reference catalog fertilizers."
+    },
+    {
+      "name": "Tank mixes",
+      "description": "Tank mixes for an organization."
+    },
+    {
+      "name": "Dry blends",
+      "description": "Dry blends for an organization."
+    },
+    {
+      "name": "Product companies",
+      "description": "Unified product company list for an organization."
+    },
+    {
+      "name": "Active ingredients",
+      "description": "Global active ingredients list (`/isg`)."
+    },
+    {
+      "name": "Documents",
+      "description": "Product document metadata with embedded PDF."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow. Product endpoints require **`eq1`** (read) and/or **`eq2`** (write). Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment — view; Setup File Creator, Products, WDT",
+              "eq2": "Equipment — edit; Setup File Creator, Products, WDT",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "AxiomResource": {
+        "type": "object",
+        "description": "Axiom v3 resource; fields vary by type.",
+        "additionalProperties": true
+      },
+      "AxiomWriteBody": {
+        "type": "object",
+        "description": "Request body per platform contract.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "Variety",
+          "name": "Example"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{organizationId}/varieties": {
+      "get": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "listVarietiesForOrg",
+        "summary": "View varieties for an organization",
+        "description": "Retrieves a collection of **varieties** for the organization.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Varieties collection (CollectionPage or array).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AxiomResource"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "addVarietyToOrg",
+        "summary": "Add a variety",
+        "description": "Adds a **custom variety** to the organization. **name+cropName** must be unique. **cropName** must be a supported crop (see **`/cropTypes`**). Client-supplied **`id`** enables offline create (**201** or **409** if id exists).\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — resource with client `id` already exists.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/varieties/{erid}": {
+      "get": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "getVarietyInOrg",
+        "summary": "View a specific variety",
+        "description": "Returns the variety with the given **erid**.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "updateVarietyInOrg",
+        "summary": "Update a single variety",
+        "description": "Rename, archive/unarchive, or change manufacturer or crop type.\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/varieties/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/varieties/{erid}/associateToOrg/{organizationId}": {
+      "post": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "associateReferenceVarietyToOrg",
+        "summary": "Associate a reference variety to an organization",
+        "description": "Associates a **reference** variety from the global catalog to your organization.\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/varieties/{erid}/associateToOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Associated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/varieties": {
+      "get": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "searchReferenceVarieties",
+        "summary": "Search reference catalog varieties",
+        "description": "Searches the **reference** catalog (max **100** results). **Either** `searchString`, `productName`, or `brandName` is required. If `productName` or `brandName` is set, `searchString` is ignored.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "searchString",
+            "in": "query",
+            "required": false,
+            "description": "Search term (matches name or companyName). Ignored if `productName` or `brandName` is set.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name (per platform behavior).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "brandName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name; case sensitive.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/varieties?searchString=corn' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/varieties/{erid}": {
+      "get": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "getReferenceVariety",
+        "summary": "Get a single reference variety",
+        "description": "Single variety from industry data sources (e.g. CDMS).\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/varieties/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/varieties/{erid}/documents": {
+      "get": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "listVarietyDocuments",
+        "summary": "Reference documents for a seed variety",
+        "description": "Documents for the variety from industry sources.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/varieties/{erid}/documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/varieties/{erid}/setOverridesForOrg/{organizationId}": {
+      "patch": {
+        "tags": [
+          "Varieties"
+        ],
+        "operationId": "patchVarietyOverridesForOrg",
+        "summary": "Set organization overrides for a reference variety",
+        "description": "Sets **isCarrier**, **archived**, **registration**, and other overrides when importing a reference variety.\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://sandboxapi.deere.com/platform/varieties/{erid}/setOverridesForOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/chemicals": {
+      "get": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "listChemicalsForOrg",
+        "summary": "Retrieve unified list of chemicals in your organization",
+        "description": "**Chemicals** in the organization (custom and reference).\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "chemicals collection.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AxiomResource"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "addChemicalToOrg",
+        "summary": "Add chemical",
+        "description": "Adds a **custom** chemical to the organization. See product documentation for **carrier**, **type**, and offline **`id`** semantics (**201** / **409**).\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — client `id` already exists.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/chemicals/{erid}": {
+      "get": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "getChemicalInOrg",
+        "summary": "Retrieve a specific chemical from the organization",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "updateChemicalInOrg",
+        "summary": "Update a single chemical",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/chemicals/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/chemicals/{erid}/associateToOrg/{organizationId}": {
+      "post": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "associateReferenceChemicalToOrg",
+        "summary": "Associate a reference chemical to an organization",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/chemicals/{erid}/associateToOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Associated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/chemicals": {
+      "get": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "searchReferenceChemicals",
+        "summary": "Reference list of all known chemicals",
+        "description": "Industry catalog search (max **100**). **Either** `searchString`, `productName`, or `brandName` is required.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "searchString",
+            "in": "query",
+            "required": false,
+            "description": "Search term (matches name or companyName). Ignored if `productName` or `brandName` is set.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name (per platform behavior).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "brandName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name; case sensitive.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/chemicals?searchString=round' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/chemicals/{erid}": {
+      "get": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "getReferenceChemical",
+        "summary": "Get a single reference chemical",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/chemicals/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/chemicals/{erid}/documents": {
+      "get": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "listChemicalDocuments",
+        "summary": "Reference documents for a chemical",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/chemicals/{erid}/documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/chemicals/{erid}/setOverridesForOrg/{organizationId}": {
+      "patch": {
+        "tags": [
+          "Chemicals"
+        ],
+        "operationId": "patchChemicalOverridesForOrg",
+        "summary": "Set organization overrides for a reference chemical",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://sandboxapi.deere.com/platform/chemicals/{erid}/setOverridesForOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/fertilizers": {
+      "get": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "listFertilizersForOrg",
+        "summary": "Retrieve unified list of fertilizers in your organization",
+        "description": "**Fertilizers** in the organization (custom and reference).\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "fertilizers collection.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AxiomResource"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "addFertilizerToOrg",
+        "summary": "Add fertilizer",
+        "description": "Adds a **custom** fertilizer to the organization. See product documentation for **carrier**, **type**, and offline **`id`** semantics (**201** / **409**).\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — client `id` already exists.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/fertilizers/{erid}": {
+      "get": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "getFertilizerInOrg",
+        "summary": "Retrieve a specific fertilizer from the organization",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "updateFertilizerInOrg",
+        "summary": "Update a single fertilizer",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fertilizers/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/fertilizers/{erid}/associateToOrg/{organizationId}": {
+      "post": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "associateReferenceFertilizerToOrg",
+        "summary": "Associate a reference fertilizer to an organization",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/fertilizers/{erid}/associateToOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Associated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fertilizers": {
+      "get": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "searchReferenceFertilizers",
+        "summary": "Reference list of all known fertilizers",
+        "description": "Industry catalog search (max **100**). **Either** `searchString`, `productName`, or `brandName` is required.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "searchString",
+            "in": "query",
+            "required": false,
+            "description": "Search term (matches name or companyName). Ignored if `productName` or `brandName` is set.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name (per platform behavior).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "brandName",
+            "in": "query",
+            "required": false,
+            "description": "Exact match to company name; case sensitive.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fertilizers?searchString=round' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fertilizers/{erid}": {
+      "get": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "getReferenceFertilizer",
+        "summary": "Get a single reference fertilizer",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fertilizers/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/fertilizers/{erid}/documents": {
+      "get": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "listFertilizerDocuments",
+        "summary": "Reference documents for a fertilizer",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fertilizers/{erid}/documents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fertilizers/{erid}/setOverridesForOrg/{organizationId}": {
+      "patch": {
+        "tags": [
+          "Fertilizers"
+        ],
+        "operationId": "patchFertilizerOverridesForOrg",
+        "summary": "Set organization overrides for a reference fertilizer",
+        "description": "**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://sandboxapi.deere.com/platform/fertilizers/{erid}/setOverridesForOrg/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/tankMixes": {
+      "get": {
+        "tags": [
+          "Tank mixes"
+        ],
+        "operationId": "listTankMixesForOrg",
+        "summary": "Retrieve tank mixes for an organization",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tank mixes.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AxiomResource"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tank mixes"
+        ],
+        "operationId": "createTankMix",
+        "summary": "Create a tank mix",
+        "description": "Components must already exist in the organization. **name** must be unique. Optional client **`orgUniqueErid`** for offline create (**201** / **409**).\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — `orgUniqueErid` exists.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/tankMixes/{id}": {
+      "get": {
+        "tags": [
+          "Tank mixes"
+        ],
+        "operationId": "getTankMix",
+        "summary": "View a specific tank mix",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes/{id}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tank mixes"
+        ],
+        "operationId": "updateTankMix",
+        "summary": "Update a tank mix",
+        "description": "Update metadata and composition.\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/tankMixes/{id}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/dryBlends": {
+      "get": {
+        "tags": [
+          "Dry blends"
+        ],
+        "operationId": "listDryBlendsForOrg",
+        "summary": "Retrieve dry blends for an organization",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dry blends.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AxiomResource"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Dry blends"
+        ],
+        "operationId": "createDryBlend",
+        "summary": "Create a dry blend",
+        "description": "Components must exist in the organization. Optional client **`erid`** for offline create (**201** / **409**).\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/dryBlends/{erid}": {
+      "get": {
+        "tags": [
+          "Dry blends"
+        ],
+        "operationId": "getDryBlend",
+        "summary": "Retrieve a specific dry blend",
+        "description": "**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Dry blends"
+        ],
+        "operationId": "updateDryBlend",
+        "summary": "Update a dry blend",
+        "description": "Name, archival status, and components.\n\n**OAuth scope:** **`eq2`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq2"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AxiomWriteBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/dryBlends/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"...\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{organizationId}/productCompanies": {
+      "get": {
+        "tags": [
+          "Product companies"
+        ],
+        "operationId": "listProductCompaniesForOrg",
+        "summary": "Retrieve product companies for an organization",
+        "description": "Unified list of **custom** and **reference** product companies.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                30,
+                40,
+                50,
+                60,
+                70,
+                80,
+                90,
+                100
+              ]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/productCompanies' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/isg/activeIngredients": {
+      "get": {
+        "tags": [
+          "Active ingredients"
+        ],
+        "operationId": "listActiveIngredients",
+        "summary": "List available active ingredients",
+        "description": "Returns all available **active ingredients**.\n\n**OAuth scope:** **`eq1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/isg/activeIngredients`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/isg/activeIngredients' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/documents/{erid}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "getProductDocument",
+        "summary": "Document details with embedded PDF",
+        "description": "Document metadata with embedded **gzip+base64** PDF payload.\n\n**OAuth scope:** **`eq1`**",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "erid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json`.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/documents/{erid}' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AxiomResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    }
+  }
+}

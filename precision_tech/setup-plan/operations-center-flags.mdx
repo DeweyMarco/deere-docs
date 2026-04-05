@@ -1,0 +1,686 @@
+---
+title: "Operations Center — Flags"
+description: "Manage flags and flag categories in an organization; list field-scoped flags and flag category preferences; subscribe to Flag and Flag Category events via Data Subscription Service."
+---
+
+## Overview
+
+**Flags** mark locations or observations on **fields**; **flag categories** classify flags (reference, master, or custom). Use these endpoints to **list**, **create**, **update**, and **delete** flags and categories, and to read or update **flag category preferences** (for example default **hexColor**).
+
+<CardGroup cols={2}>
+  <Card title="Flags" icon="flag">
+    **GET** list and single-flag reads require **`ag1`**. **POST**, **PUT**, and **DELETE** on flags require **`ag3`**. List flags for a field with **GET** `.../fields/{fieldId}/flags`.
+  </Card>
+  <Card title="Categories & preferences" icon="tags">
+    **Flag categories** follow the same scope pattern (**`ag1`** read, **`ag3`** write). **FlagCategoryPreference** includes a **`default`** object ( **`prefKey`:** `default`, **`hexColor`:** `#FFFFFF` ) created on first access.
+  </Card>
+  <Card title="Events & OAuth" icon="bell">
+    **Flag** and **Flag Category** events use the **Data Subscription Service**; subscriptions require an **`orgId`** filter. Complete **connections** when **`connections`** appears on **GET** `/platform/organizations`.
+  </Card>
+  <Card title="Paging & links" icon="link">
+    Lists may use **CollectionPage** with **`itemLimit`** / **`pageOffset`**. Trim HATEOAS with **`showLinks`**.
+  </Card>
+</CardGroup>
+
+### Endpoints overview
+
+| Area | Method & path |
+| --- | --- |
+| List flags | **GET** `/platform/organizations/{orgId}/flags` |
+| Create flag | **POST** `/platform/organizations/{orgId}/flags` |
+| View flag | **GET** `/platform/organizations/{orgId}/flags/{flagId}` |
+| Update flag | **PUT** `/platform/organizations/{orgId}/flags/{flagId}` |
+| Delete flag | **DELETE** `/platform/organizations/{orgId}/flags/{flagId}` |
+| List flags for field | **GET** `/platform/organizations/{orgId}/fields/{fieldId}/flags` |
+| List categories | **GET** `/platform/organizations/{orgId}/flagCategories` |
+| Create custom category | **POST** `/platform/organizations/{orgId}/flagCategories` |
+| View category | **GET** `/platform/organizations/{orgId}/flagCategories/{categoryId}` |
+| Update category | **PUT** `/platform/organizations/{orgId}/flagCategories/{categoryId}` |
+| Delete category | **DELETE** `/platform/organizations/{orgId}/flagCategories/{categoryId}` |
+| List preferences for category | **GET** `/platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences` |
+| View preference | **GET** `/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}` |
+| Update preferences | **PUT** `/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}` |
+
+---
+
+## Flag events (Data Subscription Service)
+
+**Flag events** fire when a flag is **added**, **modified**, or **deleted** (for example new flag data, edits, archive/unarchive, or field merge/unmerge/archive behavior per platform). Subscriptions are created through the **Data Subscription Service**; the caller must supply an **`orgId`** filter. Other filters are optional. Filter values are **arrays**, so multiple **`orgId`**, **`flagId`**, or other values may appear in one subscription.
+
+Prefer **one organization per subscription**: you cannot change the list of **`orgId`** values after creation, and the subscription ends if the user loses access to any listed organization.
+
+### Flag event statuses
+
+| Status | Description |
+| --- | --- |
+| **ARCHIVED** | Flag is archived. |
+| **AVAILABLE** | Flag is not archived and is available to use. |
+
+### Flag event actions
+
+| Action | Description |
+| --- | --- |
+| **CREATED** | Flag was created. |
+| **DELETED** | Flag was deleted. |
+| **MODIFIED** | Metadata update, archive, unarchive, field merge/unmerge, field archive/unarchive. |
+
+### Flag event filters (metadata)
+
+| Filter | Required | Example | Description |
+| --- | --- | --- | --- |
+| **orgId** | Yes | `"123456"` | Organization the flag belongs to. |
+| **flagId** | No | UUID | The flag itself. |
+| **status** | No | `"AVAILABLE"` | Flag status. |
+| **action** | No | `"CREATED"` | Action that occurred. |
+
+---
+
+## Flag category events (Data Subscription Service)
+
+**Flag category events** fire when a category is **added**, **modified**, or **deleted**. The caller must supply an **`orgId`** filter; other filters are optional. Filter values are **arrays**.
+
+Prefer **one organization per subscription** for the same reasons as flag events.
+
+### Flag category event statuses
+
+| Status | Description |
+| --- | --- |
+| **ARCHIVED** | Flag category is archived. |
+| **AVAILABLE** | Flag category is not archived and is available to use. |
+
+### Flag category event actions
+
+| Action | Description |
+| --- | --- |
+| **CREATED** | Flag category was created. |
+| **DELETED** | Flag category was deleted. |
+| **MODIFIED** | Metadata update, archive, or unarchive. |
+
+### Flag category event filters (metadata)
+
+| Filter | Required | Example | Description |
+| --- | --- | --- | --- |
+| **orgId** | Yes | `"123456"` | Organization the flag category belongs to. |
+| **flagCategoryId** | No | UUID | The flag category itself. |
+| **status** | No | `"AVAILABLE"` | Flag category status. |
+| **action** | No | `"CREATED"` | Action that occurred. |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`ag1`** for read, **`ag3`** for create/update/delete flags and categories), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Flags APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**. For **POST**/**PUT**, send **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag1` | View locations — **GET** lists and single-resource reads for flags, categories, and preferences |
+| `ag3` | Manage locations — **POST**, **PUT**, **DELETE** flags and categories; **PUT** preferences |
+
+Request only scopes your application needs. User permissions cap what the connection allows.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (writes) |
+
+Optional: **`Accept-Encoding: gzip`** where supported.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`**, and **`values`**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported. Use **`showLinks=none`** or filtered **`showLinks`** to trim HATEOAS payloads.
+
+---
+
+## Endpoints
+
+### View flags list for an organization
+
+```text
+GET /platform/organizations/{orgId}/flags
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flags?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flags">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flags`.
+</Card>
+
+---
+
+### Create a flag
+
+```text
+POST /platform/organizations/{orgId}/flags
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Requires **Locations Level 3** in the target organization. Send the JSON body required by the platform for your use case (for example name and category association).
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flags" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"North pivot issue","flagCategoryId":"a101004d-beb8-471d-b144-c44bb5318e01"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/flags">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/flags`.
+</Card>
+
+---
+
+### Get a flag by org id and flag id
+
+```text
+GET /platform/organizations/{orgId}/flags/{flagId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="flagId" type="string" required>
+  Flag id (GUID).
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flags/{flagId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flags/{flagId}`.
+</Card>
+
+---
+
+### Update flag by id
+
+```text
+PUT /platform/organizations/{orgId}/flags/{flagId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="flagId" type="string" required>
+  Flag id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Send the full resource shape required by the platform for updates (metadata, archive state, associations, and so on).
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"North pivot issue — resolved"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/flags/{flagId}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/flags/{flagId}`.
+</Card>
+
+---
+
+### Delete a flag for a given org
+
+```text
+DELETE /platform/organizations/{orgId}/flags/{flagId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="flagId" type="string" required>
+  Flag id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/flags/{flagId}">
+  Interactive reference for **DELETE** `/platform/organizations/{orgId}/flags/{flagId}`.
+</Card>
+
+---
+
+### List flags for the field
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/flags
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/flags" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/flags">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/flags`.
+</Card>
+
+---
+
+### List flag category collection
+
+```text
+GET /platform/organizations/{orgId}/flagCategories
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flagCategories">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flagCategories`.
+</Card>
+
+---
+
+### Create a custom category
+
+```text
+POST /platform/organizations/{orgId}/flagCategories
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"Custom scouting notes"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/flagCategories">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/flagCategories`.
+</Card>
+
+---
+
+### Get flag category by id
+
+```text
+GET /platform/organizations/{orgId}/flagCategories/{categoryId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="categoryId" type="string" required>
+  Flag category id (GUID).
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+The category may be a **reference** category, a **master** category created from a reference, or **user-defined**. The name is returned translated for the requested language when applicable.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flagCategories/{categoryId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flagCategories/{categoryId}`.
+</Card>
+
+---
+
+### Update flag category by organization and flag category id
+
+```text
+PUT /platform/organizations/{orgId}/flagCategories/{categoryId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="categoryId" type="string" required>
+  Flag category id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"Scouting notes (updated)"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/flagCategories/{categoryId}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/flagCategories/{categoryId}`.
+</Card>
+
+---
+
+### Delete a flag category
+
+```text
+DELETE /platform/organizations/{orgId}/flagCategories/{categoryId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="categoryId" type="string" required>
+  Flag category id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Deletes a single **empty** category for the given **orgId** and **categoryId**.
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/flagCategories/{categoryId}">
+  Interactive reference for **DELETE** `/platform/organizations/{orgId}/flagCategories/{categoryId}`.
+</Card>
+
+---
+
+### List collection of FlagCategoryPreference
+
+```text
+GET /platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="categoryId" type="string" required>
+  Flag category id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+The object with **prefKey** `default` is created automatically on first access to the **flagCategory**; it is initialized with **prefKey:** `default` and **hexColor:** `#FFFFFF`.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01/flagCategoryPreferences" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences`.
+</Card>
+
+---
+
+### View preferences object for a category
+
+```text
+GET /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="flagCategoryPreferencesId" type="string" required>
+  Flag category preference id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategoryPreferences/b202004d-beb8-471d-b144-c44bb5318e02" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}`.
+</Card>
+
+---
+
+### Update flag category preferences
+
+```text
+PUT /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="flagCategoryPreferencesId" type="string" required>
+  Flag category preference id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/flagCategoryPreferences/b202004d-beb8-471d-b144-c44bb5318e02" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"hexColor":"#E8F5E9"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}`.
+</Card>
+
+---
+
+## Additional notes
+
+- **403 / terms:** Some orgs return **403** with **X-Deere-Terms-Location** when user action is required (RCA). Navigate the user to that URL when possible.
+- **Discovery:** Follow **`links`** from organization and flag responses rather than hard-coding resource URLs.

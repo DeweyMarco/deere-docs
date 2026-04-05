@@ -54,14 +54,29 @@
             "openapi/data-subscription-service.json",
             "openapi/om-equipment.json",
             "openapi/operations-center-assets.json",
+            "openapi/operations-center-boundaries.json",
+            "openapi/operations-center-clients.json",
+            "openapi/operations-center-crop-types.json",
             "openapi/operations-center-equipment.json",
             "openapi/operations-center-equipment-measurements.json",
+            "openapi/operations-center-farms.json",
+            "openapi/operations-center-fields.json",
+            "openapi/operations-center-flags.json",
+            "openapi/operations-center-field-operations.json",
+            "openapi/operations-center-files.json",
+            "openapi/operations-center-guidance-lines.json",
+            "openapi/operations-center-harvest-id-cotton.json",
             "openapi/operations-center-machine-alerts.json",
             "openapi/operations-center-machine-engine-hours.json",
             "openapi/operations-center-machine-hours-of-operation.json",
             "openapi/operations-center-machine-locations.json",
             "openapi/operations-center-map-layers.json",
             "openapi/operations-center-notifications.json",
+            "openapi/operations-center-organizations.json",
+            "openapi/operations-center-operators.json",
+            "openapi/operations-center-partnerships.json",
+            "openapi/operations-center-products.json",
+            "openapi/operations-center-users.json",
             "openapi/operations-center-device-state-reports.json",
             "openapi/quote-vendor-services.json",
             "openapi/transaction-pricing.json",
@@ -945,7 +960,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Equipment",
+                                "group": "Equipment",
                                 "root": "precision_tech/equipment/operations-center-equipment",
                                 "pages": [
                                     {
@@ -972,7 +987,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Equipment Measurements",
+                                "group": "Equipment Measurements",
                                 "root": "precision_tech/equipment/operations-center-equipment-measurements",
                                 "pages": [
                                     {
@@ -985,7 +1000,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Machine Alerts",
+                                "group": "Machine Alerts",
                                 "root": "precision_tech/equipment/operations-center-machine-alerts",
                                 "pages": [
                                     {
@@ -998,7 +1013,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Machine Engine Hours",
+                                "group": "Machine Engine Hours",
                                 "root": "precision_tech/equipment/operations-center-machine-engine-hours",
                                 "pages": [
                                     {
@@ -1011,7 +1026,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Machine Hours of Operation",
+                                "group": "Machine Hours of Operation",
                                 "root": "precision_tech/equipment/operations-center-machine-hours-of-operation",
                                 "pages": [
                                     {
@@ -1024,7 +1039,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Machine Locations",
+                                "group": "Machine Locations",
                                 "root": "precision_tech/equipment/operations-center-machine-locations",
                                 "pages": [
                                     {
@@ -1038,7 +1053,7 @@
                                 ]
                             },
                             {
-                                "group": "Operations Center — Machine Device State Reports",
+                                "group": "Machine Device State Reports",
                                 "root": "precision_tech/equipment/operations-center-device-state-reports",
                                 "pages": [
                                     {
@@ -1122,19 +1137,327 @@
                     {
                         "group": "Organization / User",
                         "pages": [
-                            "precision_tech/organization-user/index"
+                            {
+                                "group": "Organizations",
+                                "root": "precision_tech/organization-user/operations-center-organizations",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-organizations.json",
+                                        "pages": [
+                                            "GET /platform/organizations",
+                                            "GET /platform/organizations/{orgId}",
+                                            "GET /platform/users/{userName}/organizations"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Partnerships",
+                                "root": "precision_tech/organization-user/operations-center-partnerships",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-partnerships.json",
+                                        "pages": [
+                                            "GET /platform/partnerships",
+                                            "POST /platform/partnerships",
+                                            "GET /platform/partnerships/{token}",
+                                            "DELETE /platform/partnerships/{token}",
+                                            "GET /platform/partnerships/{token}/permissions",
+                                            "POST /platform/partnerships/{token}/permissions"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Users",
+                                "root": "precision_tech/organization-user/operations-center-users",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-users.json",
+                                        "pages": [
+                                            "GET /platform/users/{userName}"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Setup / Plan",
                         "pages": [
-                            "precision_tech/setup-plan/index"
+                            {
+                                "group": "Boundaries",
+                                "root": "precision_tech/setup-plan/operations-center-boundaries",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-boundaries.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/boundaries",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/boundaries",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}",
+                                            "GET /platform/fieldOperations/{operationId}/boundary",
+                                            "POST /platform/organizations/{orgId}/fields/{fieldId}/boundaries",
+                                            "PUT /platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}",
+                                            "DELETE /platform/organizations/{orgId}/fields/{fieldId}/boundaries/{boundaryId}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Clients",
+                                "root": "precision_tech/setup-plan/operations-center-clients",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-clients.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/clients",
+                                            "POST /platform/organizations/{orgId}/clients",
+                                            "GET /platform/organizations/{orgId}/clients/{clientId}",
+                                            "PUT /platform/organizations/{orgId}/clients/{clientId}",
+                                            "DELETE /platform/organizations/{orgId}/clients/{clientId}",
+                                            "GET /platform/organizations/{orgId}/clients/{clientId}/farms",
+                                            "GET /platform/organizations/{orgId}/clients/{clientId}/fields"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Farms",
+                                "root": "precision_tech/setup-plan/operations-center-farms",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-farms.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/farms",
+                                            "POST /platform/organizations/{orgId}/farms",
+                                            "GET /platform/organizations/{orgId}/farms/{farmId}",
+                                            "PUT /platform/organizations/{orgId}/farms/{farmId}",
+                                            "DELETE /platform/organizations/{orgId}/farms/{farmId}",
+                                            "GET /platform/organizations/{orgId}/farms/{farmId}/clients",
+                                            "GET /platform/organizations/{orgId}/farms/{farmId}/fields"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Fields",
+                                "root": "precision_tech/setup-plan/operations-center-fields",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-fields.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/fields",
+                                            "POST /platform/organizations/{orgId}/fields",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}",
+                                            "PUT /platform/organizations/{orgId}/fields/{fieldId}",
+                                            "DELETE /platform/organizations/{orgId}/fields/{fieldId}",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/farms",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/clients"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Guidance Lines",
+                                "root": "precision_tech/setup-plan/operations-center-guidance-lines",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-guidance-lines.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines",
+                                            "POST /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}",
+                                            "PUT /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Flags",
+                                "root": "precision_tech/setup-plan/operations-center-flags",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-flags.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/flags",
+                                            "POST /platform/organizations/{orgId}/flags",
+                                            "GET /platform/organizations/{orgId}/flags/{flagId}",
+                                            "PUT /platform/organizations/{orgId}/flags/{flagId}",
+                                            "DELETE /platform/organizations/{orgId}/flags/{flagId}",
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/flags",
+                                            "GET /platform/organizations/{orgId}/flagCategories",
+                                            "POST /platform/organizations/{orgId}/flagCategories",
+                                            "GET /platform/organizations/{orgId}/flagCategories/{categoryId}",
+                                            "PUT /platform/organizations/{orgId}/flagCategories/{categoryId}",
+                                            "DELETE /platform/organizations/{orgId}/flagCategories/{categoryId}",
+                                            "GET /platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences",
+                                            "GET /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}",
+                                            "PUT /platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Crop Types",
+                                "root": "precision_tech/setup-plan/operations-center-crop-types",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-crop-types.json",
+                                        "pages": [
+                                            "GET /platform/cropTypes",
+                                            "GET /platform/cropTypes/{name}",
+                                            "GET /platform/organizations/{organizationId}/cropTypes"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operators",
+                                "root": "precision_tech/setup-plan/operations-center-operators",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-operators.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/operators",
+                                            "POST /platform/organizations/{orgId}/operators",
+                                            "DELETE /platform/organizations/{orgId}/operators",
+                                            "GET /platform/organizations/{orgId}/operators/{id}",
+                                            "PUT /platform/organizations/{orgId}/operators/{id}",
+                                            "DELETE /platform/organizations/{orgId}/operators/{id}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Products",
+                                "root": "precision_tech/setup-plan/operations-center-products",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-products.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{organizationId}/varieties",
+                                            "POST /platform/organizations/{organizationId}/varieties",
+                                            "GET /platform/organizations/{organizationId}/varieties/{erid}",
+                                            "PUT /platform/organizations/{organizationId}/varieties/{erid}",
+                                            "POST /platform/varieties/{erid}/associateToOrg/{organizationId}",
+                                            "GET /platform/varieties",
+                                            "GET /platform/varieties/{erid}",
+                                            "GET /platform/varieties/{erid}/documents",
+                                            "PATCH /platform/varieties/{erid}/setOverridesForOrg/{organizationId}",
+                                            "GET /platform/organizations/{organizationId}/chemicals",
+                                            "POST /platform/organizations/{organizationId}/chemicals",
+                                            "GET /platform/organizations/{organizationId}/chemicals/{erid}",
+                                            "PUT /platform/organizations/{organizationId}/chemicals/{erid}",
+                                            "POST /platform/chemicals/{erid}/associateToOrg/{organizationId}",
+                                            "GET /platform/chemicals",
+                                            "GET /platform/chemicals/{erid}",
+                                            "GET /platform/chemicals/{erid}/documents",
+                                            "PATCH /platform/chemicals/{erid}/setOverridesForOrg/{organizationId}",
+                                            "GET /platform/organizations/{organizationId}/fertilizers",
+                                            "POST /platform/organizations/{organizationId}/fertilizers",
+                                            "GET /platform/organizations/{organizationId}/fertilizers/{erid}",
+                                            "PUT /platform/organizations/{organizationId}/fertilizers/{erid}",
+                                            "POST /platform/fertilizers/{erid}/associateToOrg/{organizationId}",
+                                            "GET /platform/fertilizers",
+                                            "GET /platform/fertilizers/{erid}",
+                                            "GET /platform/fertilizers/{erid}/documents",
+                                            "PATCH /platform/fertilizers/{erid}/setOverridesForOrg/{organizationId}",
+                                            "GET /platform/organizations/{organizationId}/tankMixes",
+                                            "POST /platform/organizations/{organizationId}/tankMixes",
+                                            "GET /platform/organizations/{organizationId}/tankMixes/{id}",
+                                            "PUT /platform/organizations/{organizationId}/tankMixes/{id}",
+                                            "POST /platform/organizations/{organizationId}/dryBlends",
+                                            "GET /platform/organizations/{organizationId}/dryBlends",
+                                            "GET /platform/organizations/{organizationId}/dryBlends/{erid}",
+                                            "PUT /platform/organizations/{organizationId}/dryBlends/{erid}",
+                                            "GET /platform/organizations/{organizationId}/productCompanies",
+                                            "GET /isg/activeIngredients",
+                                            "GET /platform/documents/{erid}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Prescriptions",
+                                "pages": [
+                                    "precision_tech/setup-plan/operations-center-prescriptions"
+                                ]
+                            },
+                            {
+                                "group": "Work Plans",
+                                "pages": [
+                                    "precision_tech/setup-plan/operations-center-work-plans"
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Work Results",
                         "pages": [
-                            "precision_tech/work-results/index"
+                            {
+                                "group": "Field Operations",
+                                "root": "precision_tech/work-results/operations-center-field-operations",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-field-operations.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/fields/{fieldId}/fieldOperations",
+                                            "GET /platform/fieldOperations/{operationId}",
+                                            "GET /platform/fieldOps/{operationId}",
+                                            "GET /platform/fieldOperations/{operationId}/measurementTypes",
+                                            "GET /platform/fieldOperations/{operationId}/measurementTypes/{measurementType}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Files",
+                                "root": "precision_tech/work-results/operations-center-files",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-files.json",
+                                        "pages": [
+                                            "GET /platform/files",
+                                            "GET /platform/files/{fileId}",
+                                            "PUT /platform/files/{fileId}",
+                                            "GET /platform/organizations/{orgId}/files",
+                                            "POST /platform/organizations/{orgId}/files",
+                                            "POST /platform/organizations/{orgId}/fileTransfers",
+                                            "GET /platform/organizations/{orgId}/fileTransfers",
+                                            "GET /platform/fileTransfers",
+                                            "GET /platform/fileTransfers/{id}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Harvest ID Cotton",
+                                "root": "precision_tech/work-results/operations-center-harvest-id-cotton",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-harvest-id-cotton.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/harvestIdentificationModules",
+                                            "GET /platform/organizations/{orgId}/harvestIdentificationModules/{serialNumber}"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {

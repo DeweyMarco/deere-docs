@@ -1,0 +1,416 @@
+---
+title: "Operations Center — Fields"
+description: "List, create, update, and delete fields in an organization; resolve farms and clients via hypermedia links and Data Subscription Service field events."
+---
+
+## Overview
+
+A **field** is an area of land within set boundaries assigned by a grower. Use these endpoints to manage fields under an organization and to follow **`links`** to related **farms**, **clients**, and the **owning organization**.
+
+<CardGroup cols={2}>
+  <Card title="List & read" icon="list">
+    **GET** `/platform/organizations/{orgId}/fields` and **GET** `/platform/organizations/{orgId}/fields/{fieldId}` — discover fields; responses link to **`farms`**, **`clients`**, and related resources.
+  </Card>
+  <Card title="Create & update" icon="pencil">
+    **POST**, **PUT**, and **DELETE** require **Locations Level 3** (**`ag3`**).
+  </Card>
+  <Card title="Farms & clients" icon="map">
+    **GET** `/platform/organizations/{orgId}/fields/{fieldId}/farms` and **GET** `.../clients` — related location resources (**`ag1`**).
+  </Card>
+  <Card title="Events & OAuth" icon="bell">
+    **Field events** (create, delete, modify) are delivered via the **Data Subscription Service**; subscriptions require an **`orgId`** filter. Complete **connections** when **`connections`** appears on **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+### Endpoints overview
+
+| Operation | Method & path |
+| --- | --- |
+| List fields | **GET** `/platform/organizations/{orgId}/fields` |
+| Create field | **POST** `/platform/organizations/{orgId}/fields` |
+| View field | **GET** `/platform/organizations/{orgId}/fields/{fieldId}` |
+| Update field | **PUT** `/platform/organizations/{orgId}/fields/{fieldId}` |
+| Delete field | **DELETE** `/platform/organizations/{orgId}/fields/{fieldId}` |
+| View farms for a field | **GET** `/platform/organizations/{orgId}/fields/{fieldId}/farms` |
+| View clients that own a field | **GET** `/platform/organizations/{orgId}/fields/{fieldId}/clients` |
+
+---
+
+## Field events (Data Subscription Service)
+
+**Field events** fire when a field is **created**, **modified**, or **deleted** (for example when metadata changes, a field is archived or unarchived, new field data is available, or after merge/un-merge operations per platform behavior). Subscriptions are created through the **Data Subscription Service**; the caller must supply an **`orgId`** filter. Other filters are optional. Filter values are **arrays**, so multiple **`orgId`**, **`fieldId`**, or other ids may be included in one subscription.
+
+Prefer **one organization per subscription**: you cannot change the list of **`orgId`** values after creation, and the subscription ends if the user loses access to any listed organization.
+
+### Field event statuses
+
+| Status | Description |
+| --- | --- |
+| **ARCHIVED** | Field is archived. |
+| **ACTIVE** | Field is not archived and is available to use. |
+
+### Field event actions
+
+| Action | Description |
+| --- | --- |
+| **CREATED** | Field was created; on un-merge, child fields may also trigger create. |
+| **DELETED** | Field was deleted; on merge, child fields may also trigger delete. |
+| **MODIFIED** | Metadata update, archive, or unarchive; on merge/un-merge, parent field may trigger modified. |
+
+### Field event filters (metadata)
+
+| Filter | Required | Example | Description |
+| --- | --- | --- | --- |
+| **orgId** | Yes | `"123456"` | Organization the field belongs to. |
+| **clientId** | No | UUID | Client associated with the field. |
+| **farmId** | No | UUID | Farm associated with the field. |
+| **fieldId** | No | UUID | The field itself. |
+| **status** | No | `"AVAILABLE"` | Field status. |
+| **action** | No | `"CREATED"` | Action that occurred. |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`ag1`** for read, **`ag3`** for create/update/delete fields), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Fields APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**. For **POST**/**PUT**, send **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag1` | View locations — **GET** list, **GET** field, **GET** farms, **GET** clients |
+| `ag3` | Manage locations — **POST**, **PUT**, **DELETE** fields |
+
+Request only scopes your application needs. User permissions cap what the connection allows.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (writes) |
+
+Optional: **`Accept-Encoding: gzip`** where supported.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`**, and **`values`**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported. Use **`showLinks=none`** or filtered **`showLinks`** to trim HATEOAS payloads.
+
+Example **`links`** on a field may include **`self`**, **`farms`**, **`clients`**, **`boundaries`**, **`activeBoundary`**, and **`owningOrganization`**.
+
+---
+
+## Endpoints
+
+### List fields in an organization
+
+```text
+GET /platform/organizations/{orgId}/fields
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields`.
+</Card>
+
+---
+
+### Create a field
+
+```text
+POST /platform/organizations/{orgId}/fields
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Requires **Locations Level 3** in the target organization. **Client** and **farm** names may be new or existing. You may supply identifiers for new entities or existing GUIDs when associating to existing client/farm. New fields are created with **`available`** status.
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"North 40","clientName":"Acme Growers","farmName":"River Bottom"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/fields">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/fields`.
+</Card>
+
+---
+
+### View a field
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}`.
+</Card>
+
+---
+
+### Update a field
+
+```text
+PUT /platform/organizations/{orgId}/fields/{fieldId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Updates **name**, **archived** status, or associated **client** or **farm**. If the client and/or farm does not exist, it will be created. Send the full resource shape required by the platform for updates.
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"North 40 — replanted"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/fields/{fieldId}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/fields/{fieldId}`.
+</Card>
+
+---
+
+### Delete a field
+
+```text
+DELETE /platform/organizations/{orgId}/fields/{fieldId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Requires **Locations Level 3** in the target organization.
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/fields/{fieldId}">
+  Interactive reference for **DELETE** `/platform/organizations/{orgId}/fields/{fieldId}`.
+</Card>
+
+---
+
+### View farms for a field
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/farms
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/farms" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/farms">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/farms`.
+</Card>
+
+---
+
+### View clients that own a field
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/clients
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+The response links to **fields**, **farms**, and **owningOrganization** as described in the platform documentation.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/clients" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/clients">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/clients`.
+</Card>
+
+---
+
+## Additional notes
+
+- **403 / terms:** Some orgs return **403** with **X-Deere-Terms-Location** when user action is required (RCA). Navigate the user to that URL when possible.
+- **Discovery:** Follow **`links`** from **GET** `/platform/organizations` and field responses rather than hard-coding resource URLs.

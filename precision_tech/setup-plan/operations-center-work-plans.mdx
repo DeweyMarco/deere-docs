@@ -1,0 +1,80 @@
+---
+title: "Operations Center — Work Plans"
+description: "Work Plan integration automates setup in Operations Center and on Generation 4 and Generation 5 displays—planning from any software, wireless transfer, and one-touch cab setup."
+---
+
+## Overview
+
+**Work Plan** integration automates setup and reduces operator guesswork in the field. Use it to help customers:
+
+1. **Plan work from anywhere**, with any software.
+2. **Prepare work** to be transferred to equipment via **Work Planner** in Operations Center.
+3. **Set up Generation 4 displays** (4200, 4240, 4600, 4640) and **Generation 5 displays (G5)** with one-touch workflows.
+4. **Analyze completed work** in Operations Center or from another software solution.
+
+<CardGroup cols={2}>
+  <Card title="API offering" icon="cloud">
+    Enable collaboration between trusted advisors, save time in the field, and improve precision ag data quality by integrating with the **Work Plans API** offering. A connected application can send **field-specific recommendations** to John Deere Operations Center for wireless data flow to cab displays—reducing guesswork and enabling one-touch setup as the operator approaches the field.
+  </Card>
+  <Card title="Retail logistics" icon="truck">
+    For **work order planning and logistics** for ag retailer custom application services, see the **PRO Dispatch API** offering in [Developer.Deere.com](https://developer.deere.com/) product documentation.
+  </Card>
+  <Card title="End-to-end flow" icon="route">
+    See the step-by-step guide [Send Work Plans to Growers](/precision_tech/use-cases/send-work-plans-to-growers) for master data, prescriptions, creating a work plan, and field operations follow-up.
+  </Card>
+  <Card title="Platform building blocks" icon="link">
+    Work plans draw on **fields**, **boundaries**, **guidance**, **products**, **prescriptions**, **equipment**, and **operators** exposed elsewhere in this documentation—see [What makes up a Work Plan?](#what-makes-up-a-work-plan) below.
+  </Card>
+</CardGroup>
+
+---
+
+## What makes up a Work Plan?
+
+A work plan can include these data elements (availability and required fields depend on your workflow and what you send through the API):
+
+| Element | Documentation in this site |
+| --- | --- |
+| **Fields** | [Operations Center — Fields](/precision_tech/setup-plan/operations-center-fields) |
+| **Boundaries** | [Operations Center — Boundaries](/precision_tech/setup-plan/operations-center-boundaries) |
+| **Guidance lines** | [Operations Center — Guidance Lines](/precision_tech/setup-plan/operations-center-guidance-lines) |
+| **Products** | [Operations Center — Products](/precision_tech/setup-plan/operations-center-products) |
+| **Prescriptions** | [Operations Center — Prescriptions](/precision_tech/setup-plan/operations-center-prescriptions) |
+| **Equipment** | [Operations Center — Equipment](/precision_tech/equipment/operations-center-equipment) |
+| **Operators** | [Operations Center — Operators](/precision_tech/setup-plan/operations-center-operators) |
+
+---
+
+## Where do Work Plans appear?
+
+| Surface | Role |
+| --- | --- |
+| **Work Planner (Operations Center web and mobile)** | Customers view and finalize plans, add setup such as guidance and equipment, and send plans to machines. |
+| **Generation 4 displays** (4200, 4240, 4600, 4640) | Work Plans can be sent wirelessly for in-cab execution. |
+| **Generation 5 displays (G5)** | Work Plans can be sent wirelessly for in-cab execution. |
+
+---
+
+## Related documentation
+
+There is **no Work Plans OpenAPI specification** bundled in this documentation set. Use the [Send Work Plans to Growers](/precision_tech/use-cases/send-work-plans-to-growers) guide and the platform APIs linked above. For **work plan** change notifications, the Data Subscription Service documents a **`workPlan`** event type—see [Data Subscription Service](/precision_tech/application/data-subscription-service).
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**, and request the scopes required for each resource you call (for example locations, files, and work-plan–related operations per the developer portal).
+
+<Steps>
+  <Step title="Register your application">
+    Register **Redirect URIs** that match your app exactly; mismatched URIs can return **400 Bad Redirect**.
+  </Step>
+  <Step title="Request tokens">
+    Complete the authorization code flow to obtain **access** and **refresh** tokens. Send **`Authorization: Bearer {access_token}`** on API requests.
+  </Step>
+  <Step title="Use the correct host and paths">
+    Use the documented **sandbox** or **production** base URL for each API. Keep the server URL as the **bare host** (for example `https://sandboxapi.deere.com` for many platform APIs)—put path segments in the request path, not in the host.
+  </Step>
+</Steps>
+
+For detailed OAuth steps and header examples, see any **Operations Center** API guide in this section (for example [Fields](/precision_tech/setup-plan/operations-center-fields))—the pattern is the same across Precision Tech APIs.

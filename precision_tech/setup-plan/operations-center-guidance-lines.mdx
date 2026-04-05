@@ -1,0 +1,353 @@
+---
+title: "Operations Center — Guidance Lines"
+description: "List, create, read, and update field guidance lines (AB lines, curves, adaptive curves, circle tracks) on the John Deere platform, including Data Subscription Service guidance line events."
+---
+
+## Overview
+
+**Guidance lines** are polymorphic resources attached to a **field**. They describe steering geometry such as **AB lines**, **AB curves**, **adaptive curves**, and **circle tracks**. Use **`@type`** on each object to determine the concrete subtype.
+
+<CardGroup cols={2}>
+  <Card title="List & read" icon="list">
+    **GET** collection and **GET** by id return guidance line objects. By default, the list returns **active** lines only. This API **does not** support **eTags** on the list endpoint.
+  </Card>
+  <Card title="Create & update" icon="pencil">
+    **POST** currently supports **AB Line** creation only (**`ag3`**). **PUT** updates the guidance line **name** (**`ag3`**).
+  </Card>
+  <Card title="Geometry & shapes" icon="map">
+    Curves may include a **shapes** array of **MultiPoint** sections when shapes are embedded. See **dtProjectionType**, **dtABLineSaveMethod**, and related representation-system values in John Deere documentation.
+  </Card>
+  <Card title="Events & OAuth" icon="bell">
+    **GuidanceLine** events are delivered via the **Data Subscription Service**; subscriptions require an **`orgId`** filter. Complete **connections** when **`connections`** appears on **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+### Endpoints overview
+
+| Operation | Method & path |
+| --- | --- |
+| View guidance lines for a field | **GET** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines` |
+| Create a guidance line | **POST** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines` |
+| Retrieve a guidance line | **GET** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}` |
+| Update a guidance line | **PUT** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}` |
+
+---
+
+## GuidanceLine object (subtypes)
+
+The guidance line API is **polymorphic**. The **`@type`** property identifies the subtype.
+
+### AB Line (`ABLine`)
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `@type` | string | **`ABLine`** |
+| `id` | string | Guidance line id. |
+| `name` | string | Display name. |
+| `lastModifiedTime` | datetime (ISO-8601) | Last processing or Operations Center modification time. |
+| `archived` | boolean | Archived lines are not available in Setup Builder. |
+| `tramOffset` | number | Spacing between tram lines. |
+| `tramSpacing` | number | Tram lines relative to the main track (**0–20**). |
+| `aPoint` | Point | Coordinate for point **A**. |
+| `bPoint` | Point | Coordinate for point **B**; alternatively supply **heading** and this may be calculated. |
+| `heading` | number | Radial heading (north = **0°**). Do not send both **bPoint** and **heading**. |
+| `eastShift` | MeasurementAsDouble | East shift. |
+| `northShift` | MeasurementAsDouble | North shift. |
+| `spatialProjection` | SpatialProjection | Projection and elevation context. |
+| `saveMethod` | string | Save method; see **dtABLineSaveMethod**. |
+| `links` | array | HATEOAS links. |
+
+### AB Curve (`ABCurve`)
+
+Includes **`aPoint`**, **`bPoint`**, **`heading`**, shifts, **tram** fields, **`archived`**, optional **`shapes`** (when embedded), and **`links`**.
+
+### Adaptive Curve (`AdaptiveCurve`)
+
+Uses **`referencePoint`** as the origin for local coordinates, plus shifts, **`spatialProjection`**, **`archived`**, optional **`shapes`**, and **`links`**.
+
+### Circle Track (`CircleTrack`)
+
+Includes **`centerPoint`**, **`radialHeading`**, **`radiusOffset`**, **`radialShift`**, **tram** fields, **`archived`**, **`spatialProjection`**, and **`links`**.
+
+### Shapes array (AB Curve / Adaptive Curve)
+
+The **`shapes`** array holds geometry for curved paths when embedded. It is an array of **MultiPoint** objects; each **MultiPoint** is one continuous section of the track.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `@type` | string | **`MultiPoint`** |
+| `points` | Point[] | Vertices for that section. |
+
+---
+
+## GuidanceLine events (Data Subscription Service)
+
+**GuidanceLine** events fire when guidance lines are **created**, **modified**, or **deleted**, or when related field operations affect them (for example merge, unmerge, archive, or unarchive per platform behavior). Subscribe through the **Data Subscription Service**; the client must specify an **`orgId`** filter. Other filters are optional. Filter values are **arrays**, so multiple **`orgId`** or **`guidanceLineId`** values may appear in one subscription.
+
+Prefer **one organization per subscription**: you cannot change the **`orgId`** list after creation, and the subscription ends if the user loses access to any listed organization.
+
+### Event statuses
+
+| Status | Description |
+| --- | --- |
+| **ARCHIVED** | Guidance line is archived. |
+| **AVAILABLE** | Guidance line is not archived and is available to use. |
+
+### Event actions
+
+| Action | Description |
+| --- | --- |
+| **CREATED** | Guidance line was created. |
+| **DELETED** | Guidance line was deleted. |
+| **MODIFIED** | Metadata update, archive/unarchive, or related field merge/unmerge/archive changes. |
+
+### MetaDataFilter
+
+| Filter | Required | Example | Description |
+| --- | --- | --- | --- |
+| **orgId** | Yes | `"123456"` | Organization associated with the guidance line. |
+| **guidanceLineId** | No | UUID | Specific guidance line id. |
+| **status** | No | `"AVAILABLE"` | **ARCHIVED** or **AVAILABLE**. |
+| **action** | No | `"CREATED"` | **CREATED**, **DELETED**, or **MODIFIED**. |
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`ag1`** for read, **`ag3`** for create/update), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Guidance Lines APIs">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`**. For **POST**/**PUT**, send **`Content-Type: application/vnd.deere.axiom.v3+json`**.
+  </Step>
+</Steps>
+
+### OAuth scopes for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag1` | View locations — **GET** list, **GET** by id |
+| `ag3` | Manage locations — **POST** (create AB Line), **PUT** (rename) |
+
+Request only scopes your application needs. User permissions cap what the connection allows.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+| `Content-Type` | `application/vnd.deere.axiom.v3+json` (writes) |
+
+Optional: **`Accept-Encoding: gzip`** where supported.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`**, and **`values`**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported. Use **`showLinks=none`** or filtered **`showLinks`** to trim HATEOAS payloads.
+
+**Note:** The guidance line **list** endpoint does **not** support **eTags** / **`x-deere-signature`**.
+
+---
+
+## Endpoints
+
+### View guidance lines for a field
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+By default, only **active** guidance lines are returned.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines`.
+</Card>
+
+---
+
+### Create a guidance line
+
+```text
+POST /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Creation currently supports **AB Line** only. Supply **`@type`: `ABLine`**, **`name`**, and **`aPoint`**. Provide **`bPoint`** **or** **`heading`** (not both **`bPoint`** and **`heading`**).
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"ABLine","name":"North West","aPoint":{"@type":"Point","lat":41.74557323445754,"lon":-92.41092564370683},"bPoint":{"@type":"Point","lat":41.745060835194764,"lon":-92.40789413452148}}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines`.
+</Card>
+
+---
+
+### Retrieve a specific guidance line
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField path="guidanceLineId" type="string" required>
+  Guidance line id.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<ResponseField name="@type" type="string">
+  Subtype discriminator: **ABLine**, **ABCurve**, **AdaptiveCurve**, or **CircleTrack**.
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines/b3c2cb94-1da4-4a0f-9e1e-05346262ccbb" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}`.
+</Card>
+
+---
+
+### Update a guidance line
+
+```text
+PUT /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField path="guidanceLineId" type="string" required>
+  Guidance line id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+Updates the guidance line **name** only.
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines/b3c2cb94-1da4-4a0f-9e1e-05346262ccbb" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"name":"North West — revised"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}">
+  Interactive reference for **PUT** `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}`.
+</Card>
+
+---
+
+## Additional notes
+
+- **403 / terms:** Some orgs return **403** with **X-Deere-Terms-Location** when user action is required (RCA). Navigate the user to that URL when possible.
+- **Discovery:** Follow **`links`** from organization and field responses rather than hard-coding resource URLs.

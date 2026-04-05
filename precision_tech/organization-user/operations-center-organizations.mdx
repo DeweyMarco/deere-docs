@@ -1,0 +1,300 @@
+---
+title: "Operations Center — Organizations"
+description: "List Operations Center organizations, inspect an organization, and list organizations where a user is staff."
+---
+
+## Overview
+
+The **Operations Center Organizations** API exposes **organizations** on the John Deere platform. All Operations Center users belong to an organization. An organization can have one or more users and may represent growers or trusted advisors (for example agronomists or dealers). Each organization can hold data for its operations. This is separate from **partnerships**, which relate two or more organizations to one another.
+
+<CardGroup cols={2}>
+  <Card title="List organizations" icon="list">
+    **GET** `/platform/organizations` — organizations the caller can access, with HATEOAS links for connection management when applicable.
+  </Card>
+  <Card title="Organization detail" icon="building">
+    **GET** `/platform/organizations/{orgId}` — name, type, membership, and links to related resources.
+  </Card>
+  <Card title="User staff orgs" icon="users">
+    **GET** `/platform/users/{userName}/organizations` — only orgs where the user is a **staff** member (`member=true`).
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Use the authorization code flow; request **`org1`** / **`org2`** as needed. Complete the **connections** step after token exchange when a `connections` link is returned.
+  </Card>
+</CardGroup>
+
+<Note>
+  **View user organizations** returns only organizations in which the user is a staff member. It does **not** return partner organizations where the user is not a staff member (`member=false`).
+</Note>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant for external applications. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched or unregistered URIs can produce **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    **GET** the authorize URL with `response_type=code`, required **scopes**, **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your application. Request only scopes your app needs (see scope table below).
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`, the code, **redirect_uri**, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access (connections)">
+    After you have an access token, call **GET** `/platform/organizations`. If the response includes a link with **`rel=connections`**, redirect the user **once per session** to that URI so they can grant your application access to the right organizations. You may append a **`redirect_uri`** query parameter (URL-encoded, and registered on your app) to return the user to your app when finished. Avoid redirect loops.
+
+    When access is fully established, **`connections`** is replaced by **`manage_connections`** in the links for that organization.
+  </Step>
+  <Step title="Call the Organizations API">
+    Send **`Authorization: Bearer {token}`** on every request and **`Accept: application/vnd.deere.axiom.v3+json`** for these platform endpoints.
+  </Step>
+  <Step title="Refresh tokens (optional)">
+    **POST** the same token URL with `grant_type=refresh_token`, the refresh token, `redirect_uri`, optional `scope`, **client_id**, and **client_secret** before the access token expires.
+  </Step>
+</Steps>
+
+### OAuth scopes (summary)
+
+Request only the scopes required for your endpoints. If the connecting user has lower permissions than the scopes you request, only their effective permissions apply.
+
+| Scope | User / connection permission | Description |
+| --- | --- | --- |
+| `org1` | Organization Management Access Level 1 | View staff, operators, and partners |
+| `org2` | Levels 1 and 2 | View; modify staff, operators, and partners |
+| `offline_access` | API authentication | Refresh token |
+
+For the full scope list across Precision Tech APIs (equipment, locations, files, financials, work plans, and more), see the Developer documentation for each product area.
+
+---
+
+## Request headers
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+
+Optional: **`Accept-Encoding: gzip`** when the API supports compression.
+
+---
+
+## Paging and links
+
+Many platform collections return a **CollectionPage** with **`total`**, **`links`** (for example `nextPage` / `previousPage`), and **`values`**. Default page size is often **10**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.
+
+Use **`showLinks=none`** to reduce link payload size, or **`showLinks=field,clients`** (example) to include only links whose **`rel`** matches.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Production callers should use the production platform host provided in your environment and documentation.
+
+---
+
+## Endpoints
+
+### List organizations
+
+Returns a list of organizations. After OAuth, use this call to detect whether the user must complete the **connections** flow.
+
+```text
+GET /platform/organizations
+```
+
+<ParamField query="itemLimit" type="integer">
+  Page size when the response is paginated: multiples of 10, up to 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset aligned with `itemLimit`.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  `none` to omit links, or comma-separated `rel` names to filter links.
+</ParamField>
+
+**OAuth scope:** typically `org1` or higher as required.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+#### Response fields (typical)
+
+<ResponseField name="@type" type="string">
+  Resource type discriminator (for example `Organization`).
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  Organization identifier.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Organization type (for example `customer`).
+</ResponseField>
+
+<ResponseField name="member" type="boolean">
+  Whether the current user is a member of the organization.
+</ResponseField>
+
+<ResponseField name="internal" type="boolean">
+  Whether the organization is internal.
+</ResponseField>
+
+<ResponseField name="links" type="array">
+  HATEOAS links. May include **`rel=self`**, **`rel=connections`** (complete organization access), or **`rel=manage_connections`** (manage connection in Connections).
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations">
+  Interactive reference for **GET** `/platform/organizations`.
+</Card>
+
+#### Sample response (connections pending)
+
+```json
+[
+  {
+    "@type": "Organization",
+    "name": "Spahn Ranch",
+    "type": "customer",
+    "member": true,
+    "internal": false,
+    "id": "283480",
+    "links": [
+      {
+        "@type": "Link",
+        "rel": "self",
+        "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+      },
+      {
+        "@type": "Link",
+        "rel": "connections",
+        "uri": "https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/select-organizations"
+      }
+    ]
+  }
+]
+```
+
+---
+
+### View an organization
+
+Returns information about a single organization and its links.
+
+```text
+GET /platform/organizations/{orgId}
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization identifier from API responses (avoid caching ids indefinitely; access can change).
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Control link inclusion or filter by `rel` values.
+</ParamField>
+
+**OAuth scope:** typically `org1` or as required.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}">
+  Interactive reference for **GET** `/platform/organizations/{orgId}`.
+</Card>
+
+---
+
+### View user organizations
+
+Returns organizations for which the specified user is a **staff** member. Excludes partner organizations where the user is not staff.
+
+```text
+GET /platform/users/{userName}/organizations
+```
+
+<ParamField path="userName" type="string" required>
+  Platform user name for the subject user.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Link filtering (see platform link documentation).
+</ParamField>
+
+**OAuth scope:** typically `org1` or as required.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/users/jdoe/organizations" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/users/{userName}/organizations">
+  Interactive reference for **GET** `/platform/users/{userName}/organizations`.
+</Card>
+
+---
+
+## Common errors
+
+| HTTP | When to expect it |
+| --- | --- |
+| **400** | Malformed request body on mutating calls; or invalid/expired refresh token on **POST** `/token`. |
+| **401** | Expired or invalid access token; refresh or re-authorize. |
+| **403** | User cannot access the resource; missing OAuth scopes; client lacks API license; or organization in a **restricted** state (RCA — see `X-Deere-Warning` / `X-Deere-Terms-Location`). |
+| **404** | Resource id is not valid — resolve ids from fresh API responses. |
+| **429** | Rate limited — wait for **`Retry-After`** when present. |
+| **503** | Service issue — exponential backoff; honor **`Retry-After`** when present. |
+
+---
+
+## eTags (optional)
+
+For frequently polled list endpoints that support it, send **`x-deere-signature`**; the response may return a token for conditional requests (**304 Not Modified** when nothing changed). String tokens are retained for a limited time; see platform documentation for pagination behavior when eTags are used.
+
+---
+
+## Required Customer Action (RCA)
+
+Some **403** responses indicate the organization must complete terms or other actions. Check **`X-Deere-Warning`**, **`X-Deere-Terms-Location`**, and the response body; direct the user to the terms URL when possible.

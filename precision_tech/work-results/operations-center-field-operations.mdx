@@ -1,0 +1,444 @@
+---
+title: "Operations Center — Field Operations"
+description: "Access Field Analyzer–style field operations: metadata, totals, map images, shapefiles, and measurement types on the John Deere platform."
+---
+
+## Overview
+
+A **Field Operation** represents data collected while working in a field—primarily tillage, seeding, application, and harvest layers. The Field Operations APIs expose much of the same information available from **Field Analyzer** in MyJohnDeere Operations Center.
+
+Using the Field Operations APIs, you can access:
+
+- Metadata about each Field Operation.
+- Totals for area worked and total amount planted, applied, or harvested.
+- Map images (with legends) showing what happened in each part of the field.
+- Point-level data via **shapefile** export.
+
+<CardGroup cols={2}>
+  <Card title="List & read operations" icon="list">
+    **GET** `/platform/organizations/{orgId}/fields/{fieldId}/fieldOperations` and **GET** `/platform/fieldOperations/{operationId}` — discover operations and read metadata with HATEOAS links.
+  </Card>
+  <Card title="Shapefile export" icon="download">
+    **GET** `/platform/fieldOps/{operationId}` — asynchronous shapefile generation (**202** / **307**); poll with exponential backoff.
+  </Card>
+  <Card title="Measurements & maps" icon="map">
+    **GET** `/platform/fieldOperations/{operationId}/measurementTypes` and **GET** `.../measurementTypes/{measurementType}` — JSON totals or map image (`Accept` header).
+  </Card>
+  <Card title="OAuth 2.0 (ag2)" icon="lock">
+    Use the authorization code flow; Field Operations endpoints require **`ag2`**. Complete **connections** after token exchange when a `connections` link is returned on **GET** `/platform/organizations`.
+  </Card>
+</CardGroup>
+
+<Note>
+  New operational data can appear quickly, and Field Operations can be large. If you plan to poll frequently, consider the **Data Subscription Service** for webhooks when new Field Operations are available.
+</Note>
+
+### Field Operations vs Map Layers
+
+You can access map images through **Field Operations** or the **Map Layers** API, but they represent different data. Field Operations are processed internally by **Field Analyzer**. **Map Layers** are data contributed into Operations Center by another tool.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched URIs can return **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize">
+    **GET** the authorize URL with `response_type=code`, scopes (**`ag2`** for Field Operations), **client_id**, **state**, and a **URL-encoded** `redirect_uri` registered on your application.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** `https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token` with `grant_type=authorization_code`. Access tokens expire after **12 hours**. Request **`offline_access`** for a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    Call **GET** `/platform/organizations`. If a link has **`rel=connections`**, redirect the user so they can grant access. When complete, **`manage_connections`** appears instead.
+  </Step>
+  <Step title="Call Field Operations">
+    Send **`Authorization: Bearer {token}`** and **`Accept: application/vnd.deere.axiom.v3+json`** (unless requesting a map image media type).
+  </Step>
+</Steps>
+
+### OAuth scope for these endpoints
+
+| Scope | Description |
+| --- | --- |
+| `ag2` | Locations Access Level 2 — view locations and **analyze production data** (required for all Field Operations endpoints in this guide) |
+
+Request only scopes your application needs. User permissions cap what the connection can do.
+
+---
+
+## Request headers (typical)
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Bearer {access_token}` |
+| `Accept` | `application/vnd.deere.axiom.v3+json` |
+
+For measurement map images, use **`Accept: application/vnd.deere.axiom.v3.image+json`**. Optional: **`Accept-Encoding: gzip`** where supported.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Paging and links
+
+List responses may use **CollectionPage** with **`total`**, **`links`** (`nextPage` / `previousPage`), and **`values`**. Default page size is often **10**. Use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.
+
+Use **`showLinks=none`** or filtered **`showLinks`** values to reduce HATEOAS payload size.
+
+---
+
+## Field operation types
+
+Examples include: `seeding`, `application`, `carting`, `constructionmilling`, `constructionpaving`, `constructioncompacting`, `constructioncrushing`, `constructionstabilizingrecycling`, `harvest`, `tillage`.
+
+**Measurement APIs** do not support `carting` or the construction operation types listed above at this time.
+
+---
+
+## Shapefiles overview
+
+A **shapefile** is an industry-standard format for geospatial data. MyJohnDeere exports use **MultiPoint** or **MultiPolygon** shapes. Use standard GIS libraries to read shapefiles. Example shapefiles for harvest, seeding, and application are published on GitHub in Deere’s samples.
+
+Exported shapefiles include:
+
+| File | Purpose |
+| --- | --- |
+| `.dbf` | Data attributes per shape (dBase IV). Columns depend on operation type. |
+| `.prj` | Projection — exports use **WGS84** (wkid **4326**). |
+| `.shp` | Feature geometry (points or polygons). |
+| `.shx` | Index for geometry. |
+| `.json` | Extra metadata (not ESRI standard), including **units of measure** per DBF column. |
+
+Units in documentation may list metric and imperial; the actual system is determined by the **`Accept-UOM-System`** header on the shapefile request when available, otherwise by organization preferences. The bundled `.json` lists exact units.
+
+### Shape type and resolution
+
+Optional query parameters **`shapeType`** and **`resolution`** strongly affect file size. Provide both when possible.
+
+| ShapeType | Resolution | Description | Approx. size |
+| --- | --- | --- | --- |
+| Point | EachSection | Default for backwards compatibility; very large duplicate data. | Up to ~65 GB |
+| Point | EachSensor | One point per sensor reading, centered in the sensor area. | Up to ~250 MB |
+| Point | OneHertz | ~One sensor reading per second. | Up to ~75 MB |
+| Polygon | EachSection | Not supported. | — |
+| Polygon | EachSensor | Polygon per sensor reading (implement path). | Up to ~350 MB |
+| Polygon | OneHertz | Polygon per reading, ~1 Hz. | Up to ~120 MB |
+
+---
+
+## Standard data columns (shapefile DBF)
+
+The following tables mirror common columns in exported DBFs. Optional columns may appear depending on operation and equipment.
+
+### Harvest data columns
+
+| Name | Description | Column type | Units | Example |
+| --- | --- | --- | --- | --- |
+| Time | UTC timestamp | Character(23) | UTC | `"4/9/2012 1:45:35 PM"` |
+| Heading | Direction of travel | Number(18,8) | deg (0 = magnetic north) | 179.999 |
+| Distance | Distance since last point | Number(18,8) | meters or feet | 3.1 |
+| Swathwidth | Implement section width | Number(18,8) | meters or feet | 3.5 |
+| VRYieldVol | Volumetric yield (volumetric crops) | Number(18,8) | L/ha or bu/ac | 10403.33 |
+| VrYieldMas | Yield by mass | Number(18,8) | t/ha or lb/ac | 32000 |
+| VrYieldBal | Yield in bales (cotton) | Number(18,8) | bales/ha or bales/ac | 10.6 |
+| SectionID | Implement section id | Number(5,0) | — | 135 |
+| Crop | Crop id | Number(5,0) | — | 173 |
+| Moisture | Crop moisture | Number(18,8) | percent | 10.25 |
+| Variety | Seed variety or hybrid | Character(23) | — | MYCOGEN 2A787 |
+| Elevation | GPS elevation (adjusted) | Double | meters or feet | 793.73737646 |
+| IsoTime | ISO UTC timestamp | Character(23) | — | `2014-10-03T16:13:27.000Z` |
+| Machine | Active machine usage index | Number(5,0) | — | 1 |
+| PRODUCTHASH | Unique identifier | Character(35) | — | `1418b89d7f859a2344d95dd035f28ced` |
+
+### Optional harvest columns (examples)
+
+Fuel, `VEHICLSPEED`, `AIRTEMP`, `WINDDRCTN`, `WINDSPEED`, `SKYCNDTN`, `HUMIDITY`, `SOILMOIST`, `SOILTEMP`, `DELTAT`, and additional yield/constituent columns (`GrossYldA`, `NetYld`, fiber/starch/protein percentages, cotton gin turnout, inoculant dosing, dry matter, etc.) may appear depending on operation.
+
+### Seeding data columns
+
+| Name | Description | Column type | Units | Example |
+| --- | --- | --- | --- | --- |
+| Time | UTC timestamp | Character(23) | UTC | `"4/9/2012 1:45:35 PM"` |
+| Heading | Direction of travel | Number(18,8) | deg | 179.999 |
+| Distance | Distance since last point | Number(18,8) | meters or feet | 3.1 |
+| Swathwidth | Implement section width | Number(18,8) | meters or feet | 3.5 |
+| Crop | Crop id | Number(5,0) | — | 173 |
+| SectionID | Implement section id | Number(5,0) | — | 135 |
+| AppliedRate | Measured seeding rate | Number(18,8) | kg/ha, lb/ac, seeds/ha, seeds/ac | 32005.6 |
+| ControlRate | Prescribed rate to planter | Number(18,8) | same | 32000 |
+| TargetRate | Prescribed rate without control | Number(18,8) | same | 32000 |
+| Elevation | GPS elevation (adjusted) | Double | meters or feet | 793.73737646 |
+| IsoTime | ISO UTC timestamp | Character(23) | — | `2014-10-03T16:13:27.000Z` |
+| Machine | Machine usage index | Number(5,0) | — | 1 |
+| PRODUCTHASH | Unique identifier | Character(35) | — | `1418b89d7f859a2344d95dd035f28ced` |
+
+### Application data columns
+
+| Name | Description | Column type | Units | Example |
+| --- | --- | --- | --- | --- |
+| Time | UTC timestamp | Character(23) | UTC | `"4/9/2012 1:45:35 PM"` |
+| Heading | Direction of travel | Number(18,8) | deg | 179.999 |
+| Distance | Distance since last point | Number(18,8) | meters or feet | 3.1 |
+| Swathwidth | Implement section width | Number(18,8) | meters or feet | 3.5 |
+| Product | Product applied | Character(23) | — | Authority First DF |
+| SectionID | Implement section id | Number(5,0) | — | 135 |
+| AppliedRate | Measured application rate | Number(18,8) | kg/ha, lb/ac, L/ha, gal/ac | 32005.6 |
+| ControlRate | Prescribed rate to implement | Number(18,8) | same | 32000 |
+| TargetRate | Prescribed rate without control | Number(18,8) | same | 32000 |
+| Elevation | GPS elevation (adjusted) | Double | meters or feet | 793.73737646 |
+| IsoTime | ISO UTC timestamp | Character(23) | — | `2014-10-03T16:13:27.000Z` |
+| Machine | Machine usage index | Number(5,0) | — | 1 |
+
+Nutrient totals and prescription columns (`APLDRTN`, `TRGTRTN`, `RXRATEN`, tank mix concentrations, etc.) may appear for applicable application operations.
+
+### Tillage data columns
+
+| Name | Description | Column type | Units | Example |
+| --- | --- | --- | --- | --- |
+| Time | UTC timestamp | Character(23) | UTC | `"4/9/2012 1:45:35 PM"` |
+| Heading | Direction of travel | Number(18,8) | deg | 179.999 |
+| Distance | Distance since last point | Number(18,8) | meters or feet | 3.1 |
+| Swathwidth | Implement section width | Number(18,8) | meters or feet | 3.5 |
+| TillType | Tillage type | Character(23) | — | Disk |
+| SectionID | Implement section id | Number(5,0) | — | 135 |
+| ApplDepth | Measured applied depth | Number(18,8) | inches | 0.00000000 |
+| CtrlDepth | Measured control depth | Number(18,8) | inches | 0.00000000 |
+| TrgtDepth | Measured target depth | Number(18,8) | inches | 16.00000000 |
+| ApplPress | Measured applied pressure | Number(18,8) | PSI | 274.00964526 |
+| CtrlPress | Measured control pressure | Number(18,8) | PSI | 350.00000000 |
+| TrgtPress | Measured target pressure | Number(18,8) | PSI | 349.01228538 |
+| Elevation | GPS elevation (adjusted) | Double | meters or feet | 793.73737646 |
+| IsoTime | ISO UTC timestamp | Character(23) | — | `2014-10-03T16:13:27.000Z` |
+| Machine | Machine usage index | Number(5,0) | — | 1 |
+
+---
+
+## Field Operation events (Data Subscription Service)
+
+Field operation events fire on add, update, or delete. Subscriptions require an **`orgId`** filter; other filters (`cropSeason`, `fieldId`, `fieldOperationType`) are optional. Prefer **one org per subscription** because org lists cannot change after creation and subscriptions end if the user loses access to any listed org.
+
+A **404** when following a **`targetResource`** link from an event can mean the Field Operation was deleted.
+
+---
+
+## Endpoints
+
+### List Field Operations
+
+```text
+GET /platform/organizations/{orgId}/fields/{fieldId}/fieldOperations
+```
+
+<ParamField path="orgId" type="string" required>
+  Organization id.
+</ParamField>
+
+<ParamField path="fieldId" type="string" required>
+  Field id (GUID).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links (`none` or comma-separated `rel` names).
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/0f38f7e1-299d-4823-aafc-13be555605ed/fieldOperations?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{fieldId}/fieldOperations">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{fieldId}/fieldOperations`.
+</Card>
+
+---
+
+### View a Field Operation
+
+```text
+GET /platform/fieldOperations/{operationId}
+```
+
+<ParamField path="operationId" type="string" required>
+  Field operation id from list or links.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Omit or filter links.
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fieldOperations/{operationId}">
+  Interactive reference for **GET** `/platform/fieldOperations/{operationId}`.
+</Card>
+
+---
+
+### Asynchronous shapefile download
+
+```text
+GET /platform/fieldOps/{operationId}
+```
+
+<ParamField path="operationId" type="string" required>
+  Field operation id.
+</ParamField>
+
+<ParamField query="shapeType" type="string">
+  `Point` or `Polygon`.
+</ParamField>
+
+<ParamField query="resolution" type="string">
+  `EachSection`, `EachSensor`, or `OneHertz` (see shape type / resolution table above).
+</ParamField>
+
+<ParamField header="Accept-UOM-System" type="string">
+  Influences metric/imperial in export when supported.
+</ParamField>
+
+**Responses:** **202** (poll), **307** (follow **`Location`** pre-signed URL without OAuth), **406** (cannot generate). Poll with backoff from **5** seconds: `5 * 2^(attempt - 1)`.
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fieldOps/a1b2c3d4-e5f6-7890-abcd-ef1234567890?shapeType=Point&resolution=EachSensor" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-UOM-System: metric' \
+  --dump-header -
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fieldOps/{operationId}">
+  Interactive reference for **GET** `/platform/fieldOps/{operationId}`.
+</Card>
+
+---
+
+### List measurement types
+
+```text
+GET /platform/fieldOperations/{operationId}/measurementTypes
+```
+
+<ParamField path="operationId" type="string" required>
+  Field operation id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size when paginated.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Pagination offset.
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fieldOperations/{operationId}/measurementTypes">
+  Interactive reference for **GET** `/platform/fieldOperations/{operationId}/measurementTypes`.
+</Card>
+
+---
+
+### Get measurement type details (JSON or map image)
+
+```text
+GET /platform/fieldOperations/{operationId}/measurementTypes/{measurementType}
+```
+
+<ParamField path="operationId" type="string" required>
+  Field operation id.
+</ParamField>
+
+<ParamField path="measurementType" type="string" required>
+  Measurement key (for example `SeedingRateResult`).
+</ParamField>
+
+Use **`Accept: application/vnd.deere.axiom.v3+json`** for totals and legend metadata, or **`Accept: application/vnd.deere.axiom.v3.image+json`** for the map image layer. Map images are **Web Mercator**—overlay on a matching basemap.
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL (JSON)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes/SeedingRateResult" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+```bash cURL (map image)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fieldOperations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/measurementTypes/SeedingRateResult" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3.image+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fieldOperations/{operationId}/measurementTypes/{measurementType}">
+  Interactive reference for **GET** `/platform/fieldOperations/{operationId}/measurementTypes/{measurementType}`.
+</Card>
+
+---
+
+## Additional notes
+
+- **ADAPT-style units:** Values like `gal1ac-1` follow ADAPT conventions (powers on numerator/denominator).
+- **Response evolution:** Application and tank-mix operations may expose `products` and `applicationProductTotals` in measurements; migrate off legacy single `product` / `productTotals` fields per platform communications.

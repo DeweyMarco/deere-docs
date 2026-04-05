@@ -1,0 +1,1030 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Guidance Lines API",
+    "description": "**Guidance lines** define steering paths for a field (AB lines, curves, circle tracks, and related geometry). The API is **polymorphic**: responses use `@type` to identify the guidance line subtype.\n\n**Accept / Content-Type:** Use `application/vnd.deere.axiom.v3+json` for request and response bodies where applicable.\n\n**Paging:** List responses may use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is often **10**; use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**eTags:** This API **does not** support **eTags** / `x-deere-signature` for guidance line list calls.\n\n**Links:** Responses include HATEOAS **`links`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim payloads.\n\n**Permissions:** Reading guidance lines requires **`ag1`**. Creating or updating a guidance line requires **`ag3`**. **POST** currently supports **AB Line** creation only.\n\n**Events:** **GuidanceLine** events (create, delete, modify) are delivered via the **Data Subscription Service**; subscriptions require an **`orgId`** filter. Prefer one organization per subscription.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Guidance Lines",
+      "description": "Guidance line resources under `/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Complete the **connections** flow when **GET** `/platform/organizations` returns a **`connections`** link. Guidance line endpoints require **`ag1`** (read) and/or **`ag3`** (create/update) as noted per operation. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (clients, farms, fields)",
+              "ag3": "Locations Access Level 3 — manage locations and production data",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Point": {
+        "type": "object",
+        "description": "Geographic point in latitude / longitude.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Point"
+          },
+          "lat": {
+            "type": "number",
+            "example": 41.74557323445754
+          },
+          "lon": {
+            "type": "number",
+            "example": -92.41092564370683
+          }
+        },
+        "additionalProperties": true
+      },
+      "MeasurementAsDouble": {
+        "type": "object",
+        "description": "Numeric measurement with unit and optional representation-system domain id.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "MeasurementAsDouble"
+          },
+          "valueAsDouble": {
+            "type": "number"
+          },
+          "vrDomainId": {
+            "type": "string",
+            "example": "vrEastShiftComponent"
+          },
+          "unit": {
+            "type": "string",
+            "example": "cm"
+          }
+        },
+        "additionalProperties": true
+      },
+      "SpatialProjection": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "SpatialProjection"
+          },
+          "projectionType": {
+            "type": "string",
+            "example": "dtiProjectionDeere"
+          },
+          "elevation": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          }
+        },
+        "additionalProperties": true
+      },
+      "MultiPoint": {
+        "type": "object",
+        "description": "One continuous section of a track in the **shapes** array (AB Curve / Adaptive Curve).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "MultiPoint"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ABLine": {
+        "type": "object",
+        "description": "Straight AB guidance line between two points (or heading).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["ABLine"]
+          },
+          "id": {
+            "type": "string",
+            "example": "b3c2cb94-1da4-4a0f-9e1e-05346262ccbb"
+          },
+          "name": {
+            "type": "string",
+            "example": "North West"
+          },
+          "lastModifiedTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2017-09-18T17:06:41.484Z"
+          },
+          "archived": {
+            "type": "boolean",
+            "example": false
+          },
+          "tramOffset": {
+            "type": "number",
+            "example": 0
+          },
+          "tramSpacing": {
+            "type": "number",
+            "description": "Number of tram lines relative to the main track; valid values 0–20.",
+            "minimum": 0,
+            "maximum": 20,
+            "example": 0
+          },
+          "aPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "bPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "heading": {
+            "type": "number",
+            "description": "Radial heading with north as 0°. Do not send both **bPoint** and **heading**; the omitted value is calculated.",
+            "example": 122.2365
+          },
+          "eastShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "northShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "spatialProjection": {
+            "$ref": "#/components/schemas/SpatialProjection"
+          },
+          "saveMethod": {
+            "type": "string",
+            "description": "How the line was saved; see **dtABLineSaveMethod** in the John Deere representation system.",
+            "example": "dtiABLineMethodBPoint"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "ABLine",
+          "id": "b3c2cb94-1da4-4a0f-9e1e-05346262ccbb",
+          "name": "North West",
+          "lastModifiedTime": "2017-09-18T17:06:41.484Z",
+          "archived": false,
+          "tramOffset": 0,
+          "tramSpacing": 0,
+          "aPoint": {
+            "@type": "Point",
+            "lat": 41.74557323445754,
+            "lon": -92.41092564370683
+          },
+          "bPoint": {
+            "@type": "Point",
+            "lat": 41.745060835194764,
+            "lon": -92.40789413452148
+          },
+          "links": []
+        }
+      },
+      "ABCurve": {
+        "type": "object",
+        "description": "Curved AB-style guidance with optional embedded **shapes** geometry.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["ABCurve"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastModifiedTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "heading": {
+            "type": "number"
+          },
+          "aPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "bPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "eastShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "northShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "spatialProjection": {
+            "$ref": "#/components/schemas/SpatialProjection"
+          },
+          "tramOffset": {
+            "type": "number"
+          },
+          "tramSpacing": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "shapes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MultiPoint"
+            },
+            "description": "Present only when **shapes** are embedded."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "AdaptiveCurve": {
+        "type": "object",
+        "description": "Adaptive curve guidance using a **referencePoint** and optional **shapes** geometry.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["AdaptiveCurve"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastModifiedTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "referencePoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "eastShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "northShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "spatialProjection": {
+            "$ref": "#/components/schemas/SpatialProjection"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "shapes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MultiPoint"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "CircleTrack": {
+        "type": "object",
+        "description": "Circular guidance track.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["CircleTrack"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastModifiedTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "tramOffset": {
+            "type": "number"
+          },
+          "tramSpacing": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "radialHeading": {
+            "type": "number",
+            "description": "Vehicle heading when the circle was created."
+          },
+          "centerPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "radiusOffset": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "radialShift": {
+            "$ref": "#/components/schemas/MeasurementAsDouble"
+          },
+          "spatialProjection": {
+            "$ref": "#/components/schemas/SpatialProjection"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "GuidanceLine": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ABLine"
+          },
+          {
+            "$ref": "#/components/schemas/ABCurve"
+          },
+          {
+            "$ref": "#/components/schemas/AdaptiveCurve"
+          },
+          {
+            "$ref": "#/components/schemas/CircleTrack"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "@type",
+          "mapping": {
+            "ABLine": "#/components/schemas/ABLine",
+            "ABCurve": "#/components/schemas/ABCurve",
+            "AdaptiveCurve": "#/components/schemas/AdaptiveCurve",
+            "CircleTrack": "#/components/schemas/CircleTrack"
+          }
+        }
+      },
+      "GuidanceLineList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GuidanceLine"
+        }
+      },
+      "ABLineCreateBody": {
+        "type": "object",
+        "description": "Create an **AB Line** for the field. Supply **aPoint** and **bPoint**, or **aPoint** and **heading** (not both **bPoint** and **heading**).",
+        "required": ["@type", "name", "aPoint"],
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["ABLine"]
+          },
+          "name": {
+            "type": "string",
+            "example": "North West"
+          },
+          "aPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "bPoint": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "heading": {
+            "type": "number",
+            "description": "Radial heading (north = 0°). Omit **bPoint** when using **heading**."
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "ABLine",
+          "name": "North West",
+          "aPoint": {
+            "@type": "Point",
+            "lat": 41.74557323445754,
+            "lon": -92.41092564370683
+          },
+          "bPoint": {
+            "@type": "Point",
+            "lat": 41.745060835194764,
+            "lon": -92.40789413452148
+          }
+        }
+      },
+      "GuidanceLineUpdateBody": {
+        "type": "object",
+        "description": "Update the guidance line **name**.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "North West — revised"
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "name": "North West — revised"
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuidanceLine"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines": {
+      "get": {
+        "tags": ["Guidance Lines"],
+        "operationId": "listGuidanceLinesForField",
+        "summary": "View guidance lines for a field",
+        "description": "Returns a list of **guidance lines** for the field. By default, only **active** guidance lines are returned.\n\n**eTags:** This list endpoint **does not** support eTags.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e57"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guidance lines for the field (array or CollectionPage with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GuidanceLineList"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Field or organization not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Guidance Lines"],
+        "operationId": "createGuidanceLineForField",
+        "summary": "Create a guidance line",
+        "description": "Creates a **guidance line** and associates it with the field. This operation currently supports **AB Line** creation only.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e57"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ABLineCreateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"ABLine\",\"name\":\"North West\",\"aPoint\":{\"@type\":\"Point\",\"lat\":41.74557323445754,\"lon\":-92.41092564370683},\"bPoint\":{\"@type\":\"Point\",\"lat\":41.745060835194764,\"lon\":-92.40789413452148}}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guidance line created (or 201 depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceLine"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Guidance line created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceLine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Field or organization not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}": {
+      "get": {
+        "tags": ["Guidance Lines"],
+        "operationId": "getGuidanceLineById",
+        "summary": "Retrieve a specific guidance line",
+        "description": "Returns the guidance line for the given id. The concrete **`@type`** indicates the subtype (**ABLine**, **ABCurve**, **AdaptiveCurve**, **CircleTrack**).\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e57"
+            }
+          },
+          {
+            "name": "guidanceLineId",
+            "in": "path",
+            "required": true,
+            "description": "Guidance line id.",
+            "schema": {
+              "type": "string",
+              "example": "b3c2cb94-1da4-4a0f-9e1e-05346262ccbb"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines/b3c2cb94-1da4-4a0f-9e1e-05346262ccbb' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guidance line resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceLine"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guidance line not found or id not valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Guidance Lines"],
+        "operationId": "updateGuidanceLine",
+        "summary": "Update a guidance line",
+        "description": "Updates the guidance line **name**.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/guidanceLines/{guidanceLineId}`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e57"
+            }
+          },
+          {
+            "name": "guidanceLineId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "b3c2cb94-1da4-4a0f-9e1e-05346262ccbb"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuidanceLineUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/guidanceLines/b3c2cb94-1da4-4a0f-9e1e-05346262ccbb' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"North West — revised\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guidance line updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuidanceLine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guidance line not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,480 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Organizations API",
+    "description": "List and inspect **Operations Center organizations** for the authenticated user. Organizations can represent growers or trusted advisors; each can hold operational data. This differs from **partnerships**, which relate organizations to one another.\n\n**Accept header:** Use `application/vnd.deere.axiom.v3+json` for these platform endpoints.\n\n**Paging:** Many collection responses use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is **10**; use **`itemLimit`** (multiples of 10, max **100**) and **`pageOffset`** as documented for platform list APIs.\n\n**Links:** Responses may include HATEOAS `links`. Use **`showLinks=none`** to reduce payload size, or **`showLinks=field,clients`** to request specific `rel` values.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Organizations",
+      "description": "Organization list and detail under `/platform`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. After token exchange, call **GET** `/platform/organizations` and complete the **connections** flow if a `connections` link is returned. Request **`org1`** (or higher org scope as required) for organization APIs. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "org1": "Organization Management Access Level 1 — view staff, operators, and partners",
+              "org2": "Organization Management Access Level 2 — modify staff, operators, and partners",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation: e.g. `self`, `connections`, `manage_connections`, `nextPage`.",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/organizations/283480"
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "description": "An Operations Center organization.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Organization"
+          },
+          "id": {
+            "type": "string",
+            "description": "Organization identifier.",
+            "example": "283480"
+          },
+          "name": {
+            "type": "string",
+            "example": "Spahn Ranch"
+          },
+          "type": {
+            "type": "string",
+            "description": "Organization type (e.g. customer).",
+            "example": "customer"
+          },
+          "member": {
+            "type": "boolean",
+            "description": "Whether the current user is a member of this organization."
+          },
+          "internal": {
+            "type": "boolean",
+            "description": "Whether this is an internal organization."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "example": {
+          "@type": "Organization",
+          "name": "Spahn Ranch",
+          "type": "customer",
+          "member": true,
+          "internal": false,
+          "id": "283480",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+            },
+            {
+              "@type": "Link",
+              "rel": "connections",
+              "uri": "https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/select-organizations"
+            }
+          ]
+        }
+      },
+      "OrganizationList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Organization"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations": {
+      "get": {
+        "tags": ["Organizations"],
+        "operationId": "listOrganizations",
+        "summary": "List organizations",
+        "description": "Returns organizations the caller can access. If the user has not completed **organization connection** for your application, responses may include a link with **`rel=connections`** pointing to the Connections UI; after completion, **`rel=manage_connections`** may appear instead.\n\n**OAuth scope:** Typically **`org1`** or higher organization management scopes as required for your use case.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations`\n\n**Accept:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the API returns a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values (e.g. `field,clients`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of organizations (may be a JSON array or a CollectionPage with `values`, depending on API version and parameters).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationList"
+                },
+                "example": [
+                  {
+                    "@type": "Organization",
+                    "name": "Spahn Ranch",
+                    "type": "customer",
+                    "member": true,
+                    "internal": false,
+                    "id": "283480",
+                    "links": [
+                      {
+                        "@type": "Link",
+                        "rel": "self",
+                        "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+                      },
+                      {
+                        "@type": "Link",
+                        "rel": "connections",
+                        "uri": "https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/select-organizations"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}": {
+      "get": {
+        "tags": ["Organizations"],
+        "operationId": "getOrganization",
+        "summary": "View an organization",
+        "description": "Returns information about an organization: name, type, membership, and hypermedia **links** to related resources.\n\n**OAuth scope:** Typically **`org1`** or as required for the resources you follow.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}`\n\n**Accept:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization identifier.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Control which `links` are included (`none` or comma-separated `rel` names).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                },
+                "example": {
+                  "@type": "Organization",
+                  "name": "Spahn Ranch",
+                  "type": "customer",
+                  "member": true,
+                  "internal": false,
+                  "id": "283480",
+                  "links": [
+                    {
+                      "@type": "Link",
+                      "rel": "self",
+                      "uri": "https://sandboxapi.deere.com/platform/organizations/283480"
+                    },
+                    {
+                      "@type": "Link",
+                      "rel": "manage_connections",
+                      "uri": "https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/connections-dialog?orgId=283480"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — no access to this organization.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization id not found or no longer valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/users/{userName}/organizations": {
+      "get": {
+        "tags": ["Organizations"],
+        "operationId": "listUserOrganizations",
+        "summary": "View user organizations",
+        "description": "Returns organizations where the specified user is a **staff member** (`member=true`). Does **not** include partner organizations where the user is not a staff member (`member=false`).\n\n**OAuth scope:** Typically **`org1`** or as required.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/users/{userName}/organizations`\n\n**Accept:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userName",
+            "in": "path",
+            "required": true,
+            "description": "John Deere platform user name for the subject user.",
+            "schema": {
+              "type": "string",
+              "example": "jdoe"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when paginated: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/users/jdoe/organizations' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations where the user is a staff member.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found or not accessible.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

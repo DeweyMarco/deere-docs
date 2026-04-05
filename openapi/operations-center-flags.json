@@ -1,0 +1,1817 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Flags API",
+    "description": "**Flags** mark locations or issues on fields; **flag categories** classify flags (reference, master, or custom). Use these endpoints to list, create, update, and delete flags and categories, and to manage **flag category preferences** (for example default color).\n\n**Accept / Content-Type:** Use `application/vnd.deere.axiom.v3+json` for request and response bodies where applicable.\n\n**Paging:** List responses may use a **CollectionPage** wrapper (`total`, `links`, `values`). Default page size is often **10**; use **`itemLimit`** (multiples of **10**, max **100**) and **`pageOffset`** where supported.\n\n**Links:** Responses include HATEOAS **`links`**. Use **`showLinks=none`** or filtered **`showLinks`** to trim payloads.\n\n**Permissions:** Creating, updating, or deleting flags and categories requires **Locations Level 3** (OAuth scope **`ag3`**). Reading typically requires **`ag1`**.\n\n**Events:** **Flag** and **Flag Category** events are delivered via the **Data Subscription Service** (requires **`orgId`** filter; other filters optional). Prefer one organization per subscription.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Flags",
+      "description": "Flag resources under `/platform/organizations/{orgId}/flags` and field-scoped flags."
+    },
+    {
+      "name": "Flag categories",
+      "description": "Flag category resources under `/platform/organizations/{orgId}/flagCategories`."
+    },
+    {
+      "name": "Flag category preferences",
+      "description": "Preferences for flag categories (`flagCategoryPreferences`)."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. Complete the **connections** flow when **GET** `/platform/organizations` returns a **`connections`** link. Flag endpoints require **`ag1`** (read) and/or **`ag3`** (create/update/delete) as noted per operation. Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations (clients, farms, fields)",
+              "ag3": "Locations Access Level 3 — manage locations and production data",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Flag": {
+        "type": "object",
+        "description": "A flag in an organization. Response shape follows Axiom v3; **links** discover related resources.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Flag"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Flag identifier.",
+            "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "Flag",
+          "id": "c303004d-beb8-471d-b144-c44bb5318e55",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          ]
+        }
+      },
+      "FlagList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Flag"
+        }
+      },
+      "FlagCreateBody": {
+        "type": "object",
+        "description": "Request body to create a flag in the organization.",
+        "additionalProperties": true,
+        "example": {
+          "name": "North pivot issue",
+          "flagCategoryId": "a101004d-beb8-471d-b144-c44bb5318e01"
+        }
+      },
+      "FlagUpdateBody": {
+        "type": "object",
+        "description": "Request body to update a flag by organization and flag id.",
+        "additionalProperties": true,
+        "example": {
+          "name": "North pivot issue — resolved"
+        }
+      },
+      "FlagCategory": {
+        "type": "object",
+        "description": "A flag category (reference, master from reference, or user-defined). Name may be translated per request language.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "FlagCategory"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a101004d-beb8-471d-b144-c44bb5318e01"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "FlagCategoryCreateBody": {
+        "type": "object",
+        "description": "Request body to create a custom category in the organization.",
+        "additionalProperties": true,
+        "example": {
+          "name": "Custom scouting notes"
+        }
+      },
+      "FlagCategoryUpdateBody": {
+        "type": "object",
+        "description": "Request body to update a flag category by id.",
+        "additionalProperties": true,
+        "example": {
+          "name": "Scouting notes (updated)"
+        }
+      },
+      "FlagCategoryPreference": {
+        "type": "object",
+        "description": "Preference object for a flag category (for example color). The object with **prefKey** `default` is created automatically on first access to the category.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "FlagCategoryPreference"
+          },
+          "prefKey": {
+            "type": "string",
+            "example": "default"
+          },
+          "hexColor": {
+            "type": "string",
+            "example": "#FFFFFF"
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "FlagCategoryPreference",
+          "prefKey": "default",
+          "hexColor": "#FFFFFF"
+        }
+      },
+      "FlagCategoryPreferenceUpdateBody": {
+        "type": "object",
+        "description": "Request body to update flag category preferences.",
+        "additionalProperties": true,
+        "example": {
+          "hexColor": "#E8F5E9"
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/flags": {
+      "get": {
+        "tags": ["Flags"],
+        "operationId": "listFlagsForOrganization",
+        "summary": "View flags list for an organization",
+        "description": "Returns a **flags** list for the organization.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flags`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset aligned with `itemLimit`.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flags?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flags for the organization (array or CollectionPage with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FlagList"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing scopes, restricted organization (RCA), or organization not connected.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Flags"],
+        "operationId": "createFlag",
+        "summary": "Create a flag",
+        "description": "Creates a **flag** in the given organization.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/flags`\n\n**Content-Type:** `application/vnd.deere.axiom.v3+json`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Organization id.",
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagCreateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flags' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"North pivot issue\",\"flagCategoryId\":\"a101004d-beb8-471d-b144-c44bb5318e01\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag created (or 201 depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flag"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Flag created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing `ag3` or insufficient org permission.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/flags/{flagId}": {
+      "get": {
+        "tags": ["Flags"],
+        "operationId": "getFlagByOrgAndFlagId",
+        "summary": "Get a flag by organization and flag id",
+        "description": "Returns a **flag** for the given organization and flag id.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flags/{flagId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "flagId",
+            "in": "path",
+            "required": true,
+            "description": "Flag id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flag"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Flag not found or id not valid for this user.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Flags"],
+        "operationId": "updateFlagById",
+        "summary": "Update flag by id",
+        "description": "Updates a **flag** by organization and flag id.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/flags/{flagId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "flagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"North pivot issue — resolved\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Flags"],
+        "operationId": "deleteFlagForOrg",
+        "summary": "Delete a flag for a given org",
+        "description": "Deletes a single **flag** based on its id and organization id.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/flags/{flagId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "flagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e55"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flags/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag deleted (or 204 No Content depending on platform behavior).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No content — delete succeeded."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/fields/{fieldId}/flags": {
+      "get": {
+        "tags": ["Flags"],
+        "operationId": "listFlagsForField",
+        "summary": "List flags for the field",
+        "description": "Returns a list of **flag** objects associated with the **field**.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{fieldId}/flags`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "fieldId",
+            "in": "path",
+            "required": true,
+            "description": "Field id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "c303004d-beb8-471d-b144-c44bb5318e57"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size when the response is a CollectionPage: multiples of 10, max 100.",
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/c303004d-beb8-471d-b144-c44bb5318e57/flags' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flags for the field (array or CollectionPage).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FlagList"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/flagCategories": {
+      "get": {
+        "tags": ["Flag categories"],
+        "operationId": "listFlagCategoriesForOrganization",
+        "summary": "List flag category collection",
+        "description": "Returns a **flag category** collection for the organization.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag categories (array or CollectionPage).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FlagCategory"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Flag categories"],
+        "operationId": "createCustomFlagCategory",
+        "summary": "Create a custom category",
+        "description": "Creates a **custom category** in the given organization.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagCategoryCreateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Custom scouting notes\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategory"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Category created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/flagCategories/{categoryId}": {
+      "get": {
+        "tags": ["Flag categories"],
+        "operationId": "getFlagCategoryById",
+        "summary": "Get flag category by id",
+        "description": "Returns a **flag category** with the name translated into the specified language. The category can be a reference **flagCategory**, a master **flagCategory** created from a referenced **flagCategory**, or a **user-defined** category.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories/{categoryId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "description": "Flag category id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a101004d-beb8-471d-b144-c44bb5318e01"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag category resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategory"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Flag categories"],
+        "operationId": "updateFlagCategoryById",
+        "summary": "Update flag category by organization and flag category id",
+        "description": "Updates a **flag category** by id.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories/{categoryId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a101004d-beb8-471d-b144-c44bb5318e01"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagCategoryUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"name\":\"Scouting notes (updated)\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Flag categories"],
+        "operationId": "deleteFlagCategory",
+        "summary": "Delete a flag category",
+        "description": "Deletes a single **empty** category based on **categoryId** and **orgId**.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories/{categoryId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a101004d-beb8-471d-b144-c44bb5318e01"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category deleted.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No content."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences": {
+      "get": {
+        "tags": ["Flag category preferences"],
+        "operationId": "listFlagCategoryPreferences",
+        "summary": "List collection of FlagCategoryPreference",
+        "description": "Returns a collection of **FlagCategoryPreference** objects for the given **flag category**. The object with **prefKey** `default` is created automatically on first access to the **flagCategory** by a client. The default preference is initialized with **prefKey:** `default`, **hexColor:** `#FFFFFF`.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategories/{categoryId}/flagCategoryPreferences`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a101004d-beb8-471d-b144-c44bb5318e01"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategories/a101004d-beb8-471d-b144-c44bb5318e01/flagCategoryPreferences' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of preferences (array or CollectionPage).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CollectionPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FlagCategoryPreference"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}": {
+      "get": {
+        "tags": ["Flag category preferences"],
+        "operationId": "getFlagCategoryPreferenceById",
+        "summary": "View preferences object for a category",
+        "description": "Returns the **preferences** object for the given flag category and organization.\n\n**OAuth scope:** **`ag1`**\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "flagCategoryPreferencesId",
+            "in": "path",
+            "required": true,
+            "description": "Flag category preference id (GUID).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "b202004d-beb8-471d-b144-c44bb5318e02"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategoryPreferences/b202004d-beb8-471d-b144-c44bb5318e02' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preference resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategoryPreference"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      },
+      "put": {
+        "tags": ["Flag category preferences"],
+        "operationId": "updateFlagCategoryPreferences",
+        "summary": "Update flag category preferences",
+        "description": "Updates **flag category preferences** by id and organization.\n\n**OAuth scope:** **`ag3`**\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/organizations/{orgId}/flagCategoryPreferences/{flagCategoryPreferencesId}`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["ag3"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "283480"
+            }
+          },
+          {
+            "name": "flagCategoryPreferencesId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "b202004d-beb8-471d-b144-c44bb5318e02"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagCategoryPreferenceUpdateBody"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/flagCategoryPreferences/b202004d-beb8-471d-b144-c44bb5318e02' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"hexColor\":\"#E8F5E9\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preferences updated.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagCategoryPreference"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests."
+          },
+          "503": {
+            "description": "Service unavailable."
+          }
+        }
+      }
+    }
+  }
+}

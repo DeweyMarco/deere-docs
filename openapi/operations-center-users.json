@@ -1,0 +1,283 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Users API",
+    "description": "View **John Deere platform user** profile information for the authenticated context, including name and account details. The response includes hypermedia **links** to related resources such as **organizations** and **files**.\n\n**Accept header:** Use `application/vnd.deere.axiom.v3+json` for these platform endpoints.\n\n**User account status values** (typical): `Validated`, `Validation Started`, `Not Validated`.\n\n**Applications** associated with an account may include: JD Link; My Equipment (Legacy); AgLogic; Operations Center; JD Financial Self Service; Stellar; JD University; JD Parts.\n\n**Links:** Responses may include HATEOAS `links`. Use **`showLinks=none`** to reduce payload size, or filter with **`showLinks=...`** as supported on platform APIs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Users",
+      "description": "User profile resources under `/platform/users`."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 authorization code flow for John Deere Precision Tech platform APIs. After token exchange, call **GET** `/platform/organizations` and complete the **connections** flow if a `connections` link is returned. Request the **OAuth scopes** required for the endpoints your application calls (see Developer documentation per endpoint). Use **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "org1": "Organization Management Access Level 1 — view staff, operators, and partners",
+              "org2": "Organization Management Access Level 2 — modify staff, operators, and partners",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DeereLink": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` Link).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation: e.g. `self`, `organizations`, `files`, `nextPage`.",
+            "example": "organizations"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/users/jdoe/organizations"
+          }
+        }
+      },
+      "UserAccountStatus": {
+        "type": "string",
+        "description": "Account validation state.",
+        "enum": ["Validated", "Validation Started", "Not Validated"],
+        "example": "Validated"
+      },
+      "User": {
+        "type": "object",
+        "description": "Platform user profile. A logged-in user can call this endpoint for their own user name to view their information. Response **links** commonly include **`rel=organizations`** (organizations the user belongs to) and **`rel=files`** (files belonging to the user).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "User"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "User first name.",
+            "example": "Jane"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "User last name.",
+            "example": "Doe"
+          },
+          "accountName": {
+            "type": "string",
+            "description": "John Deere account name.",
+            "example": "jane.doe@example.com"
+          },
+          "accountStatus": {
+            "$ref": "#/components/schemas/UserAccountStatus"
+          },
+          "applications": {
+            "type": "array",
+            "description": "Applications associated with the user account (when returned by the API).",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "JD Link",
+              "Operations Center",
+              "JD University"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeereLink"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "User",
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "accountName": "jane.doe@example.com",
+          "accountStatus": "Validated",
+          "applications": [
+            "JD Link",
+            "My Equipment (Legacy)",
+            "AgLogic",
+            "Operations Center",
+            "JD Financial Self Service",
+            "Stellar",
+            "JD University",
+            "JD Parts"
+          ],
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/users/jdoe"
+            },
+            {
+              "@type": "Link",
+              "rel": "organizations",
+              "uri": "https://sandboxapi.deere.com/platform/users/jdoe/organizations"
+            },
+            {
+              "@type": "Link",
+              "rel": "files",
+              "uri": "https://sandboxapi.deere.com/platform/users/jdoe/files"
+            }
+          ]
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error payload (shape varies by endpoint).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/users/{userName}": {
+      "get": {
+        "tags": ["Users"],
+        "operationId": "getUser",
+        "summary": "View user info",
+        "description": "Returns information about the user, such as first and last name, the account name, and related metadata. A logged-in user can use this call to view **their own** information.\n\nThe response includes **links** to related resources, for example:\n\n- **`organizations`** — list organizations to which the user belongs.\n- **`files`** — list files belonging to the user.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/users/{userName}`\n\n**Accept:** `application/vnd.deere.axiom.v3+json`\n\n**OAuth scopes:** Request the scopes documented for this endpoint in Developer documentation for the API calls your application will make.",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": ["org1"]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userName",
+            "in": "path",
+            "required": true,
+            "description": "John Deere platform user name. For self-service, use the authenticated user’s own user name.",
+            "schema": {
+              "type": "string",
+              "example": "jdoe"
+            }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Omit links with `none`, or filter to specific `rel` values where supported.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/vnd.deere.axiom.v3+json` for Axiom v3 responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/users/jdoe' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                },
+                "example": {
+                  "@type": "User",
+                  "firstName": "Jane",
+                  "lastName": "Doe",
+                  "accountName": "jane.doe@example.com",
+                  "accountStatus": "Validated",
+                  "applications": [
+                    "JD Link",
+                    "Operations Center"
+                  ],
+                  "links": [
+                    {
+                      "@type": "Link",
+                      "rel": "self",
+                      "uri": "https://sandboxapi.deere.com/platform/users/jdoe"
+                    },
+                    {
+                      "@type": "Link",
+                      "rel": "organizations",
+                      "uri": "https://sandboxapi.deere.com/platform/users/jdoe/organizations"
+                    },
+                    {
+                      "@type": "Link",
+                      "rel": "files",
+                      "uri": "https://sandboxapi.deere.com/platform/users/jdoe/files"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing, invalid, or expired token.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — insufficient permissions, missing OAuth scopes, restricted organization (RCA), or organization not connected to the application.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found or not accessible.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor `Retry-After` when present."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor `Retry-After` when present."
+          }
+        }
+      }
+    }
+  }
+}
