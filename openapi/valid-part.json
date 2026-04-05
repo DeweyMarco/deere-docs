@@ -1,0 +1,485 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Valid Part API",
+    "description": "Searches by **part number** to return **detailed part information**, including **alternate units of measure** for bulk items.\n\nThe legacy SOAP **Is Valid Part** operation maps to this REST API (**Valid Part API**). Use your **SOAP-to-REST field mapping** and **REST API FAQ** attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Valid Part API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Valid Part API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PartEntity": {
+        "type": "object",
+        "description": "OData **Part** entity from **PartsSet** / related **PartData**. Exact properties follow your OData contract and SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "partNumber": {
+            "type": "string",
+            "description": "Part number (or material number) when returned.",
+            "example": "RE123456"
+          },
+          "isValid": {
+            "type": "boolean",
+            "description": "Whether the part is valid for warranty or catalog use when exposed by the service.",
+            "example": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Part description when returned.",
+            "example": "Hydraulic filter element"
+          },
+          "alternateUnitsOfMeasure": {
+            "type": "array",
+            "description": "Alternate units of measure for bulk or packaged items when returned (shape per your mapping).",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "PartsSetCollection": {
+        "type": "object",
+        "description": "OData collection returned from **PartsSet** (may include `@odata.context` and other OData annotations).",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartEntity"
+            },
+            "description": "Part entities matching the request or query."
+          }
+        }
+      },
+      "ODataBatchResponse": {
+        "type": "string",
+        "format": "binary",
+        "description": "OData **$batch** response as **multipart/mixed** MIME parts (per OData batch protocol)."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "No part was found for the supplied part number."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/PartsSet('{PartNum}')": {
+      "get": {
+        "operationId": "getPartByPartNumber",
+        "summary": "Get part is valid or not (single part by key)",
+        "description": "Retrieves **Part** details from **PartsSet** using the OData-style key **PartNum** — the REST mapping for **Get Part Is Valid Or Not**.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/PartsSet('RE123456')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WarrantyDBSVALIDPART`).",
+            "schema": {
+              "type": "string",
+              "example": "WarrantyDBSVALIDPART"
+            }
+          },
+          {
+            "name": "PartNum",
+            "in": "path",
+            "required": true,
+            "description": "Part number in the PartsSet key (OData single-quoted key segment).",
+            "schema": {
+              "type": "string",
+              "example": "RE123456"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/PartsSet('RE123456')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Part details returned for the supplied part number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartEntity"
+                },
+                "example": {
+                  "partNumber": "RE123456",
+                  "isValid": true,
+                  "description": "Hydraulic filter element",
+                  "alternateUnitsOfMeasure": [{ "uom": "EA", "factor": 1 }]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The PartsSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No part found for the supplied part number.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No part was found for the supplied part number."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/PartsSet": {
+      "get": {
+        "operationId": "getPartsSet",
+        "summary": "Get entities from related PartData (PartsSet)",
+        "description": "Reads the **PartsSet** entity set — the REST mapping for **Get entities from related PartData**. You may combine this with OData query options (`$filter`, `$top`, `$skip`, etc.) when supported by the service.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/PartsSet`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WarrantyDBSVALIDPART`).",
+            "schema": {
+              "type": "string",
+              "example": "WarrantyDBSVALIDPART"
+            }
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "required": false,
+            "description": "OData **$filter** expression when supported by the service.",
+            "schema": {
+              "type": "string",
+              "example": "startswith(partNumber,'RE')"
+            }
+          },
+          {
+            "name": "$top",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of entities to return.",
+            "schema": {
+              "type": "integer",
+              "example": 50
+            }
+          },
+          {
+            "name": "$skip",
+            "in": "query",
+            "required": false,
+            "description": "Number of entities to skip (pagination).",
+            "schema": {
+              "type": "integer",
+              "example": 0
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/PartsSet\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of part entities (OData **value** array).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartsSetCollection"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "partNumber": "RE123456",
+                      "isValid": true,
+                      "description": "Hydraulic filter element"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid OData query options.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The query could not be processed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/$batch": {
+      "post": {
+        "operationId": "postODataBatchValidPart",
+        "summary": "Send a group of requests (OData $batch)",
+        "description": "Groups multiple OData requests into a **single** HTTP request using the **$batch** endpoint. See [OData batch requests](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_BatchRequests). Request and response bodies use **multipart/mixed** per OData batch semantics.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/$batch`\n\n**Accept / Content-Type:** `multipart/mixed` (include a valid MIME **boundary** in the Content-Type header for the request body).\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WarrantyDBSVALIDPART`).",
+            "schema": {
+              "type": "string",
+              "example": "WarrantyDBSVALIDPART"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "OData batch request body as **multipart/mixed** (batch boundary and MIME parts per OData specification).",
+          "content": {
+            "multipart/mixed": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPART/$batch\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/mixed' \\\n  --header 'Content-Type: multipart/mixed; boundary=batch_12345' \\\n  --data-binary @batch-request.mime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch completed; response is **multipart/mixed** containing per-request results.",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Batch accepted (when the service returns 202 for async batch processing).",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed batch payload or boundary.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The batch request could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -33,6 +33,7 @@
             "openapi/save-claim.json",
             "openapi/submit-delivery-receipt.json",
             "openapi/supplier-part-quoting.json",
+            "openapi/valid-part.json",
             "openapi/oca-crm.json",
             "openapi/merchant-integration.json",
             "openapi/merchant-incentives.json",
@@ -554,6 +555,21 @@
                                         "openapi": "openapi/submit-delivery-receipt.json",
                                         "pages": [
                                             "POST /digcust/wy/cert/{applicationId}/DealerInputSet"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Valid Part",
+                                "root": "dealer_solutions/warranty/valid-part",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/valid-part.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/PartsSet('{PartNum}')",
+                                            "GET /digcust/wy/cert/{applicationId}/PartsSet",
+                                            "POST /digcust/wy/cert/{applicationId}/$batch"
                                         ]
                                     }
                                 ]
