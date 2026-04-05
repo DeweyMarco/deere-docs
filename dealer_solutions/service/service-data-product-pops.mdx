@@ -1,0 +1,287 @@
+---
+title: "Service Data Product - POPS"
+description: "Percentage of Products Serviced (POPS) — fetch programs and recommendations by machine or dealer location, and run program actions on the Service Data Product API."
+---
+
+## Overview
+
+The Service Data Product POPS (Percentage of Products Serviced) service exposes a unified set of endpoints for two main jobs: **data retrieval** and **program actions**.
+
+<CardGroup cols={2}>
+  <Card title="Data retrieval" icon="database">
+    Fetch programs and recommendations using a machine PIN or a servicing dealer location (DOG account).
+  </Card>
+  <Card title="Program actions" icon="bolt">
+    Perform operations on retrieved programs — for example status updates, acknowledgement, deferral, or completion.
+  </Card>
+  <Card title="Service 360 alignment" icon="gears">
+    Integrate with dealer service workflows that track which products are serviced and what is recommended next.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using client credentials, consistent with other Dealer Solutions APIs.
+  </Card>
+</CardGroup>
+
+At a high level, the flow is:
+
+1. **Fetch recommendations** — `POST` programs and recommendation lines for a machine or dealer context.
+2. **Take action** — `PUT` updates against program or recommendation identifiers returned in step 1.
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **OAuth 2.0**. For machine-to-machine access, use the **client credentials** grant.
+
+### Client credentials (machine-to-machine)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the **Security** section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for the client credentials flow — it is still needed for application sync.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, and the scopes available for your integration.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+
+    Not every API uses the same OAuth scope. Use the metadata above and your product documentation to select the scope required for POPS.
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth — **not** in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=<required_scope>
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "<required_scope>"
+    }
+    ```
+
+    <Note>
+      Access tokens expire after **12 hours** (43,200 seconds). Refresh by requesting a new token before expiry.
+    </Note>
+  </Step>
+  <Step title="Call the API with your access token">
+    Send the token on every request:
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```
+https://sdpapi.deere.com
+```
+
+API paths for this product are rooted under `/digcust/service360-pops-ext/ext/v1`.
+
+---
+
+## Endpoints
+
+### Fetch POPS recommendations
+
+Retrieve programs and recommendations for a **machine PIN** or a **servicing dealer account** (DOG account).
+
+```
+POST /digcust/service360-pops-ext/ext/v1/recommendations
+```
+
+**OAuth scope:** Use the scope required for POPS from the well-known document or your integration guide (the examples below use a placeholder).
+
+<ParamField body="machinePin" type="string">
+  17-character equipment PIN. Use this when fetching by machine.
+</ParamField>
+
+<ParamField body="dealerAccountNumber" type="string">
+  Servicing dealer or DOG account identifier. Use this when fetching by dealer location.
+</ParamField>
+
+<Note>
+  Supply **either** `machinePin` **or** `dealerAccountNumber` in the JSON body, depending on whether you are querying by machine or by dealer context.
+</Note>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://sdpapi.deere.com/digcust/service360-pops-ext/ext/v1/recommendations' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"machinePin":"1ABC1234567890123"}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="context" type="object">
+  Echo of the request context (for example `machinePin` or `dealerAccountNumber`) when applicable.
+</ResponseField>
+
+<ResponseField name="programs" type="array">
+  Service programs for the context. Each entry typically includes `programId`, `name`, `status`, and optional eligibility dates.
+</ResponseField>
+
+<ResponseField name="recommendations" type="array">
+  Line-level recommendations, usually tied to a `programId`, with titles, priority, due dates, and workflow status.
+</ResponseField>
+
+<ResponseField name="retrievedAt" type="string">
+  ISO 8601 timestamp for when the payload was generated.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /digcust/service360-pops-ext/ext/v1/recommendations">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "context": {
+    "machinePin": "1ABC1234567890123"
+  },
+  "programs": [
+    {
+      "programId": "PRG-POPS-10042",
+      "name": "Scheduled Maintenance Plan",
+      "status": "ACTIVE",
+      "eligibleUntil": "2026-12-31"
+    }
+  ],
+  "recommendations": [
+    {
+      "recommendationId": "REC-8f3a2c1d9e7b",
+      "programId": "PRG-POPS-10042",
+      "title": "Replace engine air filter",
+      "priority": "HIGH",
+      "dueBy": "2026-05-15",
+      "status": "OPEN"
+    }
+  ],
+  "retrievedAt": "2026-04-04T19:30:00Z"
+}
+```
+
+---
+
+### Program / recommendation action
+
+Execute an operation on programs or recommendations returned from the fetch call (for example update status, acknowledge, defer, or complete).
+
+```
+PUT /digcust/service360-pops-ext/ext/v1/action
+```
+
+**OAuth scope:** Same scope as the recommendations endpoint unless your documentation specifies otherwise.
+
+<ParamField body="programId" type="string">
+  Program identifier from the recommendations response.
+</ParamField>
+
+<ParamField body="recommendationId" type="string">
+  Recommendation identifier when the action applies to a specific line.
+</ParamField>
+
+<ParamField body="actionType" type="string" required>
+  Operation to perform. Allowed values depend on product configuration (examples include `UPDATE_STATUS`, `ACKNOWLEDGE`, `DISMISS`, `DEFER`, `COMPLETE`).
+</ParamField>
+
+<ParamField body="newStatus" type="string">
+  Used with `UPDATE_STATUS` to set the desired workflow status.
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional note stored with the action.
+</ParamField>
+
+<ParamField body="deferUntil" type="string">
+  When deferring, optional ISO date for when to revisit the item.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url 'https://sdpapi.deere.com/digcust/service360-pops-ext/ext/v1/action' \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"programId":"PRG-POPS-10042","recommendationId":"REC-8f3a2c1d9e7b","actionType":"UPDATE_STATUS","newStatus":"IN_PROGRESS","comment":"Scheduled with customer for next service visit."}'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="programId" type="string">
+  Program the action was applied to.
+</ResponseField>
+
+<ResponseField name="recommendationId" type="string">
+  Recommendation the action was applied to, when applicable.
+</ResponseField>
+
+<ResponseField name="actionType" type="string">
+  Action that was requested.
+</ResponseField>
+
+<ResponseField name="resultStatus" type="string">
+  Outcome such as `ACCEPTED`, `REJECTED`, or `PENDING`.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp when the action was recorded.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /digcust/service360-pops-ext/ext/v1/action">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "programId": "PRG-POPS-10042",
+  "recommendationId": "REC-8f3a2c1d9e7b",
+  "actionType": "UPDATE_STATUS",
+  "resultStatus": "ACCEPTED",
+  "updatedAt": "2026-04-04T19:31:12Z"
+}
+```
+
+<Note>
+  Some environments may return **204 No Content** on success with no response body.
+</Note>

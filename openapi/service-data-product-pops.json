@@ -1,0 +1,533 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Service Data Product - POPS API",
+    "description": "Percentage of Products Serviced (POPS) — retrieve programs and recommendations by machine PIN or servicing dealer location, and perform actions on those programs. Part of the Service Data Product suite on the Dealer Solutions Platform.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sdpapi.deere.com",
+      "description": "Service Data Product (SDP) API"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 client credentials grant for John Deere Dealer Solutions. Request the OAuth scope required for POPS from the well-known authorization server metadata or your product documentation.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access (confirm POPS scope with your integration guide)"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "RecommendationsByMachineRequest": {
+        "type": "object",
+        "description": "Fetch POPS programs and recommendations for a specific machine.",
+        "required": ["machinePin"],
+        "properties": {
+          "machinePin": {
+            "type": "string",
+            "description": "17-character equipment PIN identifying the machine.",
+            "example": "1ABC1234567890123",
+            "minLength": 17,
+            "maxLength": 17
+          }
+        }
+      },
+      "RecommendationsByDealerRequest": {
+        "type": "object",
+        "description": "Fetch POPS programs and recommendations for a servicing dealer location or DOG account.",
+        "required": ["dealerAccountNumber"],
+        "properties": {
+          "dealerAccountNumber": {
+            "type": "string",
+            "description": "Servicing dealer account or DOG account identifier.",
+            "example": "123456789"
+          }
+        }
+      },
+      "RecommendationsRequest": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/RecommendationsByMachineRequest" },
+          { "$ref": "#/components/schemas/RecommendationsByDealerRequest" }
+        ],
+        "description": "Use either a machine PIN or a dealer account identifier. The service returns programs and recommendations applicable to the supplied context."
+      },
+      "ProgramSummary": {
+        "type": "object",
+        "description": "A service program associated with the machine or dealer context.",
+        "properties": {
+          "programId": {
+            "type": "string",
+            "description": "Stable identifier for the program.",
+            "example": "PRG-POPS-10042"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name of the program.",
+            "example": "Scheduled Maintenance Plan"
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle status of the program for this context.",
+            "example": "ACTIVE",
+            "enum": ["ACTIVE", "PENDING", "COMPLETED", "EXPIRED", "NOT_APPLICABLE"]
+          },
+          "eligibleUntil": {
+            "type": "string",
+            "format": "date",
+            "description": "Last date the program can be started or renewed, if applicable.",
+            "example": "2026-12-31"
+          }
+        }
+      },
+      "RecommendationItem": {
+        "type": "object",
+        "description": "A single POPS recommendation line.",
+        "properties": {
+          "recommendationId": {
+            "type": "string",
+            "description": "Identifier for this recommendation row.",
+            "example": "REC-8f3a2c1d9e7b"
+          },
+          "programId": {
+            "type": "string",
+            "description": "Program this recommendation belongs to.",
+            "example": "PRG-POPS-10042"
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title for the recommendation.",
+            "example": "Replace engine air filter"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Relative priority or severity.",
+            "example": "HIGH",
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+          },
+          "dueBy": {
+            "type": "string",
+            "format": "date",
+            "description": "Suggested completion date when provided.",
+            "example": "2026-05-15"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current workflow status for this recommendation.",
+            "example": "OPEN",
+            "enum": ["OPEN", "IN_PROGRESS", "COMPLETED", "DISMISSED", "DEFERRED"]
+          }
+        }
+      },
+      "RecommendationsResponse": {
+        "type": "object",
+        "description": "Programs and recommendations returned for the requested machine or dealer context.",
+        "properties": {
+          "context": {
+            "type": "object",
+            "description": "Echo of the request context when applicable.",
+            "properties": {
+              "machinePin": { "type": "string", "example": "1ABC1234567890123" },
+              "dealerAccountNumber": { "type": "string", "example": "123456789" }
+            }
+          },
+          "programs": {
+            "type": "array",
+            "description": "Service programs available for the context.",
+            "items": { "$ref": "#/components/schemas/ProgramSummary" }
+          },
+          "recommendations": {
+            "type": "array",
+            "description": "Line-level recommendations across programs.",
+            "items": { "$ref": "#/components/schemas/RecommendationItem" }
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server timestamp for this payload.",
+            "example": "2026-04-04T19:30:00Z"
+          }
+        }
+      },
+      "ProgramActionRequest": {
+        "type": "object",
+        "description": "Execute an operation on a program or recommendation retrieved from POPS.",
+        "required": ["actionType"],
+        "properties": {
+          "programId": {
+            "type": "string",
+            "description": "Target program identifier from the recommendations response.",
+            "example": "PRG-POPS-10042"
+          },
+          "recommendationId": {
+            "type": "string",
+            "description": "Target recommendation identifier when the action applies to a single line.",
+            "example": "REC-8f3a2c1d9e7b"
+          },
+          "actionType": {
+            "type": "string",
+            "description": "Operation to perform (values depend on product configuration).",
+            "example": "UPDATE_STATUS",
+            "enum": ["UPDATE_STATUS", "ACKNOWLEDGE", "DISMISS", "DEFER", "COMPLETE"]
+          },
+          "newStatus": {
+            "type": "string",
+            "description": "When `actionType` is `UPDATE_STATUS`, the desired status.",
+            "example": "IN_PROGRESS"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional note stored with the action for audit.",
+            "example": "Scheduled with customer for next service visit."
+          },
+          "deferUntil": {
+            "type": "string",
+            "format": "date",
+            "description": "When `actionType` is `DEFER`, optional future date to revisit.",
+            "example": "2026-06-01"
+          }
+        }
+      },
+      "ProgramActionResponse": {
+        "type": "object",
+        "description": "Acknowledgement of a program or recommendation action.",
+        "properties": {
+          "programId": {
+            "type": "string",
+            "example": "PRG-POPS-10042"
+          },
+          "recommendationId": {
+            "type": "string",
+            "example": "REC-8f3a2c1d9e7b"
+          },
+          "actionType": {
+            "type": "string",
+            "example": "UPDATE_STATUS"
+          },
+          "resultStatus": {
+            "type": "string",
+            "description": "Outcome of the action.",
+            "example": "ACCEPTED",
+            "enum": ["ACCEPTED", "REJECTED", "PENDING"]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-04T19:31:12Z"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/service360-pops-ext/ext/v1/recommendations": {
+      "post": {
+        "operationId": "fetchPopsRecommendations",
+        "summary": "Fetch POPS recommendations",
+        "description": "Retrieve programs and recommendations for a machine PIN or a servicing dealer location (DOG account). Use the response identifiers when calling `PUT /digcust/service360-pops-ext/ext/v1/action`.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationsRequest"
+              },
+              "examples": {
+                "byMachinePin": {
+                  "summary": "By machine PIN",
+                  "value": {
+                    "machinePin": "1ABC1234567890123"
+                  }
+                },
+                "byDealer": {
+                  "summary": "By servicing dealer account",
+                  "value": {
+                    "dealerAccountNumber": "123456789"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sdpapi.deere.com/digcust/service360-pops-ext/ext/v1/recommendations' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"machinePin\":\"1ABC1234567890123\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Programs and recommendations for the requested context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsResponse"
+                },
+                "example": {
+                  "context": {
+                    "machinePin": "1ABC1234567890123"
+                  },
+                  "programs": [
+                    {
+                      "programId": "PRG-POPS-10042",
+                      "name": "Scheduled Maintenance Plan",
+                      "status": "ACTIVE",
+                      "eligibleUntil": "2026-12-31"
+                    }
+                  ],
+                  "recommendations": [
+                    {
+                      "recommendationId": "REC-8f3a2c1d9e7b",
+                      "programId": "PRG-POPS-10042",
+                      "title": "Replace engine air filter",
+                      "priority": "HIGH",
+                      "dueBy": "2026-05-15",
+                      "status": "OPEN"
+                    }
+                  ],
+                  "retrievedAt": "2026-04-04T19:30:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request. Missing machine or dealer identifier, invalid PIN format, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "machinePin must be a 17-character equipment PIN."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope for POPS."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No data found for the supplied machine or dealer context.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No POPS programs found for the supplied machine PIN."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/service360-pops-ext/ext/v1/action": {
+      "put": {
+        "operationId": "popsProgramAction",
+        "summary": "Recommendation / program action",
+        "description": "Perform an operation on programs or recommendations returned from `POST /digcust/service360-pops-ext/ext/v1/recommendations`, such as status updates, acknowledgement, deferral, or completion.",
+        "security": [{ "OAuth2": ["axiom"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgramActionRequest"
+              },
+              "example": {
+                "programId": "PRG-POPS-10042",
+                "recommendationId": "REC-8f3a2c1d9e7b",
+                "actionType": "UPDATE_STATUS",
+                "newStatus": "IN_PROGRESS",
+                "comment": "Scheduled with customer for next service visit."
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sdpapi.deere.com/digcust/service360-pops-ext/ext/v1/action' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"programId\":\"PRG-POPS-10042\",\"recommendationId\":\"REC-8f3a2c1d9e7b\",\"actionType\":\"UPDATE_STATUS\",\"newStatus\":\"IN_PROGRESS\",\"comment\":\"Scheduled with customer for next service visit.\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action was applied successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramActionResponse"
+                },
+                "example": {
+                  "programId": "PRG-POPS-10042",
+                  "recommendationId": "REC-8f3a2c1d9e7b",
+                  "actionType": "UPDATE_STATUS",
+                  "resultStatus": "ACCEPTED",
+                  "updatedAt": "2026-04-04T19:31:12Z"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Action accepted with no response body."
+          },
+          "400": {
+            "description": "Bad request. Unknown action, invalid identifiers, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "actionType is not valid for the current recommendation state."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The access token does not include the required scope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope for POPS."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Program or recommendation not found for the supplied identifiers.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No recommendation found for the supplied recommendationId."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict. The resource is not in a state that allows this action.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "CONFLICT",
+                    "message": "Recommendation is already completed."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
