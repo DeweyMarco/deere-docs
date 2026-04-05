@@ -1,0 +1,282 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Machine Device State Reports API",
+    "description": "Retrieve **device state reports (DSRs)**—call-in history from the machine **terminal** for a date range. Each report captures engine and terminal power, connectivity (RSSI, GPS, Wi‑Fi, cellular), antenna types, battery, boot metadata, and related state. Reports are **identified by the terminal**; one DSR is created per terminal call-in.\n\n**Media type:** Use **`Accept: application/vnd.deere.axiom.v3+json`**.\n\n**eTags:** This endpoint **does not** support John Deere’s `x-deere-signature` / eTag optimization.\n\n**Links:** Each requested DSR may include links to **`machine`** (if the terminal is linked to a machine) and **`terminal`**. For multi-terminal requests, two or more DSRs may apply.\n\n**Date range defaults:** If neither **`startDate`** nor **`endDate`** is provided, the range defaults to **two months before now** through **now**. If only **`startDate`** is provided, **`endDate`** defaults to **now**. If only **`endDate`** is provided, **`startDate`** defaults to **2015-01-01T00:00:00.000Z**.\n\n**Collections:** Responses use the **CollectionPage** pattern (`total`, `links`, `values`) with **`itemLimit`** / **`pageOffset`** like other platform list APIs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Device state reports",
+      "description": "Terminal device state and connectivity history for a machine principal id."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. This endpoint requires **`eq1`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and device state reports",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link**). DSR responses may include **`machine`** and **`terminal`** relations.",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": {
+            "type": "string",
+            "description": "Link relation, e.g. `self`, `machine`, `terminal`, `nextPage`.",
+            "example": "terminal"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/terminals/98765"
+          }
+        }
+      },
+      "AbstractMeasurement": {
+        "type": "object",
+        "description": "Deere **abstract measurement** type: strings, doubles, or integers that carry a unit of measurement (for example signal strength or hours).",
+        "additionalProperties": true,
+        "example": {
+          "value": -72,
+          "unit": "dBm"
+        }
+      },
+      "DeviceStateReport": {
+        "type": "object",
+        "description": "A single **device state report** from a terminal at a point in time. Field names and shapes may vary by firmware; common concepts include engine state, terminal power state, RSSI, GPS/Wi‑Fi/cellular diagnostics, antenna types, battery voltage, boot type/timestamp, and vehicle power state. **Engine state:** `0` = power-on key OFF, `1` = ON. **Terminal power state:** `0` = power-on key ON, `1` = OFF, `2` = SLEEPING, `3` = HIBERNATING.",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom resource type when present.",
+            "example": "DeviceStateReport"
+          },
+          "links": {
+            "type": "array",
+            "description": "May include **`machine`** (if terminal is linked to a machine) and **`terminal`**.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "engineState": {
+            "type": "integer",
+            "description": "Engine power key: `0` = OFF, `1` = ON.",
+            "enum": [0, 1]
+          },
+          "terminalPowerState": {
+            "type": "integer",
+            "description": "Terminal power: `0` = power-on key ON, `1` = OFF, `2` = SLEEPING, `3` = HIBERNATING.",
+            "enum": [0, 1, 2, 3]
+          },
+          "rssi": {
+            "allOf": [{ "$ref": "#/components/schemas/AbstractMeasurement" }],
+            "description": "Received signal strength (cellular/Wi‑Fi context per product)."
+          }
+        },
+        "example": {
+          "@type": "DeviceStateReport",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+            },
+            {
+              "@type": "Link",
+              "rel": "terminal",
+              "uri": "https://sandboxapi.deere.com/platform/terminals/98765"
+            }
+          ],
+          "engineState": 1,
+          "terminalPowerState": 0
+        }
+      },
+      "DeviceStateReportCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of device state reports (**CollectionPage** pattern).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of values available for this query.",
+            "example": 25
+          },
+          "links": {
+            "type": "array",
+            "description": "May include `nextPage` / `previousPage` when paginated.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "description": "Device state report items for this page.",
+            "items": { "$ref": "#/components/schemas/DeviceStateReport" }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for 4xx responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/machines/{principalId}/deviceStateReports": {
+      "get": {
+        "tags": ["Device state reports"],
+        "operationId": "getMachineDeviceStateReports",
+        "summary": "List terminal device state reports",
+        "description": "Returns **device state reports** for the machine identified by **`principalId`**. Each report reflects a **terminal** call-in and includes connectivity and power diagnostics (engine state, terminal power, RSSI, GPS/Wi‑Fi/GSM state, antenna types, battery, boot metadata, and related fields). The report is **terminal-specific** regardless of which machine the terminal is connected to. This API **does not** support eTags.\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/deviceStateReports`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Machine **principal id** for the machine whose terminal device state reports you are reading (from platform machine or equipment resources).",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Range start (**ISO 8601**, UTC). If omitted with **`endDate`**, defaults to **2015-01-01T00:00:00.000Z**. If both omitted, defaults to **two months before** the current time.",
+            "schema": { "type": "string", "format": "date-time", "example": "2014-01-01T00:00:00.000Z" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Range end (**ISO 8601**, UTC). If omitted with **`startDate`**, defaults to **now**. If both omitted, defaults to **now**.",
+            "schema": { "type": "string", "format": "date-time", "example": "2014-01-28T15:59:00.000Z" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, maximum **100** (John Deere **CollectionPage** convention).",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based offset aligned with **`itemLimit`** (0, 10, 20, … or 0, 100, 200, … when `itemLimit=100`).",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/12345/deviceStateReports?startDate=2014-01-01T00:00:00.000Z&endDate=2014-01-28T15:59:00.000Z&itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — collection of device state reports (**CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/DeviceStateReportCollectionPage" },
+                "examples": {
+                  "collection": {
+                    "summary": "Paged DSRs",
+                    "value": {
+                      "total": 1,
+                      "links": [],
+                      "values": [
+                        {
+                          "@type": "DeviceStateReport",
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+                            },
+                            {
+                              "@type": "Link",
+                              "rel": "terminal",
+                              "uri": "https://sandboxapi.deere.com/platform/terminals/98765"
+                            }
+                          ],
+                          "engineState": 1,
+                          "terminalPowerState": 0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues; check **X-Deere-Warning** / **X-Deere-Terms-Location** when present.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    }
+  }
+}

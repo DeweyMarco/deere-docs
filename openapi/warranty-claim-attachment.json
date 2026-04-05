@@ -1,0 +1,518 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Warranty Claim Attachment API",
+    "description": "Manages **warranty claim attachments** through the **AttachmentCollection** OData entity set. List attachments, **add** new attachment records, and **read** a single attachment by its composite key (**serial number**, **object key**, **file name**, **class name**, and **class type**).\n\nUse your **SOAP-to-REST field mapping** and **REST API FAQ** attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Warranty Claim Attachment API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Warranty Claim Attachment API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AttachmentEntity": {
+        "type": "object",
+        "description": "OData **Attachment** entity from **AttachmentCollection**. Exact properties follow your OData contract and SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "serialNumber": {
+            "type": "string",
+            "description": "Equipment serial number when used in the key or payload.",
+            "example": "1DW12345678901234"
+          },
+          "objectKey": {
+            "type": "string",
+            "description": "Object or claim object key when used in the key or payload.",
+            "example": "OBJ-550012345-01-WO2026"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "Attachment file name.",
+            "example": "repair-photo-001.jpg"
+          },
+          "className": {
+            "type": "string",
+            "description": "Class name segment of the composite key.",
+            "example": "ClaimAttachment"
+          },
+          "classType": {
+            "type": "string",
+            "description": "Class type segment of the composite key.",
+            "example": "IMAGE"
+          }
+        }
+      },
+      "AttachmentCollectionResponse": {
+        "type": "object",
+        "description": "OData collection response for **AttachmentCollection** (may include `@odata.context` and related annotations).",
+        "additionalProperties": true,
+        "properties": {
+          "@odata.context": {
+            "type": "string",
+            "description": "OData context URL when returned.",
+            "example": "https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/$metadata#AttachmentCollection"
+          },
+          "value": {
+            "type": "array",
+            "description": "Attachment entities in the collection.",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentEntity"
+            }
+          }
+        }
+      },
+      "AttachmentCreateRequest": {
+        "type": "object",
+        "description": "Payload to **create** an attachment record via **AttachmentCollection**. Fields depend on your OData contract and program rules; include the properties required for your attachment type.",
+        "minProperties": 1,
+        "additionalProperties": true,
+        "properties": {
+          "serialNumber": {
+            "type": "string",
+            "example": "1DW12345678901234"
+          },
+          "objectKey": {
+            "type": "string",
+            "example": "OBJ-550012345-01-WO2026"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "repair-photo-001.jpg"
+          },
+          "className": {
+            "type": "string",
+            "example": "ClaimAttachment"
+          },
+          "classType": {
+            "type": "string",
+            "example": "IMAGE"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "No attachment was found for the supplied key."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/AttachmentCollection": {
+      "get": {
+        "operationId": "listAttachmentCollection",
+        "summary": "Get entities from AttachmentCollection",
+        "description": "Returns **Attachment** entities from **AttachmentCollection** (OData collection read).\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsAttachmentClaim`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsAttachmentClaim"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of attachment entities (OData JSON; often includes a **value** array).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentCollectionResponse"
+                },
+                "example": {
+                  "@odata.context": "https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/$metadata#AttachmentCollection",
+                  "value": [
+                    {
+                      "serialNumber": "1DW12345678901234",
+                      "objectKey": "OBJ-550012345-01-WO2026",
+                      "fileName": "repair-photo-001.jpg",
+                      "className": "ClaimAttachment",
+                      "classType": "IMAGE"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAttachmentInCollection",
+        "summary": "Add new entity to AttachmentCollection",
+        "description": "Creates a **new** attachment entity in **AttachmentCollection**. Request properties must match your OData contract and program validation rules.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsAttachmentClaim`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsAttachmentClaim"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachmentCreateRequest"
+              },
+              "example": {
+                "serialNumber": "1DW12345678901234",
+                "objectKey": "OBJ-550012345-01-WO2026",
+                "fileName": "repair-photo-001.jpg",
+                "className": "ClaimAttachment",
+                "classType": "IMAGE"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"serialNumber\":\"1DW12345678901234\",\"objectKey\":\"OBJ-550012345-01-WO2026\",\"fileName\":\"repair-photo-001.jpg\",\"className\":\"ClaimAttachment\",\"classType\":\"IMAGE\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attachment created or updated per service semantics; body may include the persisted entity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentEntity"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Attachment created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — validation failure or malformed payload.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request body could not be validated against the attachment contract."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/AttachmentCollection(SerialNumber={SerialNumber},ObjectKey='{ObjectKey}',FileName='{FileName}',ClassName='{ClassName}',ClassType='{ClassType}')": {
+      "get": {
+        "operationId": "getAttachmentByKey",
+        "summary": "Get entity from AttachmentCollection by key",
+        "description": "Retrieves a single **Attachment** from **AttachmentCollection** using the OData-style composite key: **SerialNumber**, **ObjectKey**, **FileName**, **ClassName**, and **ClassType**.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection(SerialNumber=1DW12345678901234,ObjectKey='OBJ-550012345-01-WO2026',FileName='repair-photo-001.jpg',ClassName='ClaimAttachment',ClassType='IMAGE')`\n\nURL-encode special characters in key segments as required. **Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsAttachmentClaim`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsAttachmentClaim"
+            }
+          },
+          {
+            "name": "SerialNumber",
+            "in": "path",
+            "required": true,
+            "description": "Serial number segment of the AttachmentCollection key (OData; typically unquoted in the URL path).",
+            "schema": {
+              "type": "string",
+              "example": "1DW12345678901234"
+            }
+          },
+          {
+            "name": "ObjectKey",
+            "in": "path",
+            "required": true,
+            "description": "Object key in the AttachmentCollection key (single-quoted in the path).",
+            "schema": {
+              "type": "string",
+              "example": "OBJ-550012345-01-WO2026"
+            }
+          },
+          {
+            "name": "FileName",
+            "in": "path",
+            "required": true,
+            "description": "File name in the AttachmentCollection key.",
+            "schema": {
+              "type": "string",
+              "example": "repair-photo-001.jpg"
+            }
+          },
+          {
+            "name": "ClassName",
+            "in": "path",
+            "required": true,
+            "description": "Class name in the AttachmentCollection key.",
+            "schema": {
+              "type": "string",
+              "example": "ClaimAttachment"
+            }
+          },
+          {
+            "name": "ClassType",
+            "in": "path",
+            "required": true,
+            "description": "Class type in the AttachmentCollection key.",
+            "schema": {
+              "type": "string",
+              "example": "IMAGE"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsAttachmentClaim/AttachmentCollection(SerialNumber=1DW12345678901234,ObjectKey='OBJ-550012345-01-WO2026',FileName='repair-photo-001.jpg',ClassName='ClaimAttachment',ClassType='IMAGE')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Attachment entity for the supplied composite key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentEntity"
+                },
+                "example": {
+                  "serialNumber": "1DW12345678901234",
+                  "objectKey": "OBJ-550012345-01-WO2026",
+                  "fileName": "repair-photo-001.jpg",
+                  "className": "ClaimAttachment",
+                  "classType": "IMAGE"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The AttachmentCollection key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No attachment found for the supplied key.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No attachment was found for the supplied key."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

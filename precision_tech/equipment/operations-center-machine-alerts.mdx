@@ -1,0 +1,187 @@
+---
+title: "Operations Center — Machine Alerts"
+description: "Read terminal alerts for a machine—diagnostics, geofence, maintenance, and related notifications from Operations Center."
+---
+
+## Overview
+
+The **Machine Alerts** API returns **alerts** recorded on the machine’s **telematics terminal**—for example low fuel pressure, injector calibration faults, geofence events, or maintenance reminders. Response details **vary by alert type**; follow **`links`** in each item (such as **`machine`**) to load related platform resources. Some responses include a **`definition`** object with extra context.
+
+<CardGroup cols={2}>
+  <Card title="Terminal-sourced" icon="bell">
+    Data reflects what was captured on the display when the alert occurred.
+  </Card>
+  <Card title="Alert types" icon="layer-group">
+    Includes **machine**, **geofence**, and **maintenance** categories; fields differ by type.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Requires **`eq1`** on the access token.
+  </Card>
+  <Card title="No eTags" icon="link-slash">
+    This endpoint **does not** support John Deere’s **`x-deere-signature`** / eTag flow—poll or use other strategies for freshness.
+  </Card>
+</CardGroup>
+
+### Equipment concepts
+
+- **Implement** — Non–self-propelled equipment paired with a machine (planter, corn head, spray boom, and similar). Implements with modems may appear as **machine** resources today; future changes may model them separately.
+- **EquipmentType** vs **EquipmentApexType** vs **Category** — Prefer **EquipmentType** for broad equipment classification. **EquipmentApexType** supports agriculture displays. **Category** is legacy and may be deprecated.
+
+### Related resources
+
+| Resource | Purpose |
+| --- | --- |
+| Equipment | Machines and implements for an organization or by id. |
+| Device state reports | Call-in history and connectivity for a date range. |
+| Engine hours | Last reported engine hours with timestamp and source. |
+| Hours of operation | Engine on/off durations; last known engine state. |
+| Machine breadcrumbs | Location and sensor samples over time. |
+| Machine location history | Latitude, longitude, and altitude over a range. |
+
+---
+
+## Getting started
+
+1. **Authenticate** — Complete OAuth 2.0 authorization code flow and organization connection (see below).
+2. **Resolve `principalId`** — Use the machine **principal id** from **`GET`** `/platform` discovery flows or equipment/machine resources your user can access.
+3. **Call alerts** — **`GET`** `/platform/machines/{principalId}/alerts` with **`Accept: application/vnd.deere.axiom.v3+json`**.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes** (include **`eq1`** for this API), **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration. Request only the scopes your app needs.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (refresh tokens expire after **365 days** without use).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Alerts API">
+    Send **`Authorization: Bearer {token}`** on every request.
+  </Step>
+</Steps>
+
+### Scope for this endpoint
+
+| Scope | Use |
+| --- | --- |
+| `eq1` | **Required** — Equipment Access Level 1 (view equipment and alerts). |
+
+---
+
+## Alert colors and severity
+
+Presentation **color** and **severity** are related as follows (UI labels may vary):
+
+| Color | Severity |
+| --- | --- |
+| RED | HIGH |
+| YELLOW | MEDIUM |
+| GRAY | LOW |
+| BLUE | INFO |
+| GRAY | DTC |
+| GRAY | UNKNOWN |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Paths in this document use the **`/platform/`** prefix (for example **`/platform/machines/{principalId}/alerts`**). Use the production platform host for production traffic when provided for your integration.
+
+---
+
+## Localization
+
+Send **`Accept-Language`** with a BCP 47 tag (for example **`en`**, **`es`**, **`pt_BR`**) to request localized **notification text** when the service supports it for a given string. Many tags are accepted; availability depends on the alert content.
+
+---
+
+## Compression
+
+You may send **`Accept-Encoding: gzip`** when your client supports gzip decompression.
+
+---
+
+## Paging
+
+When the response uses the **CollectionPage** pattern, use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** on the request URL, consistent with other John Deere list APIs. Follow **`nextPage`** / **`previousPage`** links when present.
+
+---
+
+## Endpoints
+
+### List machine alerts
+
+Returns alerts for the machine identified by **`principalId`**. This API **does not** support eTags.
+
+```text
+GET /platform/machines/{principalId}/alerts
+```
+
+<ParamField path="principalId" type="string" required>
+  Machine **principal id** (from platform machine or equipment resources the user can access).
+</ParamField>
+
+<ParamField header="Accept" type="string" required>
+  Use **`application/vnd.deere.axiom.v3+json`**.
+</ParamField>
+
+<ParamField header="Accept-Language" type="string">
+  Optional BCP 47 language tag for localized notification text (for example **`en`**, **`fr`**, **`pt_BR`**).
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+#### Example response shape
+
+Responses are typically a **CollectionPage** with **`total`**, **`links`**, and **`values`** (each value is an alert). Items may include **`links`** such as **`machine`** and optional **`definition`** details.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/machines/12345/alerts" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Language: en' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="200 OK" type="success">
+  Alert collection (**CollectionPage** or equivalent list structure for this API version).
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="error">
+  Invalid or expired token, or missing API license—refresh the token or verify application entitlements.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  User or client cannot access the machine, or token lacks **`eq1`**. For organization or terms issues, check **X-Deere-Warning** and **X-Deere-Terms-Location** when present.
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="error">
+  **`principalId`** is not valid for the caller’s current accessible resources.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/machines/{principalId}/alerts">
+  Interactive reference for **GET** `/platform/machines/{principalId}/alerts`.
+</Card>

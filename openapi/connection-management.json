@@ -1,0 +1,405 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operation Center Connection Management API",
+    "description": "Manage Operations Center organization connections for the calling application. This API lets client applications list their existing connections and remove a single connection or all partner connections for an organization.\n\nThis API supports only the OAuth 2.0 client credentials grant. The GET response returns the Operations Center permissions assigned for each connection.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2ClientCredentials": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 client credentials flow for John Deere platform APIs. This API works only with a `client_credentials` access token. Scopes typically are not required for this token type, but some integrations may be assigned a custom scope.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ConnectionPermission": {
+        "type": "object",
+        "description": "An Operations Center permission assigned to a connection.",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "description": "OAuth scope or permission family associated with the assigned permission.",
+            "example": "ag3"
+          },
+          "userPermission": {
+            "type": "string",
+            "description": "Operations Center permission name granted on the connection.",
+            "example": "Locations Access Level 3"
+          },
+          "code": {
+            "type": "string",
+            "description": "Numeric or named permission code returned for the assigned permission.",
+            "example": "4003"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the assigned permission.",
+            "example": "Manage Locations & Production Data (Website and API Access)"
+          }
+        }
+      },
+      "Connection": {
+        "type": "object",
+        "description": "A connection between the calling application and an Operations Center organization.",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the application connection.",
+            "example": "2b76dfaf-6c2b-4ec1-baae-73d730db0b7c"
+          },
+          "orgId": {
+            "type": "string",
+            "description": "Operations Center organization identifier.",
+            "example": "1234567"
+          },
+          "orgName": {
+            "type": "string",
+            "description": "Display name of the connected organization.",
+            "example": "Green Acres Farms"
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Operations Center permissions currently assigned to this connection.",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionPermission"
+            }
+          }
+        }
+      },
+      "ConnectionsResponse": {
+        "type": "object",
+        "description": "List of application connections for the calling client.",
+        "properties": {
+          "connections": {
+            "type": "array",
+            "description": "Connections associated with the calling application.",
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Standard error response.",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable error code.",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message.",
+                "example": "No connection was found for the supplied connection ID."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/platform/connections": {
+      "get": {
+        "operationId": "listConnections",
+        "summary": "Get list of connections",
+        "description": "Retrieve all connections for the calling application based on the client in the access token.\n\nThe response also returns the Operations Center permissions assigned for each connection. Permissions are determined when a user connects an organization based on the OAuth scopes requested during user authorization and the permissions that user has in the organization.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/connections`\n\n**Accept:** `application/json`",
+        "security": [
+          {
+            "OAuth2ClientCredentials": []
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/connections' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved the list of connections for the calling application.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsResponse"
+                },
+                "example": {
+                  "connections": [
+                    {
+                      "connectionId": "2b76dfaf-6c2b-4ec1-baae-73d730db0b7c",
+                      "orgId": "1234567",
+                      "orgName": "Green Acres Farms",
+                      "permissions": [
+                        {
+                          "scope": "ag3",
+                          "userPermission": "Locations Access Level 3",
+                          "code": "4003",
+                          "description": "Manage Locations & Production Data (Website and API Access)"
+                        },
+                        {
+                          "scope": "eq2",
+                          "userPermission": "Equipment Access Level 2",
+                          "code": "2002",
+                          "description": "Edit Equipment (also View Detailed Machine Measurements)"
+                        }
+                      ]
+                    },
+                    {
+                      "connectionId": "9c86bdf3-0997-4523-9304-7735e619b3fb",
+                      "orgId": "7654321",
+                      "orgName": "North Ridge Partners",
+                      "permissions": [
+                        {
+                          "scope": "org1",
+                          "userPermission": "Organization Management Access Level 1",
+                          "code": "1001",
+                          "description": "View Staff, Operators, and Partners"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing, invalid, or expired access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The client is not authorized to access connection data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "The calling application is not authorized to manage connections."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/connections/{connectionId}": {
+      "delete": {
+        "operationId": "deleteConnectionById",
+        "summary": "Delete connection by connection ID",
+        "description": "Remove a specific application connection by its connection ID.\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/connections/{connectionId}`\n\n**Accept:** `application/json`",
+        "security": [
+          {
+            "OAuth2ClientCredentials": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the connection to remove.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "2b76dfaf-6c2b-4ec1-baae-73d730db0b7c"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/connections/2b76dfaf-6c2b-4ec1-baae-73d730db0b7c' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Connection removed successfully."
+          },
+          "401": {
+            "description": "Unauthorized. Missing, invalid, or expired access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The client is not authorized to remove the connection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "The calling application is not authorized to delete this connection."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No connection found for the supplied ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No connection was found for the supplied connection ID."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/connections": {
+      "delete": {
+        "operationId": "deleteOrganizationConnections",
+        "summary": "Delete all partner connections by Org Id",
+        "description": "Remove all connections between the calling application and the specified organization. This includes all partner connections.\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/organizations/{orgId}/connections`\n\n**Accept:** `application/json`",
+        "security": [
+          {
+            "OAuth2ClientCredentials": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization identifier for which all partner connections should be removed.",
+            "schema": {
+              "type": "string",
+              "example": "1234567"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/1234567/connections' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All application connections for the organization were removed successfully."
+          },
+          "401": {
+            "description": "Unauthorized. Missing, invalid, or expired access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. The client is not authorized to remove organization connections.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "The calling application is not authorized to delete connections for this organization."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No organization connection found for the supplied organization ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No connections were found for the supplied organization ID."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

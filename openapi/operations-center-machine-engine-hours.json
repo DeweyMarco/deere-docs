@@ -1,0 +1,240 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Machine Engine Hours API",
+    "description": "Returns the **last reported** engine **hour meter** reading for a machine. Each item includes a **timestamp** for the report, the **source** of the reading, and typically a **`machine`** link for discovery. This endpoint **does not** support John Deere’s **`x-deere-signature`** / eTag optimization.\n\n**Media type:** Use **`Accept: application/vnd.deere.axiom.v3+json`**.\n\n**Collections:** Responses typically follow the **CollectionPage** pattern (`total`, `links`, `values`) like other platform list APIs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Engine hours",
+      "description": "Last reported engine hour readings and report metadata for a machine."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. This endpoint requires **`eq1`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and engine hours",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link**). Engine hour items typically include a **`machine`** link.",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": {
+            "type": "string",
+            "description": "Link relation, e.g. `self`, `machine`, `nextPage`.",
+            "example": "machine"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/machines/12345"
+          }
+        }
+      },
+      "EngineHoursReport": {
+        "type": "object",
+        "description": "A single engine hours report. **Source** indicates which telematics path produced the meter reading (see product documentation for exact codes).",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom resource type discriminator when present.",
+            "example": "EngineHours"
+          },
+          "hourReading": {
+            "type": "number",
+            "format": "double",
+            "description": "Reported engine hours value from the meter.",
+            "example": 1523.4
+          },
+          "readingDateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the reading was reported or recorded.",
+            "example": "2024-03-15T14:22:01.000Z"
+          },
+          "source": {
+            "type": "string",
+            "description": "Origin of the meter reading. **TM** — MTG or UTG; **MIG** — Machine Information Gateway; **CI** — GTT (GlobalTracs Terminal).",
+            "enum": ["TM", "MIG", "CI"],
+            "example": "TM"
+          },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "example": {
+          "@type": "EngineHours",
+          "hourReading": 1523.4,
+          "readingDateTime": "2024-03-15T14:22:01.000Z",
+          "source": "TM",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+            }
+          ]
+        }
+      },
+      "EngineHoursCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of engine hour reports (**CollectionPage** pattern).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of values available for this query.",
+            "example": 1
+          },
+          "links": {
+            "type": "array",
+            "description": "May include `nextPage` / `previousPage` when paginated.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "description": "Engine hours reports for this page.",
+            "items": { "$ref": "#/components/schemas/EngineHoursReport" }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for 4xx responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/machines/{principalId}/engineHours": {
+      "get": {
+        "tags": ["Engine hours"],
+        "operationId": "getMachineEngineHours",
+        "summary": "Get machine engine hours",
+        "description": "Returns the **last reported** number of hours that a machine’s **engine** has recorded. Each response item includes a **timestamp** for the report and the **source** of the report, and typically includes a **link** to the **machine** resource.\n\n**Please note:** This API **does not** support eTags (`x-deere-signature`).\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/engineHours`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Machine **principal id** for the machine whose engine hours you are reading (from machine or equipment resources in `/platform`).",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses (recommended for all calls).",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/12345/engineHours' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — engine hours for the machine (typically **CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/EngineHoursCollectionPage" },
+                "examples": {
+                  "collection": {
+                    "summary": "Last reported hours with machine link",
+                    "value": {
+                      "total": 1,
+                      "links": [],
+                      "values": [
+                        {
+                          "@type": "EngineHours",
+                          "hourReading": 1523.4,
+                          "readingDateTime": "2024-03-15T14:22:01.000Z",
+                          "source": "TM",
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues; check response headers such as **X-Deere-Warning** / **X-Deere-Terms-Location** when present.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,395 @@
+---
+title: "Data Subscription Service (Webhook)"
+description: "Subscribe to Operations Center events and receive webhook notifications at your HTTPS endpoint."
+---
+
+## Overview
+
+**Data Subscription Service (DSS)** is a publication and subscription layer that **pushes** notifications when subscribed data changes. You create **event subscriptions** with optional **filters**; when a change matches, DSS **POSTs** an event to your **target endpoint**. Events include links back to the data so you do not have to poll APIs continuously.
+
+<CardGroup cols={2}>
+  <Card title="Event subscriptions" icon="bell">
+    Create, list, update, and inspect subscriptions for event types your application is licensed to use.
+  </Card>
+  <Card title="Delivery settings" icon="truck">
+    Configure batch size, authorization headers, concurrency, and pause state per client key.
+  </Card>
+  <Card title="Event types" icon="list">
+    Discover available event types and required filters before you subscribe.
+  </Card>
+  <Card title="Consumer API" icon="code">
+    Implement an HTTPS endpoint that returns **204 No Content** to acknowledge each delivery batch.
+  </Card>
+</CardGroup>
+
+<Note>
+  To create a subscription for an event, your client must have access to that event's **associated API**. Always confirm **OAuth scopes** and **Event Types** documentation for required filters (for example, `orgId` for `fieldOperation`).
+</Note>
+
+---
+
+## How it works
+
+1. **Implement** a public **HTTPS** endpoint that responds with **204 No Content** within **5 seconds** (see [Consumer API](#consumer-api-your-target-endpoint)).
+2. **Choose** an event type and any **filters** (exact match; multiple values in one filter are OR; multiple filters are AND).
+3. **Create** a subscription with **POST** `/platform/eventSubscriptions`. DSS sends a **subscriptionVerification** event to validate your endpoint.
+4. **Configure** optional **client-level** delivery (batching, `Authorization` header, pause) with **PATCH** `/platform/eventSubscriptionDelivery`.
+
+---
+
+## Consumer API (your target endpoint)
+
+Your server receives **POST** requests containing batches of events. **Acknowledge** before heavy processing: persist and return **204** first, then parse payloads or follow links.
+
+| Requirement | Detail |
+| --- | --- |
+| HTTP status | Respond with **204 No Content** |
+| Visibility | Endpoint must be **publicly reachable** over HTTPS (you may rely on an **Authorization** header you configure in delivery settings) |
+| Timeout | Response within **5 seconds** |
+| Ordering | Events are **not** guaranteed to be in order |
+| Duplicates | The same event **may** be delivered more than once |
+
+If validation fails when you create a subscription, DSS may return **400** and **not** create the subscription.
+
+### Retries and expiration
+
+Failed deliveries are retried. Messages that fail for an extended period **expire after 7 days**. Subscriptions can move to **Expired** if acknowledgements are not received; you must set them back to **Active** to resume. DSS does not notify you when delivery fails—monitor subscription status via the API.
+
+### Batching
+
+By default, up to **10** events may be batched per POST. Smaller batches may be delayed up to **10 seconds** before send. DSS batches by **destination URL** and **client key**—using one generic URL across subscriptions improves batching.
+
+---
+
+## Filters
+
+Filters narrow which events you receive. Matching is **exact** only (no regex or wildcards).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | string | Filter field (depends on `eventType`; e.g. `orgId`). |
+| `values` | array of strings | At least one value; multiple values in one filter use **OR**. |
+
+**Example:** receive `fieldOperation` events for org **123456** or **654321** only when the operation type is **seeding**:
+
+```json
+"filters": [
+  { "key": "orgId", "values": ["123456", "654321"] },
+  { "key": "fieldOperationType", "values": ["seeding"] }
+]
+```
+
+---
+
+## Authorization options
+
+- **Per-subscription token:** Optional string included in the event body for your app to verify messages.
+- **Authorization header (client-level):** Optional string DSS sends as the HTTP `Authorization` header for **all** deliveries for your client (including **subscriptionVerification**). Maximum size **4 KB**. When rotating values, expect a short window (about **5 minutes**) where either value may appear; failed **401** responses are retried. **PATCH** the header to **null** to disable.
+
+IP allow lists for DSS source addresses are **not** supported.
+
+---
+
+## Event types (reference)
+
+| Name | Description | Triggered by |
+| --- | --- | --- |
+| `heartbeat` | Health check for DSS | Roughly every minute |
+| `subscriptionVerification` | Validates your target endpoint | Subscription creation |
+| `fieldOperation` | Field operations data changed | Add, update, or delete field operations |
+| `contributedMapLayer` | New map layer with imagery | New map layer created |
+| `client` | Clients changed | Add, update, or delete clients |
+| `farm` | Farms changed | Add, update, or delete farms |
+| `field` | Fields changed | Add, update, or delete fields |
+| `fieldSync` | Field syncs changed | Status, update, or cancel |
+| `boundary` | Boundaries changed | Add, update, or delete boundaries |
+| `guidanceLine` | Guidance lines changed | Add, update, or delete guidance lines |
+| `flagCategory` | Flag categories changed | Add, update, or delete flag categories |
+| `flag` | Flags changed | Add, update, or delete flags |
+| `operator` | Operators changed | Add, update, or delete operators |
+| `workPlan` | Work plans changed | Add, update, or delete work plans |
+| `notification` | Notification Center | Any notification sent to Notification Center |
+
+Use **GET** `/platform/eventTypes` and **GET** `/platform/eventTypes/{id}` for authoritative definitions and filter requirements.
+
+---
+
+## Authentication
+
+John Deere **Operations Center** platform APIs use **OAuth 2.0** with the **authorization code** grant for interactive users.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Obtain your **Application ID** and **Secret** from the application **Security** section. Register **Redirect URIs** (for example `http://localhost:9090/callback`) exactly as used in the OAuth flow.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Discover authorization and token endpoints:
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Send the user to authorize with the scopes your integration needs (do not request every scope—only what your API calls require).
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize?response_type=code&scope={scopes}&client_id={clientId}&state={state}&redirect_uri={redirect_uri}
+    ```
+  </Step>
+  <Step title="Exchange the code for an access token">
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    Content-Type: application/x-www-form-urlencoded
+
+    grant_type=authorization_code&code={code}&redirect_uri={redirect_uri}&client_id={client_id}&client_secret={client_secret}
+    ```
+
+    Request **`offline_access`** if you need a **refresh token**. Access tokens typically expire after **12 hours**; refresh before expiry.
+  </Step>
+  <Step title="Enable organization access">
+    After you have a token, complete **Connections** if **GET** `/platform/organizations` returns a `connections` link for an org. Follow Deere’s Connections flow so your app can call organization data (avoid redirect loops; complete once per session where possible).
+  </Step>
+  <Step title="Call DSS with Bearer token">
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+
+    Use **Accept** (and **Content-Type** for writes) **`application/vnd.deere.axiom.v3+json`** for the endpoints on this page.
+  </Step>
+</Steps>
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Endpoints
+
+### Create an event subscription
+
+Creates a subscription and returns subscription data (including **links** such as `user` and `self`).
+
+```text
+POST /platform/eventSubscriptions
+```
+
+<ParamField header="Accept" type="string" required>
+  `application/vnd.deere.axiom.v3+json`
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  `application/vnd.deere.axiom.v3+json`
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptions" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{
+    "eventType": "fieldOperation",
+    "filters": [
+      { "key": "orgId", "values": ["123456"] }
+    ],
+    "targetEndpoint": { "url": "https://api.example.com/receivingEvents" }
+  }'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/eventSubscriptions">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get event subscriptions
+
+Returns **Active**, **Expired**, and **Terminated** subscriptions (paged). Optional: `itemLimit` (multiples of 10, max 100), `pageOffset`.
+
+```text
+GET /platform/eventSubscriptions
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptions?itemLimit=10&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/eventSubscriptions">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get an event subscription
+
+```text
+GET /platform/eventSubscriptions/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Subscription identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptions/550e8400-e29b-41d4-a716-446655440000" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/eventSubscriptions/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update an event subscription
+
+Only **certain fields** are editable (for example status, filters, or target endpoint—confirm with API responses and your use case).
+
+```text
+PUT /platform/eventSubscriptions/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Subscription identifier.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptions/550e8400-e29b-41d4-a716-446655440000" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"status":"Active"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/eventSubscriptions/{id}">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Update event subscription delivery
+
+Updates **client-level** delivery: pause (**status**), **batchSize**, **authorizationHeader**, **concurrency**.
+
+```text
+PATCH /platform/eventSubscriptionDelivery
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request PATCH \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptionDelivery" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"batchSize":20,"status":"Active"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PATCH /platform/eventSubscriptionDelivery">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get event subscription delivery
+
+```text
+GET /platform/eventSubscriptionDelivery
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/eventSubscriptionDelivery" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/eventSubscriptionDelivery">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### List all event types
+
+```text
+GET /platform/eventTypes
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/eventTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/eventTypes">
+  Test this endpoint interactively with your access token.
+</Card>
+
+---
+
+### Get an event type definition
+
+```text
+GET /platform/eventTypes/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Event type identifier or name (as returned by the list endpoint).
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/eventTypes/fieldOperation" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/eventTypes/{id}">
+  Test this endpoint interactively with your access token.
+</Card>

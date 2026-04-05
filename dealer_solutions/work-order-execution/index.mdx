@@ -1,0 +1,108 @@
+---
+title: "Work Order Execution API"
+description: "Create and manage digital work orders and service estimates with smaller, task-focused reference sections."
+---
+
+## Overview
+
+The Work Order Execution microservice lets dealers and technicians create digital **work orders** and **service quotes**, then manage the segments, checklists, jobs, parts, labor, notifications, and reports that support those workflows.
+
+This section is split into smaller pages so the docs load faster and each workflow is easier to maintain.
+
+<CardGroup cols={2}>
+  <Card title="Shared resources" icon="database">
+    Access supporting endpoints for customers, features, equipment data, images, translations, and diagnostics.
+  </Card>
+  <Card title="Service quotes" icon="file-invoice">
+    Create estimates, group them by service area, send notifications, and generate reports.
+  </Card>
+  <Card title="Quote execution details" icon="clipboard-list">
+    Manage service quote segments, checklists, jobs, and part-level work.
+  </Card>
+  <Card title="Work orders" icon="wrench">
+    Run the core work order lifecycle, including updates, patch flows, outbound messaging, and summary documents.
+  </Card>
+  <Card title="Work order execution details" icon="screwdriver-wrench">
+    Handle work order segments, actions, technician tasks, images, parts, and labor resources.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using the authorization code flow or client credentials. These endpoints require the **axiom** scope.
+  </Card>
+</CardGroup>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions APIs use **OAuth 2.0**. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine integrations.
+
+**OAuth scope required for these endpoints:** `axiom` (unless your product documentation specifies a different scope).
+
+### Client credentials (machine-to-machine)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Register your application to receive a **Client Key** and **Client Secret**. All API requests are signed with these credentials.
+
+    In the Security section of your application, add at least one Callback URL (Redirect URI). You may use a placeholder such as `https://localhost:9090/callback` if a redirect URI is not required for your flow.
+  </Step>
+  <Step title="Call the well-known URL">
+    Discover the authorization and token endpoints, and the scopes available for your integration.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    POST to the token endpoint using the `client_credentials` grant. Place your Client Key and Secret in the HTTP `Authorization` header using HTTP Basic Auth, not in the request body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&scope=axiom
+    ```
+  </Step>
+  <Step title="Call the API with your access token">
+    Include the token in the `Authorization` header of every request.
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+### Authorization code (interactive users)
+
+For three-legged OAuth, send `response_type=code` with your client ID, URL-encoded redirect URI, `state`, and required scopes (including `axiom`). Exchange the authorization code at the token endpoint. Request `offline_access` if you need a refresh token.
+
+<Note>
+  If callback URLs do not sync correctly, users may see a **400 Bad Redirect** after authentication. Save redirect URIs on Developer.Deere.com and contact support if redirects fail in testing.
+</Note>
+
+---
+
+## Base URL
+
+```
+https://expertappapi-sandbox.deere.com
+```
+
+API paths for this microservice are rooted under `/delsol/workorder-micro-v2`.
+
+---
+
+## Sections
+
+Use the subsections in this group to open a smaller API reference focused on the workflow you are integrating.

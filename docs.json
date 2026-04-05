@@ -20,6 +20,11 @@
         "openapi": [
             "openapi/dealer-data-feed.json",
             "openapi/dealer-data-hub.json",
+            "openapi/work-order-execution-shared-resources.json",
+            "openapi/work-order-execution-service-quotes.json",
+            "openapi/work-order-execution-service-quote-segments.json",
+            "openapi/work-order-execution-work-orders.json",
+            "openapi/work-order-execution-work-order-segments.json",
             "openapi/dealer-invoice-update.json",
             "openapi/dealer-location-update.json",
             "openapi/retrieve-claim.json",
@@ -34,6 +39,8 @@
             "openapi/submit-delivery-receipt.json",
             "openapi/supplier-part-quoting.json",
             "openapi/valid-part.json",
+            "openapi/valid-pin.json",
+            "openapi/warranty-claim-attachment.json",
             "openapi/oca-crm.json",
             "openapi/merchant-integration.json",
             "openapi/merchant-incentives.json",
@@ -43,15 +50,24 @@
             "openapi/maintain-quotes.json",
             "openapi/market-share.json",
             "openapi/po-data.json",
+            "openapi/connection-management.json",
+            "openapi/data-subscription-service.json",
             "openapi/om-equipment.json",
+            "openapi/operations-center-equipment.json",
+            "openapi/operations-center-equipment-measurements.json",
+            "openapi/operations-center-machine-alerts.json",
+            "openapi/operations-center-machine-engine-hours.json",
+            "openapi/operations-center-machine-hours-of-operation.json",
+            "openapi/operations-center-machine-locations.json",
+            "openapi/operations-center-device-state-reports.json",
             "openapi/quote-vendor-services.json",
             "openapi/transaction-pricing.json",
             "openapi/dealer-syndication-service.json",
             "openapi/business-integration-disregard.json",
             "openapi/expert-services.json",
+            "openapi/iso-15143-3-aemp.json",
             "openapi/service-admin-dms.json",
-            "openapi/service-data-product-pops.json",
-            "openapi/work-order-executions.json"
+            "openapi/service-data-product-pops.json"
         ],
         "playground": {
             "display": "interactive"
@@ -363,14 +379,20 @@
                                         ]
                                     }
                                 ]
-                            },
+                            }
+                        ]
+                    },
+                    {
+                        "group": "Work Order Execution",
+                        "pages": [
+                            "dealer_solutions/work-order-execution/index",
                             {
-                                "group": "Work Order Executions",
-                                "root": "dealer_solutions/service/work-order-executions",
+                                "group": "Shared Resources",
+                                "root": "dealer_solutions/work-order-execution/shared-resources",
                                 "pages": [
                                     {
                                         "group": "API Reference",
-                                        "openapi": "openapi/work-order-executions.json",
+                                        "openapi": "openapi/work-order-execution-shared-resources.json",
                                         "pages": [
                                             "GET /delsol/workorder-micro-v2/api/customer/dbsCustomer",
                                             "GET /delsol/workorder-micro-v2/api/features",
@@ -386,6 +408,23 @@
                                             "GET /delsol/workorder-micro-v2/api/machines/{serialNumber}/warrantydetails",
                                             "GET /delsol/workorder-micro-v2/api/segments/{id}",
                                             "GET /delsol/workorder-micro-v2/api/segments",
+                                            "GET /delsol/workorder-micro-v2/api/translations/locales",
+                                            "POST /delsol/workorder-micro-v2/api/translations/update",
+                                            "GET /delsol/workorder-micro-v2/api/translations",
+                                            "GET /delsol/workorder-micro-v2/api/undercarriage",
+                                            "GET /delsol/workorder-micro-v2/testharness"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Service Quotes",
+                                "root": "dealer_solutions/work-order-execution/service-quotes",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/work-order-execution-service-quotes.json",
+                                        "pages": [
                                             "POST /delsol/workorder-micro-v2/api/servicequotes/byId",
                                             "GET /delsol/workorder-micro-v2/api/servicequotes/groupByServiceArea",
                                             "GET /delsol/workorder-micro-v2/api/servicequotes/{id}",
@@ -397,6 +436,20 @@
                                             "PUT /delsol/workorder-micro-v2/api/servicequotes/{id}/notification",
                                             "PUT /delsol/workorder-micro-v2/api/servicequotes/{id}/patch",
                                             "PUT /delsol/workorder-micro-v2/api/servicequotes/{id}/report",
+                                            "GET /delsol/workorder-micro-v2/api/servicequotes",
+                                            "POST /delsol/workorder-micro-v2/api/servicequotes"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Service Quote Segments",
+                                "root": "dealer_solutions/work-order-execution/service-quote-segments",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/work-order-execution-service-quote-segments.json",
+                                        "pages": [
                                             "GET /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments",
                                             "POST /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments",
                                             "POST /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/adHoc",
@@ -430,9 +483,19 @@
                                             "PATCH /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/{segmentId}/jobs/{jobId}/parts/{partId}",
                                             "GET /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/{segmentId}/jobs/{jobId}/parts",
                                             "PUT /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/{segmentId}/jobs/{jobId}/parts",
-                                            "POST /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/{segmentId}/jobs/{jobId}/parts",
-                                            "GET /delsol/workorder-micro-v2/api/servicequotes",
-                                            "POST /delsol/workorder-micro-v2/api/servicequotes",
+                                            "POST /delsol/workorder-micro-v2/api/servicequotes/{serviceQuoteId}/segments/{segmentId}/jobs/{jobId}/parts"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Work Orders",
+                                "root": "dealer_solutions/work-order-execution/work-orders",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/work-order-execution-work-orders.json",
+                                        "pages": [
                                             "POST /delsol/workorder-micro-v2/api/workorders/byId",
                                             "GET /delsol/workorder-micro-v2/api/workorders/groupByServiceArea",
                                             "GET /delsol/workorder-micro-v2/api/workorders/{id}",
@@ -445,6 +508,20 @@
                                             "PUT /delsol/workorder-micro-v2/api/workorders/{id}/notification",
                                             "PUT /delsol/workorder-micro-v2/api/workorders/{id}/patch",
                                             "PUT /delsol/workorder-micro-v2/api/workorders/{id}/report",
+                                            "GET /delsol/workorder-micro-v2/api/workorders",
+                                            "POST /delsol/workorder-micro-v2/api/workorders"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Work Order Segments",
+                                "root": "dealer_solutions/work-order-execution/work-order-segments",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/work-order-execution-work-order-segments.json",
+                                        "pages": [
                                             "POST /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/adHoc",
                                             "POST /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/byId",
                                             "GET /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/groupByServiceArea",
@@ -490,14 +567,7 @@
                                             "GET /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/laborResources/{laborResourceId}",
                                             "PUT /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/laborResources/{laborResourceId}",
                                             "GET /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments",
-                                            "POST /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments",
-                                            "GET /delsol/workorder-micro-v2/api/workorders",
-                                            "POST /delsol/workorder-micro-v2/api/workorders",
-                                            "GET /delsol/workorder-micro-v2/api/translations/locales",
-                                            "POST /delsol/workorder-micro-v2/api/translations/update",
-                                            "GET /delsol/workorder-micro-v2/api/translations",
-                                            "GET /delsol/workorder-micro-v2/api/undercarriage",
-                                            "GET /delsol/workorder-micro-v2/testharness"
+                                            "POST /delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments"
                                         ]
                                     }
                                 ]
@@ -570,6 +640,35 @@
                                             "GET /digcust/wy/cert/{applicationId}/PartsSet('{PartNum}')",
                                             "GET /digcust/wy/cert/{applicationId}/PartsSet",
                                             "POST /digcust/wy/cert/{applicationId}/$batch"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Valid Pin",
+                                "root": "dealer_solutions/warranty/valid-pin",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/valid-pin.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/PinsSet('{Pin}')",
+                                            "POST /digcust/wy/cert/{applicationId}/$batch"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Warranty Claim Attachment",
+                                "root": "dealer_solutions/warranty/warranty-claim-attachment",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/warranty-claim-attachment.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/AttachmentCollection",
+                                            "POST /digcust/wy/cert/{applicationId}/AttachmentCollection",
+                                            "GET /digcust/wy/cert/{applicationId}/AttachmentCollection(SerialNumber={SerialNumber},ObjectKey='{ObjectKey}',FileName='{FileName}',ClassName='{ClassName}',ClassType='{ClassType}')"
                                         ]
                                     }
                                 ]
@@ -789,13 +888,165 @@
                     {
                         "group": "Application",
                         "pages": [
-                            "precision_tech/application/index"
+                            {
+                                "group": "Connection Management",
+                                "root": "precision_tech/application/connection-management",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/connection-management.json",
+                                        "pages": [
+                                            "GET /platform/connections",
+                                            "DELETE /platform/connections/{connectionId}",
+                                            "DELETE /platform/organizations/{orgId}/connections"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Data Subscription Service (Webhook)",
+                                "root": "precision_tech/application/data-subscription-service",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/data-subscription-service.json",
+                                        "pages": [
+                                            "POST /platform/eventSubscriptions",
+                                            "GET /platform/eventSubscriptions",
+                                            "GET /platform/eventSubscriptions/{id}",
+                                            "PUT /platform/eventSubscriptions/{id}",
+                                            "PATCH /platform/eventSubscriptionDelivery",
+                                            "GET /platform/eventSubscriptionDelivery",
+                                            "GET /platform/eventTypes",
+                                            "GET /platform/eventTypes/{id}"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
                         "group": "Equipment",
                         "pages": [
-                            "precision_tech/equipment/index"
+                            {
+                                "group": "ISO 15143-3 (AEMP 2.0)",
+                                "root": "precision_tech/equipment/iso-15143-3-aemp",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/iso-15143-3-aemp.json",
+                                        "pages": [
+                                            "GET /Fleet/{pageNumber}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Equipment",
+                                "root": "precision_tech/equipment/operations-center-equipment",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-equipment.json",
+                                        "pages": [
+                                            "GET /isg/equipment",
+                                            "POST /isg/organizations/{organizationId}/equipment",
+                                            "GET /isg/equipment/{id}",
+                                            "PUT /isg/equipment/{id}",
+                                            "DELETE /isg/equipment/{id}",
+                                            "GET /isg/equipmentMakes",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}/equipmentTypes",
+                                            "GET /isg/equipmentTypes",
+                                            "GET /isg/equipmentModels",
+                                            "GET /isg/equipmentISGTypes",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels",
+                                            "GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels/{equipmentModelId}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Equipment Measurements",
+                                "root": "precision_tech/equipment/operations-center-equipment-measurements",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-equipment-measurements.json",
+                                        "pages": [
+                                            "POST /isg/organizations/{organizationId}/equipment/{principalId}/measurements"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Machine Alerts",
+                                "root": "precision_tech/equipment/operations-center-machine-alerts",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-machine-alerts.json",
+                                        "pages": [
+                                            "GET /platform/machines/{principalId}/alerts"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Machine Engine Hours",
+                                "root": "precision_tech/equipment/operations-center-machine-engine-hours",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-machine-engine-hours.json",
+                                        "pages": [
+                                            "GET /platform/machines/{principalId}/engineHours"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Machine Hours of Operation",
+                                "root": "precision_tech/equipment/operations-center-machine-hours-of-operation",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-machine-hours-of-operation.json",
+                                        "pages": [
+                                            "GET /platform/machines/{principalId}/hoursOfOperation"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Machine Locations",
+                                "root": "precision_tech/equipment/operations-center-machine-locations",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-machine-locations.json",
+                                        "pages": [
+                                            "GET /platform/machines/{principalId}/locationHistory",
+                                            "GET /platform/machines/{principalId}/breadcrumbs"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Operations Center — Machine Device State Reports",
+                                "root": "precision_tech/equipment/operations-center-device-state-reports",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-device-state-reports.json",
+                                        "pages": [
+                                            "GET /platform/machines/{principalId}/deviceStateReports"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {

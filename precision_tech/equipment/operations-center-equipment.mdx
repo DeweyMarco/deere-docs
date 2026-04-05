@@ -1,0 +1,608 @@
+---
+title: "Operations Center — Equipment"
+description: "List, create, and manage machines and implements; resolve make, ISG type, and model IDs for Operations Center."
+---
+
+## Overview
+
+The **Operations Center Equipment API** exposes **machines**, **implements**, and **devices**: hardware used for work, optionally paired with other equipment and telematic components. Use it to read equipment your users can access, create third-party managed equipment, and look up **make**, **ISG type**, and **model** ids from John Deere’s reference data before you post equipment or measurements.
+
+<CardGroup cols={2}>
+  <Card title="Machines & implements" icon="tractor">
+    Filter and list equipment, or create and update records tied to an organization.
+  </Card>
+  <Card title="Reference data" icon="database">
+    Walk makes → ISG types → models, or search models by name with `embed`.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Read operations use `eq1`; create, update, and delete use `eq2`.
+  </Card>
+  <Card title="Collections & paging" icon="list">
+    Collection responses use **CollectionPage** with `itemLimit` and `pageOffset`.
+  </Card>
+</CardGroup>
+
+### Concepts
+
+- **Machine** — Motorized equipment (self-propelled or towed); may pair with implements.
+- **Implement** — Work equipment that pairs with a machine (planter, corn head, boom, and similar).
+- **Device** — Software-driven components (modem, display, receiver); details may appear when paired.
+
+### Equipment make, type, and model
+
+Responses from the reference endpoints supply **ids** for makes, **ISG types**, and **models** for use in **POST** `/organizations/{organizationId}/equipment`. For uploading measurements for third-party equipment, see the **Equipment Measurements** API in Dev Docs.
+
+### Related resources
+
+| Resource | Purpose |
+| --- | --- |
+| Equipment Measurements | POST speed, GPS, engine state, odometer, engine hours for third-party equipment. |
+| Alerts | DTCs / diagnostic trouble codes from the telematics terminal. |
+| Device State Reports | Telematics device state and connectivity for a date range. |
+| Engine Hours | Last reported engine hours with timestamp and source. |
+| Hours of Operation | Engine on/off durations over a range; last known state. |
+| Breadcrumbs | Detailed locations and sensor data while working. |
+| Location History | Lat/long/alt on device call intervals. |
+
+---
+
+## Getting started
+
+1. **Resolve model ids** — **GET** `/equipmentMakes` → **GET** `/equipmentMakes/{id}/equipmentISGTypes` → **GET** `/equipmentMakes/{id}/equipmentISGTypes/{id}/equipmentModels`. Or **GET** `/equipmentModels?equipmentModelName=…&embed=make,isgType`.
+2. **Create equipment** — **POST** `/organizations/{orgId}/equipment` with `@type` **Machine** or **Implement**, `name`, optional `serialNumber`, and `model` ids.
+3. **Send measurements** — Use the **Equipment Measurements (POST)** API as documented separately.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched or unregistered callbacks can produce **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes**, **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (refresh tokens expire after **365 days** without use).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production equivalent). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops. See OAuth documentation for the full flow.
+  </Step>
+  <Step title="Call the Equipment API">
+    Send **`Authorization: Bearer {token}`** on every request. Request only the scopes your app needs (for example **`eq1`** for read, **`eq2`** for create/update/delete equipment).
+  </Step>
+</Steps>
+
+### Scopes used by this API
+
+| Scope | Typical use |
+| --- | --- |
+| `eq1` | View equipment and reference data (**GET** list/detail and makes/types/models). |
+| `eq2` | Create, update, or delete equipment contributed via this API (**POST**, **PUT**, **DELETE**). |
+| `offline_access` | Refresh tokens (optional). |
+
+---
+
+## Compression
+
+Send **`Accept-Encoding: gzip`** to receive gzip-compressed responses when supported.
+
+```http
+GET https://equipmentapi.deere.com/isg/equipment
+Accept: application/json
+Accept-Encoding: gzip
+```
+
+---
+
+## Paging
+
+Collection responses use a **CollectionPage** shape: **`total`**, **`links`** (e.g. `nextPage` / `previousPage`), and **`values`**. Default page size is **10**. Use **`itemLimit`** (multiples of 10, up to **100**) and **`pageOffset`** to page through results.
+
+---
+
+## Base URL
+
+```text
+https://equipmentapi.deere.com
+```
+
+All paths in this document are under the **`/isg/`** prefix (for example **`/isg/equipment`**).
+
+---
+
+## Endpoints
+
+### Get equipment
+
+Returns equipment for organizations the user has connected to your application. You can filter by organization, **machine** vs **implement**, serial numbers, **archived** state, and paging parameters. Requesting organizations the user cannot access can return **403 Forbidden** for the entire call.
+
+```text
+GET /isg/equipment
+```
+
+<ParamField query="organizationIds" type="string">
+  Optional filter by organization id(s), as supported by the API.
+</ParamField>
+
+<ParamField query="category" type="string">
+  Optional: `machine` or `implement`.
+</ParamField>
+
+<ParamField query="serialNumbers" type="string">
+  Optional serial number filter.
+</ParamField>
+
+<ParamField query="archived" type="boolean">
+  Optional filter for archived equipment.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipment?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipment">
+  Interactive reference for **GET** `/isg/equipment`.
+</Card>
+
+---
+
+### Create equipment
+
+Creates a **Machine** or **Implement** in the given organization. **201 Created** returns a **`Location`** header whose last segment is the new equipment id. Duplicate **`serialNumber`** in the same org returns **400 Bad Request**.
+
+```text
+POST /isg/organizations/{organizationId}/equipment
+```
+
+<ParamField path="organizationId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+#### Body fields
+
+<ParamField body="@type" type="string" required>
+  `Machine` or `Implement`.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name in Operations Center (30 characters or fewer; unique within the org).
+</ParamField>
+
+<ParamField body="serialNumber" type="string">
+  Optional; 30 characters or fewer; unique within the org when set.
+</ParamField>
+
+<ParamField body="model" type="array" required>
+  Array containing at least one **`EquipmentModel`** object with **`id`** from the reference APIs.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://equipmentapi.deere.com/isg/organizations/283480/equipment" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"@type":"Machine","name":"Equipment Name","serialNumber":"must_be_unique_string","model":[{"@type":"EquipmentModel","id":66280}]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /isg/organizations/{organizationId}/equipment">
+  Interactive reference for **POST** `/isg/organizations/{organizationId}/equipment`.
+</Card>
+
+---
+
+### View equipment details by Id
+
+```text
+GET /isg/equipment/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Equipment id.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipment/12345" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipment/{id}">
+  Interactive reference for **GET** `/isg/equipment/{id}`.
+</Card>
+
+---
+
+### Update equipment
+
+Only equipment created through **POST** `/organizations/{organizationId}/equipment` can be updated via the API.
+
+```text
+PUT /isg/equipment/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Equipment id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://equipmentapi.deere.com/isg/equipment/12345" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{"@type":"Machine","name":"Updated Name","model":[{"@type":"EquipmentModel","id":66280}]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /isg/equipment/{id}">
+  Interactive reference for **PUT** `/isg/equipment/{id}`.
+</Card>
+
+---
+
+### Delete equipment
+
+Only equipment created through **POST** can be deleted via the API.
+
+```text
+DELETE /isg/equipment/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Equipment id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://equipmentapi.deere.com/isg/equipment/12345" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /isg/equipment/{id}">
+  Interactive reference for **DELETE** `/isg/equipment/{id}`.
+</Card>
+
+---
+
+### Get equipment makes
+
+```text
+GET /isg/equipmentMakes
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes">
+  Interactive reference for **GET** `/isg/equipmentMakes`.
+</Card>
+
+---
+
+### View equipment by make Id
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}
+```
+
+<ParamField path="equipmentMakeId" type="string" required>
+  Equipment make id.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}`.
+</Card>
+
+---
+
+### Get equipment types by make id (deprecated)
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}/equipmentTypes
+```
+
+Deprecated — prefer **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes`.
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}/equipmentTypes">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentTypes`.
+</Card>
+
+---
+
+### Get equipment types (deprecated)
+
+```text
+GET /isg/equipmentTypes
+```
+
+Deprecated — use **GET** `/isg/equipmentISGTypes` or make-scoped ISG type endpoints.
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentTypes">
+  Interactive reference for **GET** `/isg/equipmentTypes`.
+</Card>
+
+---
+
+### Get equipment models
+
+Search or list models. Example: `equipmentModelName=9RX*&embed=make,isgType` to include make and ISG type ids.
+
+```text
+GET /isg/equipmentModels
+```
+
+<ParamField query="equipmentModelName" type="string">
+  Search string (wildcards may be supported).
+</ParamField>
+
+<ParamField query="embed" type="string">
+  Comma-separated embeds such as `make`, `isgType`.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentModels?equipmentModelName=9RX%2A&embed=make%2CisgType" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentModels">
+  Interactive reference for **GET** `/isg/equipmentModels`.
+</Card>
+
+---
+
+### Get equipment ISG types
+
+```text
+GET /isg/equipmentISGTypes
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentISGTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentISGTypes">
+  Interactive reference for **GET** `/isg/equipmentISGTypes`.
+</Card>
+
+---
+
+### Get equipment ISG types by make id
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes
+```
+
+<ParamField path="equipmentMakeId" type="string" required>
+  Equipment make id.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes`.
+</Card>
+
+---
+
+### Get equipment ISG type by make id and ISG type id
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}
+```
+
+<ParamField path="equipmentMakeId" type="string" required>
+  Equipment make id.
+</ParamField>
+
+<ParamField path="equipmentISGTypeId" type="string" required>
+  ISG type id.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}`.
+</Card>
+
+---
+
+### Get equipment models by make id and ISG type id
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100/equipmentModels" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels`.
+</Card>
+
+---
+
+### Get equipment model by make id, ISG type id and model id
+
+```text
+GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels/{equipmentModelId}
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100/equipmentModels/66280" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels/{equipmentModelId}">
+  Interactive reference for **GET** `/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels/{equipmentModelId}`.
+</Card>
+
+---
+
+## Common error codes
+
+| Code | Meaning |
+| --- | --- |
+| **400** | Invalid body, or invalid refresh token on OAuth token calls. |
+| **401** | Missing license, expired token, or failed server authorization. |
+| **403** | Access denied, missing scopes, restricted org, or invalid multi-org filter on **GET** `/isg/equipment`. |
+| **404** | Resource id not found or no longer valid. |
+| **429** | Rate limited; honor **`Retry-After`** when present. |
+| **503** | Service unavailable; backoff or retry per **`Retry-After`**. |
+
+For OAuth details, organization connections, and Postman setup, see the broader **OAuth 2** and **Precision Tech** documentation on Developer.Deere.com.

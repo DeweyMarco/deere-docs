@@ -1,0 +1,888 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Data Subscription Service (Webhook)",
+    "description": "**Data Subscription Service (DSS)** delivers **webhook-style** notifications when subscribed data changes. Create **event subscriptions** with optional **filters**; when a matching change occurs, DSS **POSTs** an event payload to your **target endpoint**. Each event includes links back to the underlying resources so you can avoid polling.\n\n**Consumer API:** You implement an HTTPS endpoint that returns **204 No Content** within **5 seconds** to acknowledge delivery. DSS sends a **subscriptionVerification** event when you create a subscription to validate that endpoint.\n\nUse **Accept** and **Content-Type** `application/vnd.deere.axiom.v3+json` for platform requests.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0 **authorization code** flow for Operations Center users. Request scopes that match the APIs your subscriptions depend on. To create a subscription for an event, your client must have access to that event's associated API. Include `offline_access` if you need a refresh token.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "org1": "Organization Management Access Level 1",
+              "org2": "Organization Management Access Level 2",
+              "eq1": "Equipment Access Level 1",
+              "eq2": "Equipment Access Level 2",
+              "ag1": "Locations Access Level 1",
+              "ag2": "Locations Access Level 2",
+              "ag3": "Locations Access Level 3",
+              "files": "Files API Access",
+              "finance1": "Financial Access Level 1",
+              "finance2": "Financial Access Level 2",
+              "work1": "Work and Crop Plans Access Level 1",
+              "work2": "Work and Crop Plans Access Level 2"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AxiomLink": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Link"
+          },
+          "rel": {
+            "type": "string",
+            "example": "self"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/eventSubscriptions/550e8400-e29b-41d4-a716-446655440000"
+          }
+        }
+      },
+      "SubscriptionFilter": {
+        "type": "object",
+        "description": "Exact-match filter. Multiple values in one filter use OR; multiple filters use AND. Regex and wildcards are not supported.",
+        "required": ["key", "values"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Filter key (depends on event type; e.g. orgId for fieldOperation).",
+            "example": "orgId"
+          },
+          "values": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "description": "Values to include (OR within this filter).",
+            "example": ["123456", "654321"]
+          }
+        }
+      },
+      "TargetEndpoint": {
+        "type": "object",
+        "description": "HTTPS URL where DSS POSTs subscription events. Must respond with 204 No Content when validated.",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Publicly reachable HTTPS URL for your Consumer API.",
+            "example": "https://api.example.com/receivingEvents"
+          }
+        }
+      },
+      "EventSubscriptionCreate": {
+        "type": "object",
+        "description": "Fields accepted when creating an event subscription (Axiom resource shape may include additional properties).",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "description": "Event type to subscribe to (see GET /platform/eventTypes).",
+            "example": "fieldOperation"
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionFilter"
+            }
+          },
+          "targetEndpoint": {
+            "$ref": "#/components/schemas/TargetEndpoint"
+          },
+          "authorizationToken": {
+            "type": "string",
+            "description": "Optional per-subscription token included in the event body for your server to verify messages.",
+            "example": "opaque-subscription-secret"
+          }
+        }
+      },
+      "EventSubscription": {
+        "type": "object",
+        "description": "A single event subscription resource.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "EventSubscription"
+          },
+          "id": {
+            "type": "string",
+            "description": "Subscription identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "eventType": {
+            "type": "string",
+            "example": "fieldOperation"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Expired", "Terminated"],
+            "description": "Active subscriptions deliver events. Terminated is permanently off. Expired can be switched back to Active."
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionFilter"
+            }
+          },
+          "targetEndpoint": {
+            "$ref": "#/components/schemas/TargetEndpoint"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "EventSubscriptionUpdate": {
+        "type": "object",
+        "description": "Editable fields for PUT (only certain fields are mutable per platform rules).",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Expired", "Terminated"]
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionFilter"
+            }
+          },
+          "targetEndpoint": {
+            "$ref": "#/components/schemas/TargetEndpoint"
+          },
+          "authorizationToken": {
+            "type": "string"
+          }
+        }
+      },
+      "EventSubscriptionCollection": {
+        "type": "object",
+        "description": "Paged collection of event subscriptions (Axiom CollectionPage).",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "CollectionPage"
+          },
+          "total": {
+            "type": "integer",
+            "example": 42
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventSubscription"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "EventSubscriptionDelivery": {
+        "type": "object",
+        "description": "Client-level delivery settings: batch size, optional Authorization header value, concurrency, and pause state.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "EventSubscriptionDelivery"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Paused"],
+            "description": "Paused delivery accumulates events for up to 7 days, then events may be lost."
+          },
+          "batchSize": {
+            "type": "integer",
+            "description": "Max events per POST to your target URL (default 10).",
+            "example": 10
+          },
+          "authorizationHeader": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional value for the HTTP Authorization header on outbound event POSTs (max 4 KB). PATCH to null to disable.",
+            "example": "Bearer your-service-token"
+          },
+          "concurrency": {
+            "type": "integer",
+            "description": "Concurrent delivery requests per client key toward the same destination URL (default 1).",
+            "example": 1
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "EventSubscriptionDeliveryPatch": {
+        "type": "object",
+        "description": "Fields you may update on delivery settings.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Paused"]
+          },
+          "batchSize": {
+            "type": "integer"
+          },
+          "authorizationHeader": {
+            "type": "string",
+            "nullable": true
+          },
+          "concurrency": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventTypeSummary": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "EventType"
+          },
+          "name": {
+            "type": "string",
+            "example": "fieldOperation"
+          },
+          "description": {
+            "type": "string",
+            "example": "Notifies the subscriber of modifications to field operations data."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "EventTypeCollection": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "CollectionPage"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventTypeSummary"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "EventTypeDefinition": {
+        "type": "object",
+        "description": "Detailed metadata for one event type, including required filter keys when applicable.",
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "EventType"
+          },
+          "name": {
+            "type": "string",
+            "example": "fieldOperation"
+          },
+          "description": {
+            "type": "string"
+          },
+          "triggeredBy": {
+            "type": "string",
+            "description": "What causes this event to fire.",
+            "example": "The addition, modification, or deletion of field operations data."
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxiomLink"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "Target endpoint validation failed."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/platform/eventSubscriptions": {
+      "post": {
+        "operationId": "createEventSubscription",
+        "summary": "Create an event subscription",
+        "description": "Creates an **event subscription** for the authorized user. The response includes **links** to `user` and `self`. To subscribe, your client must have API access for the event's underlying data.\n\nIf your **target endpoint** does not return **204** within **5 seconds** during validation, subscription creation may fail with **400**.\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/eventSubscriptions`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSubscriptionCreate"
+              },
+              "example": {
+                "eventType": "fieldOperation",
+                "filters": [
+                  {
+                    "key": "orgId",
+                    "values": ["123456"]
+                  },
+                  {
+                    "key": "fieldOperationType",
+                    "values": ["seeding"]
+                  }
+                ],
+                "targetEndpoint": {
+                  "url": "https://api.example.com/receivingEvents"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptions' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"eventType\":\"fieldOperation\",\"filters\":[{\"key\":\"orgId\",\"values\":[\"123456\"]}],\"targetEndpoint\":{\"url\":\"https://api.example.com/receivingEvents\"}}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription created; response body lists subscriptions (Axiom).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscriptionCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body or target endpoint failed validation.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing scope or API access for the event type.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listEventSubscriptions",
+        "summary": "Get event subscriptions",
+        "description": "Returns a **paged** list of event subscriptions for the user, including **Active**, **Expired**, and **Terminated**.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/eventSubscriptions`\n\nOptional pagination: `?itemLimit=10` (multiples of 10 up to 100), `?pageOffset=0`.",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size (multiples of 10, max 100).",
+            "schema": {
+              "type": "integer",
+              "example": 10
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Starting offset for pagination.",
+            "schema": {
+              "type": "integer",
+              "example": 0
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptions?itemLimit=10&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged collection of subscriptions.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscriptionCollection"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/eventSubscriptions/{id}": {
+      "get": {
+        "operationId": "getEventSubscription",
+        "summary": "Get an event subscription",
+        "description": "Returns a single subscription by **id**. Response includes **links** to `user` and `self`.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/eventSubscriptions/{id}`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription identifier."
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptions/550e8400-e29b-41d4-a716-446655440000' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscription"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Subscription not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateEventSubscription",
+        "summary": "Update an event subscription",
+        "description": "Updates an existing subscription; **only certain fields** are editable.\n\n**Request URL:** `PUT https://sandboxapi.deere.com/platform/eventSubscriptions/{id}`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSubscriptionUpdate"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptions/550e8400-e29b-41d4-a716-446655440000' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"status\":\"Active\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated subscription.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/eventSubscriptionDelivery": {
+      "get": {
+        "operationId": "getEventSubscriptionDelivery",
+        "summary": "Get event subscription delivery",
+        "description": "Returns **delivery status and settings** for your client key (batching, authorization header, pause state).\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/eventSubscriptionDelivery`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptionDelivery' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current delivery configuration.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscriptionDelivery"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateEventSubscriptionDelivery",
+        "summary": "Update event subscription delivery",
+        "description": "Updates **client-level** delivery: **status** (pause), **batch size**, **Authorization** header value (max 4 KB), or **concurrency**. Set **authorizationHeader** to **null** to stop sending the header.\n\nConsider setting the **Authorization** header before the first subscription to avoid race conditions with **subscriptionVerification** events.\n\n**Request URL:** `PATCH https://sandboxapi.deere.com/platform/eventSubscriptionDelivery`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSubscriptionDeliveryPatch"
+              },
+              "example": {
+                "status": "Active",
+                "batchSize": 10,
+                "authorizationHeader": "Bearer your-service-token",
+                "concurrency": 1
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\n  --url 'https://sandboxapi.deere.com/platform/eventSubscriptionDelivery' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"batchSize\":20,\"status\":\"Active\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated delivery settings.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSubscriptionDelivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/eventTypes": {
+      "get": {
+        "operationId": "listEventTypes",
+        "summary": "List all event types",
+        "description": "Returns **all event types** available for subscription and their descriptions.\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/eventTypes`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/eventTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection of event type summaries.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTypeCollection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/eventTypes/{id}": {
+      "get": {
+        "operationId": "getEventTypeDefinition",
+        "summary": "Get an event type definition",
+        "description": "Returns **one event type** and its full description (including applicable **filter** requirements when documented by the service).\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/eventTypes/{id}`",
+        "security": [{ "OAuth2": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Event type identifier or name as returned by the list endpoint.",
+            "schema": {
+              "type": "string",
+              "example": "fieldOperation"
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/eventTypes/fieldOperation' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event type definition.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTypeDefinition"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown event type.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

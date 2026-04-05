@@ -1,0 +1,250 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Machine Alerts API",
+    "description": "Retrieve **alerts** captured on the telematics **terminal** for a machine—conditions such as low fuel pressure, calibration faults, geofence events, and maintenance reminders. Response shape varies by **alert type**; some items include a **`definition`** object with additional detail.\n\n**Media type:** Use **`Accept: application/vnd.deere.axiom.v3+json`**.\n\n**eTags:** This endpoint **does not** support John Deere’s `x-deere-signature` / eTag optimization—do not rely on conditional requests for change detection.\n\n**Collections:** List responses typically use the **CollectionPage** wrapper (`total`, `links`, `values`) with default paging (`itemLimit`, `pageOffset`) like other platform APIs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Alerts",
+      "description": "Machine, geofence, maintenance, and related alerts from the display/terminal."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. This endpoint requires **`eq1`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and related alerts",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link**). Alert responses often include a **`machine`** link.",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": {
+            "type": "string",
+            "description": "Link relation, e.g. `self`, `machine`, `nextPage`.",
+            "example": "machine"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/machines/12345"
+          }
+        }
+      },
+      "AlertDefinition": {
+        "type": "object",
+        "description": "Optional structured detail for an alert when returned by the service. Fields depend on alert type.",
+        "additionalProperties": true,
+        "example": {
+          "code": "E123",
+          "description": "Fuel pressure below threshold"
+        }
+      },
+      "MachineAlert": {
+        "type": "object",
+        "description": "A single alert record. Types include **machine**, **geofence**, and **maintenance**; available properties differ. Use **`links`** (e.g. `machine`) to retrieve related resources.",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom resource type discriminator when present.",
+            "example": "Alert"
+          },
+          "severity": {
+            "type": "string",
+            "description": "Normalized severity (may correlate with **color** in the UI).",
+            "enum": ["HIGH", "MEDIUM", "LOW", "INFO", "DTC", "UNKNOWN"],
+            "example": "HIGH"
+          },
+          "color": {
+            "type": "string",
+            "description": "Presentation hint: RED, YELLOW, GRAY, or BLUE (see product documentation for mapping to severity).",
+            "example": "RED"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/AlertDefinition"
+          },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "example": {
+          "@type": "Alert",
+          "severity": "HIGH",
+          "color": "RED",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+            }
+          ]
+        }
+      },
+      "AlertCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of alerts (**CollectionPage** pattern).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of values available for this query.",
+            "example": 3
+          },
+          "links": {
+            "type": "array",
+            "description": "May include `nextPage` / `previousPage` when paginated.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "description": "Alert items for this page.",
+            "items": { "$ref": "#/components/schemas/MachineAlert" }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for 4xx responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/machines/{principalId}/alerts": {
+      "get": {
+        "tags": ["Alerts"],
+        "operationId": "getMachineAlerts",
+        "summary": "List machine alerts",
+        "description": "Returns alerts captured on the **terminal** for the machine identified by **`principalId`** (machine principal / resource id as returned by platform equipment and machine APIs). Alert **types** include machine diagnostics, **geofence**, and **maintenance**; response fields vary by type.\n\n**Please note:** This API **does not** support eTags (`x-deere-signature`).\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/alerts`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Machine **principal id** for the machine whose alerts you are reading (from machine or equipment resources in `/platform`).",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses (recommended for all calls).",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "BCP 47 language tag for **notification text** in the response when the service localizes strings. Examples: `en`, `en-US`, `es`, `pt_BR`. Supported tags include: bg, cs, da, el, en, es, et, fi, fr, hr, hu, is, it, ja, kk, lt, lv, mk, nl, no, pl, pt, pt_BR, ro, ru, sk, sl, sr, sv, th, tr, uk, zh (availability per string may vary).",
+            "schema": { "type": "string", "example": "en" }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/12345/alerts' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Language: en' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — collection of alerts (typically **CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AlertCollectionPage" },
+                "examples": {
+                  "collection": {
+                    "summary": "Paged alerts",
+                    "value": {
+                      "total": 1,
+                      "links": [],
+                      "values": [
+                        {
+                          "@type": "Alert",
+                          "severity": "MEDIUM",
+                          "color": "YELLOW",
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues; check response headers such as **X-Deere-Warning** / **X-Deere-Terms-Location** when present.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    }
+  }
+}

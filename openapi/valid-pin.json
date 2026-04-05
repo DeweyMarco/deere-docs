@@ -1,0 +1,328 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Valid Pin API",
+    "description": "Checks the **validity** of a given **PIN** and returns the result.\n\nThe legacy SOAP **Is Valid Pin** operation maps to this REST API (**Valid Pin API**). Use your **SOAP-to-REST field mapping** and **REST API FAQ** attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Valid Pin API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Valid Pin API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PinEntity": {
+        "type": "object",
+        "description": "OData **Pin** entity from **PinsSet**. Exact properties follow your OData contract and SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "PIN (product identification number or program identifier) when returned.",
+            "example": "1A2B3C4D5E6F7G8H"
+          },
+          "isValid": {
+            "type": "boolean",
+            "description": "Whether the PIN is valid for warranty or program use when exposed by the service.",
+            "example": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Descriptive text when returned by the service.",
+            "example": "Eligible equipment PIN"
+          }
+        }
+      },
+      "ODataBatchResponse": {
+        "type": "string",
+        "format": "binary",
+        "description": "OData **$batch** response as **multipart/mixed** MIME parts (per OData batch protocol)."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "No PIN was found for the supplied key."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/PinsSet('{Pin}')": {
+      "get": {
+        "operationId": "getPinByKey",
+        "summary": "Get entities from related Pins (PinsSet by key)",
+        "description": "Retrieves **Pin** details from **PinsSet** using the OData-style key **Pin** — the REST mapping for validating a PIN.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPIN/PinsSet('1A2B3C4D5E6F7G8H')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WarrantyDBSVALIDPIN`).",
+            "schema": {
+              "type": "string",
+              "example": "WarrantyDBSVALIDPIN"
+            }
+          },
+          {
+            "name": "Pin",
+            "in": "path",
+            "required": true,
+            "description": "PIN in the PinsSet key (OData single-quoted key segment).",
+            "schema": {
+              "type": "string",
+              "example": "1A2B3C4D5E6F7G8H"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPIN/PinsSet('1A2B3C4D5E6F7G8H')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PIN details or validity result for the supplied key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinEntity"
+                },
+                "example": {
+                  "pin": "1A2B3C4D5E6F7G8H",
+                  "isValid": true,
+                  "description": "Eligible equipment PIN"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The PinsSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No PIN found for the supplied key.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No PIN was found for the supplied key."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/$batch": {
+      "post": {
+        "operationId": "postODataBatchValidPin",
+        "summary": "Send a group of requests (OData $batch)",
+        "description": "Groups multiple OData requests into a **single** HTTP request using the **$batch** endpoint. See [OData batch requests](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_BatchRequests). Request and response bodies use **multipart/mixed** per OData batch semantics.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPIN/$batch`\n\n**Accept / Content-Type:** `multipart/mixed` (include a valid MIME **boundary** in the Content-Type header for the request body).\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WarrantyDBSVALIDPIN`).",
+            "schema": {
+              "type": "string",
+              "example": "WarrantyDBSVALIDPIN"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "OData batch request body as **multipart/mixed** (batch boundary and MIME parts per OData specification).",
+          "content": {
+            "multipart/mixed": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WarrantyDBSVALIDPIN/$batch\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/mixed' \\\n  --header 'Content-Type: multipart/mixed; boundary=batch_12345' \\\n  --data-binary @batch-request.mime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch completed; response is **multipart/mixed** containing per-request results.",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Batch accepted (when the service returns 202 for async batch processing).",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed batch payload or boundary.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The batch request could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

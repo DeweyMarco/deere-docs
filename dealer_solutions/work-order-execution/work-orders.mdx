@@ -1,0 +1,27 @@
+---
+title: "Work Order Execution Work Orders"
+description: "Top-level work order lifecycle endpoints for create, list, update, outbound messaging, and reporting."
+---
+
+## Overview
+
+Use these endpoints to manage the main **work order** lifecycle, from creation through patching, notification, and report generation.
+
+<CardGroup cols={2}>
+  <Card title="Create and list" icon="list">
+    Create work orders directly or from an existing identifier, then list or group them by service area.
+  </Card>
+  <Card title="Maintain work orders" icon="wrench">
+    Retrieve, update, patch, delete, or existence-check an individual work order.
+  </Card>
+  <Card title="Outbound communication" icon="paper-plane">
+    Send XML or notification payloads to downstream systems and trigger summary messaging.
+  </Card>
+  <Card title="Reports" icon="file-lines">
+    Generate work order summary reports from the top-level resource.
+  </Card>
+</CardGroup>
+
+<Note>
+  Segment-, checklist-, task-, job-, image-, and labor-level work order operations live in the `Work Order Segments` section.
+</Note>

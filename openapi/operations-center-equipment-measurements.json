@@ -1,0 +1,191 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Equipment Measurements API",
+    "description": "Submit telematics-style **measurements** (speed, GPS, engine state, fuel, and related fields) for **third-party–managed** equipment created through the Operations Center Equipment POST API. Call at the interval your application chooses; accepted payloads return **204 No Content** and typically appear on the Operations Center map within about **30 seconds**.\n\n**Measurements** here means metadata for equipment that is **not** John Deere–connected terminal telematics—equipment created by end users or partner apps in Operations Center.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://equipmentapi.deere.com",
+      "description": "Equipment API (path prefix `/isg/`)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Equipment measurements",
+      "description": "Contribute measurement batches for organization equipment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech APIs. This endpoint requires **`eq2`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq2": "Equipment Access Level 2 — edit equipment and contribute measurements",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "MeasurementItem": {
+        "type": "object",
+        "description": "A single measurement. **`name`** identifies the field; **`value`** must use units your client converts correctly before sending. Include **`unit`** where the API defines one.",
+        "required": ["name", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Measurement identifier. Typical values: `vehicleSpeed`, `heading`, `fuelLevelPercentage`, `latitude`, `longitude`, `engineState`, `odometer`, `engineHours`, `engineSpeed`, `ptoStatus` (match documented spelling for each field).",
+            "example": "vehicleSpeed"
+          },
+          "value": {
+            "description": "Numeric reading, or strings such as `On`/`Off` for `engineState`, or `On`/`Off`/`Fault`/`Unavailable` for `ptoStatus`.",
+            "oneOf": [
+              { "type": "number", "example": 19.5 },
+              { "type": "string", "example": "On" }
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit for interpretation. Examples: `kph` (vehicle speed), `degrees` (heading, latitude, longitude), `percent` (fuel), `km` (odometer), `hours` (engine hours), `RPM` or `rpm` (engine speed).",
+            "example": "kph"
+          }
+        },
+        "example": {
+          "name": "vehicleSpeed",
+          "value": 19.5,
+          "unit": "kph"
+        }
+      },
+      "EquipmentMeasurementBatch": {
+        "type": "object",
+        "description": "One timestamped group of measurements. **`timestamp`** orders batches if they arrive out of order.",
+        "required": ["timestamp", "measurements"],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 time when this set of measurements was recorded.",
+            "example": "2024-05-20T18:44:17.299Z"
+          },
+          "measurements": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MeasurementItem" },
+            "description": "Measurements for this instant (speed, GPS, engine, etc.)."
+          }
+        }
+      },
+      "EquipmentMeasurementsRequestBody": {
+        "type": "array",
+        "description": "One or more timestamped measurement groups. Typically one object per POST.",
+        "items": { "$ref": "#/components/schemas/EquipmentMeasurementBatch" },
+        "example": [
+          {
+            "timestamp": "2024-05-20T18:44:17.299Z",
+            "measurements": [
+              { "name": "vehicleSpeed", "value": 19.5, "unit": "kph" },
+              { "name": "latitude", "value": 41.51655, "unit": "degrees" },
+              { "name": "longitude", "value": -93.502778, "unit": "degrees" },
+              { "name": "engineState", "value": "On" },
+              { "name": "odometer", "value": 132992, "unit": "km" },
+              { "name": "engineHours", "value": 21350.8, "unit": "hours" },
+              { "name": "heading", "value": 89.9, "unit": "degrees" },
+              { "name": "fuelLevelPercentage", "value": 35.7, "unit": "percent" },
+              { "name": "ptoStatus", "value": "On" },
+              { "name": "engineSpeed", "value": 19.5, "unit": "RPM" }
+            ]
+          }
+        ]
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error details for 400 responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/isg/organizations/{organizationId}/equipment/{principalId}/measurements": {
+      "post": {
+        "tags": ["Equipment measurements"],
+        "operationId": "postEquipmentMeasurements",
+        "summary": "Contribute equipment measurements",
+        "description": "Sends metadata for a **third-party–managed** machine or implement in Operations Center. Use the equipment **`principalId`** from **GET** `/isg/equipment` (or the equipment resource after create). Measurements apply only in the equipment’s **current controlling organization**; the API verifies app and user access to that organization.\n\n**204 No Content** means the batch was accepted for processing.\n\n**OAuth scope:** `eq2`\n\n**Request URL:** `POST https://equipmentapi.deere.com/isg/organizations/{organizationId}/equipment/{principalId}/measurements`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id that controls the equipment.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Equipment **principal id** (master record id) from the equipment record. Required—requests without the correct id fail.",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "default": "application/json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": false,
+            "description": "Use `application/json` for the request body.",
+            "schema": { "type": "string", "enum": ["application/json"], "default": "application/json" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/EquipmentMeasurementsRequestBody" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://equipmentapi.deere.com/isg/organizations/283480/equipment/12345/measurements' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '[{\"timestamp\":\"2024-05-20T18:44:17.299Z\",\"measurements\":[{\"name\":\"vehicleSpeed\",\"value\":19.5,\"unit\":\"kph\"},{\"name\":\"latitude\",\"value\":41.51655,\"unit\":\"degrees\"},{\"name\":\"longitude\",\"value\":-93.502778,\"unit\":\"degrees\"},{\"name\":\"engineState\",\"value\":\"On\"}]}]'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success — measurement batch accepted for processing. No response body."
+          },
+          "400": {
+            "description": "Invalid payload: malformed JSON, values that cannot be mapped to the expected types, missing or wrong organization/equipment, or equipment that is **John Deere terminal telematics–managed** (measurements cannot be contributed by other means). See response body for details.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — **license**: no API license for this API, or token missing required scopes (ensure **`eq2`** on the bearer token). **Permission**: client or user lacks access to the organization that controls the equipment. Verify: (1) your client has a connection to the organization, (2) the user on the token can access the organization, (3) connection permissions are at least **equipment level 2** in Operations Center.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

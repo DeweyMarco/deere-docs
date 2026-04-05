@@ -1,0 +1,192 @@
+---
+title: "Operations Center — Machine Hours of Operation"
+description: "Read engine on/off duration segments for a machine over a time range, optional detailed utilization dimensions, and links to the machine resource."
+---
+
+## Overview
+
+The **Hours of Operation** API returns **durations** for which a machine’s **engine** was **on** or **off** during a **specified period**. You can filter by **UTC** **`startDate`** / **`endDate`**, optionally request a single **detailed state** dimension (PTO, utilization, autonomy, and similar), and inspect **`engineState`** on each segment. Each response includes **`links`** (including a **`machine`** link). **When the terminal is powered off, hours of operation are not recorded.** This endpoint **does not** support **`x-deere-signature`** / eTags.
+
+<CardGroup cols={2}>
+  <Card title="Duration segments" icon="timeline">
+    **`values`** list segments with **`startDate`**, **`endDate`**, **`engineState`**, and optional **`detailedState`** labels.
+  </Card>
+  <Card title="Detailed utilization" icon="sliders">
+    Query **`detailedState`** one at a time (for example **FrontWheelDriveActuatorState**) and optionally **`summarizeDuration`** for merge behavior on supported types.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Requires **`eq1`** on the access token.
+  </Card>
+  <Card title="No eTags" icon="link-slash">
+    This API **does not** support **`x-deere-signature`** / eTags.
+  </Card>
+</CardGroup>
+
+### Equipment concepts
+
+- **Implement** — Non–self-propelled equipment paired with a machine (planter, corn head, spray boom, and similar). Implements with modems may appear as **machine** resources today; future changes may model them separately.
+- **EquipmentType** vs **EquipmentApexType** vs **Category** — Prefer **EquipmentType** for broad equipment classification. **EquipmentApexType** supports agriculture displays. **Category** is legacy and may be deprecated.
+
+### Related resources
+
+| Resource | Purpose |
+| --- | --- |
+| Equipment | Machines and implements for an organization or by id. |
+| Alerts | Terminal-captured alerts (diagnostics, geofence, maintenance). |
+| Device state reports | Call-in history and connectivity for a date range. |
+| Engine hours | Last reported engine hour meter reading and source. |
+| Machine breadcrumbs | Location and sensor samples over time. |
+| Machine location history | Latitude, longitude, and altitude over a range. |
+
+---
+
+## Getting started
+
+1. **Authenticate** — Complete OAuth 2.0 authorization code flow and organization connection (see below).
+2. **Resolve `principalId`** — Use the machine **principal id** from **`GET`** `/platform` discovery flows or equipment/machine resources your user can access.
+3. **Call hours of operation** — **`GET`** `/platform/machines/{principalId}/hoursOfOperation` with **`Accept: application/vnd.deere.axiom.v3+json`**, and optional **`startDate`** / **`endDate`** (UTC).
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes** (include **`eq1`** for this API), **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration. Request only the scopes your app needs.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (refresh tokens expire after **365 days** without use).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Hours of Operation API">
+    Send **`Authorization: Bearer {token}`** on every request.
+  </Step>
+</Steps>
+
+### Scope for this endpoint
+
+| Scope | Use |
+| --- | --- |
+| `eq1` | **Required** — Equipment Access Level 1 (view equipment and hours of operation). |
+
+---
+
+## Engine state codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The power-on key is **OFF**. |
+| `1` | The power-on key is **ON**. |
+| `2` | The terminal is **SLEEPING**. |
+| `3` | The terminal is **HIBERNATING**. |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Paths in this document use the **`/platform/`** prefix (for example **`/platform/machines/{principalId}/hoursOfOperation`**). Use the production platform host for production traffic when provided for your integration.
+
+---
+
+## Compression
+
+You may send **`Accept-Encoding: gzip`** when your client supports gzip decompression.
+
+---
+
+## Paging
+
+When the response uses the **CollectionPage** pattern, use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** on the request URL when supported, consistent with other John Deere list APIs. Follow **`nextPage`** / **`previousPage`** links when present.
+
+---
+
+## Endpoints
+
+### Get machine hours of operation
+
+Returns duration segments for which the engine was on or off during the requested window, with **`machine`** links. **Does not** support eTags.
+
+```text
+GET /platform/machines/{principalId}/hoursOfOperation
+```
+
+<ParamField path="principalId" type="string" required>
+  **Principal id** of the machine or equipment.
+</ParamField>
+
+<ParamField query="organizationId" type="string">
+  Organization id of the machine/equipment when scoping to a specific organization context.
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  **UTC** timestamp — include segments **starting from** this instant (for example `2013-04-29T00:00:00Z`).
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  **UTC** timestamp — include segments **before** this instant (for example `2013-04-30T23:30:00Z`).
+</ParamField>
+
+<ParamField query="detailedState" type="string">
+  Send **one** value per request: **RearPTOEngagement**, **GenericMachineUtilization**, **GenericEngineUtilization**, **RoadbuildingMachineState**, **AutonomyMachineState**, or **FrontWheelDriveActuatorState**.
+</ParamField>
+
+<ParamField query="summarizeDuration" type="string">
+  For supported detailed states, merges consecutive **EngagedStates** when closer than this duration (see product documentation for units and behavior).
+</ParamField>
+
+<ParamField header="Accept" type="string" required>
+  Use **`application/vnd.deere.axiom.v3+json`**.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+#### Example response shape
+
+Responses are a **CollectionPage** with **`total`**, **`links`** (often **`self`**), and **`values`**. Each value includes **`startDate`**, **`endDate`**, **`engineState`**, optional **`detailedState`**, and **`links`** (including **`machine`**).
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/machines/5432/hoursOfOperation?organizationId=98765&startDate=2013-04-29T00:00:00Z&endDate=2013-04-30T23:30:00Z&detailedState=FrontWheelDriveActuatorState&summarizeDuration=5" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="200 OK" type="success">
+  Hours-of-operation collection (**CollectionPage** with `values` segments).
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="error">
+  Invalid or expired token, or missing API license—refresh the token or verify application entitlements.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  User or client cannot access the machine, or token lacks **`eq1`**. For organization or terms issues, check **X-Deere-Warning** and **X-Deere-Terms-Location** when present.
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="error">
+  **`principalId`** is not valid for the caller’s current accessible resources.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/machines/{principalId}/hoursOfOperation">
+  Interactive reference for **GET** `/platform/machines/{principalId}/hoursOfOperation`.
+</Card>

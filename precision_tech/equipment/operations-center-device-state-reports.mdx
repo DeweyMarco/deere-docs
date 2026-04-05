@@ -1,0 +1,302 @@
+---
+title: "Operations Center — Machine Device State Reports"
+description: "Read terminal device state reports for a machine—call-in history with engine, power, connectivity, GPS, and antenna diagnostics."
+---
+
+## Overview
+
+The **Machine Device State Reports** API returns **call-in history** from the machine’s **telematics terminal** for a time range. Each **device state report (DSR)** reflects the state of the terminal at a point in time: engine and terminal power, signal strength (RSSI), GPS and network diagnostics, Wi‑Fi and cellular details, antenna types, battery, boot metadata, and related fields. Reports are **terminal-scoped**—one DSR per terminal request in a single-terminal call; multi-terminal flows may return two or more DSRs per request.
+
+<CardGroup cols={2}>
+  <Card title="Terminal call-ins" icon="signal">
+    Each report corresponds to a terminal call-in with connectivity and power context.
+  </Card>
+  <Card title="Machine & terminal links" icon="link">
+    Each DSR may link to **`machine`** and **`terminal`** resources for follow-up calls.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Requires **`eq1`** on the access token.
+  </Card>
+  <Card title="No eTags" icon="link-slash">
+    This endpoint **does not** support **`x-deere-signature`** / eTags—use date ranges or polling for freshness.
+  </Card>
+</CardGroup>
+
+### Equipment concepts
+
+- **Implement** — Non–self-propelled equipment paired with a machine (planter, corn head, spray boom, and similar). Implements with modems may be modeled as **machine** resources today; that may change in the future.
+- **EquipmentType** vs **EquipmentApexType** vs **Category** — Prefer **EquipmentType** for broad classification. **EquipmentApexType** supports agriculture displays. **Category** is legacy and may be deprecated.
+
+### Related resources
+
+| Resource | Purpose |
+| --- | --- |
+| Equipment | Machines and implements for an organization or by id. |
+| Alerts | Terminal-captured alerts (diagnostics, geofence, maintenance). |
+| Engine hours | Last reported engine hours with timestamp and source. |
+| Hours of operation | Engine on/off durations; last known engine state. |
+| Machine breadcrumbs | Location and sensor samples over time. |
+| Machine location history | Latitude, longitude, and altitude over a range. |
+
+---
+
+## Getting started
+
+1. **Authenticate** — Complete OAuth 2.0 authorization code flow and organization connection (see below).
+2. **Resolve `principalId`** — Use the machine **principal id** from **`GET`** `/platform` discovery flows or equipment/machine resources your user can access.
+3. **Call DSRs** — **`GET`** `/platform/machines/{principalId}/deviceStateReports` with **`Accept: application/vnd.deere.axiom.v3+json`** and optional **`startDate`** / **`endDate`**.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes** (include **`eq1`** for this API), **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration. Request only the scopes your app needs.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (refresh tokens expire after **365 days** without use).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Device State Reports API">
+    Send **`Authorization: Bearer {token}`** on every request.
+  </Step>
+</Steps>
+
+### Scope for this endpoint
+
+| Scope | Use |
+| --- | --- |
+| `eq1` | **Required** — Equipment Access Level 1 (view equipment and device state reports). |
+
+---
+
+## Timestamps
+
+All timestamps are **UTC** and formatted per **ISO 8601**.
+
+Example: `2014-01-28T15:59:00.000Z`
+
+---
+
+## Date range defaults
+
+How **`startDate`** and **`endDate`** combine when omitted:
+
+| startDate | endDate | Effective start | Effective end |
+| --- | --- | --- | --- |
+| Provided | Provided | As requested | As requested |
+| Not provided | Not provided | Two months before **now** | **Now** |
+| Provided | Not provided | As requested | **Now** |
+| Not provided | Provided | **2015-01-01T00:00:00.000Z** | As requested |
+
+---
+
+## Abstract measurement values
+
+John Deere uses an **abstract measurement** data type for values that include a **unit** (for example signal strength or hours). Representations may combine numeric or string values with unit metadata depending on the field.
+
+---
+
+## State code reference
+
+### Engine state
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Power-on key is **OFF** |
+| 1 | Power-on key is **ON** |
+
+### Terminal power state
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Power-on key is **ON** |
+| 1 | Power-on key is **OFF** |
+| 2 | Terminal is **SLEEPING** |
+| 3 | Terminal is **HIBERNATING** |
+
+### Cell modem, GPS, antenna error aggregates
+
+| Value | Meaning |
+| --- | --- |
+| 0 | No errors at report time |
+| 1 | Errors were occurring at report time |
+
+### Network
+
+| Value | Meaning |
+| --- | --- |
+| 1 | Satellite network |
+| 2 | Cellular network |
+
+### GPS error
+
+| Value | Meaning |
+| --- | --- |
+| 0 | No error |
+| 1 | No GPS fix for 10 minutes |
+| 2 | No GPS fix for 60 minutes |
+| 3 | No fix data from GPS module |
+| 4 | Unrecognizable data from GPS module |
+| 5 | No data from GPS module |
+
+### GPS firmware level
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Acceptable |
+| 1 | Not acceptable |
+
+### Tethering status, AP status
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Enabled |
+| 1 | Disabled |
+
+### M2M mode, tethering connected, AP connected, M2M connected
+
+| Value | Meaning |
+| --- | --- |
+| 0 | True |
+| 1 | False |
+
+### GSM antenna type
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Unknown |
+| 1 | 3G USAero |
+| 2 | 3G EUAero |
+| 3 | Short circuit |
+| 4 | Open circuit |
+| 5 | 3G Multiband |
+| 6 | 4G CFMAF |
+| 7 | 4G Low profile |
+| 8 | 4G High profile |
+
+### Wi‑Fi antenna type
+
+| Value | Meaning |
+| --- | --- |
+| 0 | Unknown |
+| 1 | Short circuit |
+| 2 | Open circuit |
+| 3 | 4G High profile |
+| 4 | 4G Low profile |
+
+### Gateway types
+
+| Value | Meaning |
+| --- | --- |
+| 1 | GTT |
+| 2 | MTG/UTG |
+| 3 | Iridium |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Paths in this document use the **`/platform/`** prefix (for example **`/platform/machines/{principalId}/deviceStateReports`**). Use the production platform host for production traffic when provided for your integration.
+
+---
+
+## Compression
+
+You may send **`Accept-Encoding: gzip`** when your client supports gzip decompression.
+
+---
+
+## Paging
+
+When the response uses the **CollectionPage** pattern, use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** on the request URL. Follow **`nextPage`** / **`previousPage`** links when present.
+
+---
+
+## Endpoints
+
+### List terminal device state reports
+
+Returns **device state reports** for the machine identified by **`principalId`**. Information is collected from the **machine terminal**. Each DSR may link to **`machine`** (omit if the terminal is not linked to a machine) and **`terminal`**. This API **does not** support eTags.
+
+```text
+GET /platform/machines/{principalId}/deviceStateReports
+```
+
+<ParamField path="principalId" type="string" required>
+  Machine **principal id** (from platform machine or equipment resources the user can access).
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Range start (**ISO 8601** UTC). See **Date range defaults** when omitted.
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Range end (**ISO 8601** UTC). See **Date range defaults** when omitted.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of **10**, max **100**.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with **`itemLimit`**.
+</ParamField>
+
+<ParamField header="Accept" type="string" required>
+  Use **`application/vnd.deere.axiom.v3+json`**.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+#### Response content
+
+Reports may include attributes such as **engine state**, **terminal power state**, **model state**, **RSSI**, local information, **GPS** state/error, **Wi‑Fi** info/error, **GSM/Wi‑Fi antenna type**, **Wi‑Fi SSID**, **battery voltage**, **last boot type**, **last boot timestamp**, and **vehicle power state**—exact fields depend on terminal and firmware.
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/machines/12345/deviceStateReports?startDate=2014-01-01T00:00:00.000Z&endDate=2014-01-28T15:59:00.000Z&itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="200 OK" type="success">
+  Device state report collection (**CollectionPage** or equivalent list structure for this API version).
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="error">
+  Invalid or expired token, or missing API license—refresh the token or verify application entitlements.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  User or client cannot access the machine, or token lacks **`eq1`**. For organization or terms issues, check **X-Deere-Warning** and **X-Deere-Terms-Location** when present.
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="error">
+  **`principalId`** is not valid for the caller’s current accessible resources.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/machines/{principalId}/deviceStateReports">
+  Interactive reference for **GET** `/platform/machines/{principalId}/deviceStateReports`.
+</Card>

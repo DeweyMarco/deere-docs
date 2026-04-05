@@ -1,0 +1,27 @@
+---
+title: "Work Order Execution Service Quotes"
+description: "Top-level service quote lifecycle endpoints for create, list, update, notification, and reporting flows."
+---
+
+## Overview
+
+Use these endpoints to manage the main **service quote** resource lifecycle before drilling into quote segments, checklists, jobs, and parts.
+
+<CardGroup cols={2}>
+  <Card title="Create and list" icon="list">
+    Create service quotes directly or from an existing identifier, then list or group them by service area.
+  </Card>
+  <Card title="Maintain quotes" icon="file-pen">
+    Retrieve, update, patch, delete, or existence-check an individual service quote.
+  </Card>
+  <Card title="Notifications and reports" icon="envelope">
+    Send quote notifications and generate quote summary output for downstream workflows.
+  </Card>
+  <Card title="Shared auth model" icon="lock">
+    These endpoints use the same OAuth 2.0 configuration and base URL as the rest of Work Order Execution.
+  </Card>
+</CardGroup>
+
+<Note>
+  Segment-, checklist-, job-, and part-level quote operations live in the `Service Quote Segments` section.
+</Note>

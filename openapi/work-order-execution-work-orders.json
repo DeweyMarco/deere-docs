@@ -1,0 +1,1061 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Work Order Execution Work Orders API",
+    "description": "Create, retrieve, update, notify, and report on digital work orders in the Work Order Execution microservice.",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://expertappapi-sandbox.deere.com",
+      "description": "Sandbox (Expert App API \u2014 work order microservice)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Use the authorization code flow (three-legged) for interactive users, or the client credentials grant for machine-to-machine access. The `axiom` scope is required unless your product documentation states otherwise.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "JsonPayload": {
+        "type": "object",
+        "description": "JSON request or response body; shape depends on the operation.",
+        "additionalProperties": true,
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "status": "OPEN"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/delsol/workorder-micro-v2/api/workorders/byId": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_byId",
+        "summary": "Create work order by ID",
+        "description": "Create a work order with optional Expert Services job IDs or checklist ID at segment level.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/byId' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/groupByServiceArea": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_groupByServiceArea",
+        "summary": "List work orders by service area",
+        "description": "View work orders grouped by service area.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/groupByServiceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_id",
+        "summary": "Get work order",
+        "description": "View a work order. Optional `groupby=serviceArea`.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "groupby",
+            "in": "query",
+            "required": false,
+            "description": "Group by service area.",
+            "schema": {
+              "type": "string",
+              "example": "serviceArea"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000?groupby=serviceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_id",
+        "summary": "Update work order",
+        "description": "Update a work order. Optional `reportType=WORK_ORDER_SUMMARY` to generate a summary report.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "reportType",
+            "in": "query",
+            "required": false,
+            "description": "When set, generates work order summary report.",
+            "schema": {
+              "type": "string",
+              "example": "WORK_ORDER_SUMMARY"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000?reportType=WORK_ORDER_SUMMARY' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_id",
+        "summary": "Delete work order",
+        "description": "Delete a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "operationId": "head_delsol_workorder_micro_v2_api_workorders_id",
+        "summary": "workOrderExists",
+        "description": "Returns whether the work order exists.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request HEAD \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource exists."
+          },
+          "404": {
+            "description": "Not found."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_id",
+        "summary": "Patch work order",
+        "description": "Update specific properties of a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}/groupByServiceArea": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_id_groupByServiceArea",
+        "summary": "Get work order by service area",
+        "description": "View a work order grouped by service area.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000/groupByServiceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}/message": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_id_message",
+        "summary": "Send work order XML to Service Delivery",
+        "description": "Send work order notification XML to Service Delivery.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000/message' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}/notification": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_id_notification",
+        "summary": "Work order summary email",
+        "description": "Send email notification of work order summary.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000/notification' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}/patch": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_id_patch",
+        "summary": "Patch work order (alternate path)",
+        "description": "Update properties of a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000/patch' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{id}/report": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_id_report",
+        "summary": "Generate work order summary report",
+        "description": "Generate report of work order summary.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/550e8400-e29b-41d4-a716-446655440000/report' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders",
+        "summary": "List work orders",
+        "description": "View all available work orders. Optional `groupby=serviceArea`.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "groupby",
+            "in": "query",
+            "required": false,
+            "description": "Group by service area.",
+            "schema": {
+              "type": "string",
+              "example": "serviceArea"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders?groupby=serviceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders",
+        "summary": "Create work order",
+        "description": "Create a new work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,299 @@
+---
+title: "Operation Center Connection Management API"
+description: "View and remove Operations Center organization connections for the calling application."
+---
+
+## Overview
+
+The **Operation Center Connection Management API** lets an application view its existing **Operations Center organization connections** and remove them when needed.
+
+This API works only with an OAuth 2.0 **client credentials** token. The list endpoint also returns the **Operations Center permissions** assigned for each connection.
+
+<CardGroup cols={2}>
+  <Card title="List connections" icon="list">
+    Retrieve all organization connections for the calling application.
+  </Card>
+  <Card title="Remove one connection" icon="unlink">
+    Delete a single connection by `connectionId`.
+  </Card>
+  <Card title="Remove all partner connections" icon="trash">
+    Delete all application connections for a specific organization.
+  </Card>
+  <Card title="Client credentials only" icon="lock">
+    These endpoints do not support user tokens; use OAuth 2.0 `client_credentials`.
+  </Card>
+</CardGroup>
+
+<Note>
+  Permissions are assigned when a user connects an organization based on the OAuth scopes requested during user authorization and the highest permission level that user has in the organization. If a connection does not have the permissions you expect, request the right scopes during user authorization and have the user update the connection in `connections.deere.com`, or reconnect the organization.
+</Note>
+
+---
+
+## Permission reference
+
+The `GET /platform/connections` response may include the following Operations Center permission values for each connection:
+
+| Scope | User / Connection Permission | Code | Description |
+| --- | --- | --- | --- |
+| `org1` | Organization Management Access Level 1 | `1001` | View Staff, Operators, and Partners |
+| `org2` | Organization Management Access Level 1 | `1001` | View Staff, Operators, and Partners |
+| `org2` | Organization Management Access Level 2 | `1002` | Modify Staff, Operators, and Partners |
+| `eq1` | Equipment Access Level 1 | `2001` | View Equipment |
+| `eq1` | RDA | `2004` | Remote Display Access |
+| `eq1` | Setup & WDT | `2005` | Setup File Creator, Products, and Wireless Data Transfer |
+| `eq2` | Equipment Access Level 1 | `2001` | View Equipment |
+| `eq2` | Equipment Access Level 2 | `2002` | Edit Equipment (also View Detailed Machine Measurements) |
+| `eq2` | Equipment Access Level 3 | `2003` | Manage Equipment |
+| `eq2` | RDA | `2004` | Remote Display Access |
+| `eq2` | Setup & WDT | `2005` | Setup File Creator, Products, and Wireless Data Transfer |
+| `ag1` | Locations Access Level 1 | `4001` | View Locations (Clients, Farms, Fields and Associated Data) |
+| `ag1` | Share All Fields | `5001` | Grant Access to All Fields |
+| `ag2` | Locations Access Level 1 | `4001` | View Locations (Clients, Farms, Fields and Associated Data) |
+| `ag2` | Locations Access Level 2 | `4002` | Analyze Production Data (Website Access Only) |
+| `ag2` | Share All Fields | `5001` | Grant Access to All Fields |
+| `ag3` | Locations Access Level 1 | `4001` | View Locations (Clients, Farms, Fields and Associated Data) |
+| `ag3` | Locations Access Level 2 | `4002` | Analyze Production Data (Website Access Only) |
+| `ag3` | Locations Access Level 3 | `4003` | Manage Locations & Production Data (Website and API Access) |
+| `ag3` | Share All Fields | `5001` | Grant Access to All Fields |
+| `files` | Files API Access | `N/A` | Files API Access (ag3 scope also required for most file types) |
+| `files` | Equipment Access Level 3 | `2003` | Manage Equipment |
+| `files` | Setup & WDT | `2005` | Setup File Creator, Products, and Wireless Data Transfer |
+| `finance1` | Financial Access Level 1 | `6001` | View Financials |
+| `finance2` | Financial Access Level 1 | `6001` | View Financials |
+| `finance2` | Financial Access Level 2 | `6002` | Manage Financials |
+| `work1` | Work and Crop Plans Access Level 1 | `3001` | View Work and Crop Plans |
+| `work2` | Work and Crop Plans Access Level 1 | `3001` | View Work and Crop Plans |
+| `work2` | Work and Crop Plans Access Level 2 | `3002` | View Work and Crop Plans |
+
+---
+
+## Authentication
+
+John Deere platform APIs use **OAuth 2.0**. This API supports only the **client credentials** grant type.
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    When you create an application, it is assigned a **Client Key** and **Client Secret**. You sign API requests with these credentials.
+  </Step>
+  <Step title="Add a callback URL to your application">
+    In the **Security** section of your application details, add one or more **Callback URLs (Redirect URIs)** and save your changes.
+
+    Although this flow does not redirect a user, Deere recommends adding a placeholder such as `https://localhost:9090/callback` as part of the application registration process.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Retrieve the token endpoint from the Deere well-known metadata document:
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    Request a token using the `client_credentials` grant type. Put the client ID and secret in the HTTP `Authorization` header using **Basic Auth**, not in the request body.
+
+    **Request URL:**
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body:**
+
+    ```
+    grant_type=client_credentials&cache-control=no-cache&scope=<customScope>
+    ```
+
+    **Sample response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "customScope"
+    }
+    ```
+  </Step>
+  <Step title="Call the API with your access token">
+    Send the token in the `Authorization` header of every request:
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Deere notes that scopes are typically not required for a `client_credentials` token. If your integration uses a custom scope, request the value assigned to your application.
+</Note>
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get list of connections
+
+Retrieve all connections for the calling application based on the client in the token.
+
+```text
+GET /platform/connections
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/connections" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="connections" type="array">
+  List of organization connections associated with the calling application.
+</ResponseField>
+
+<ResponseField name="connections[].connectionId" type="string">
+  Unique identifier for the connection.
+</ResponseField>
+
+<ResponseField name="connections[].orgId" type="string">
+  Operations Center organization identifier.
+</ResponseField>
+
+<ResponseField name="connections[].orgName" type="string">
+  Display name of the connected organization.
+</ResponseField>
+
+<ResponseField name="connections[].permissions" type="array">
+  Operations Center permissions currently assigned to the connection.
+</ResponseField>
+
+<ResponseField name="connections[].permissions[].scope" type="string">
+  OAuth scope or permission family associated with the assigned permission.
+</ResponseField>
+
+<ResponseField name="connections[].permissions[].userPermission" type="string">
+  Permission name assigned for the connection.
+</ResponseField>
+
+<ResponseField name="connections[].permissions[].code" type="string">
+  Numeric or named permission code returned for the assigned permission.
+</ResponseField>
+
+<ResponseField name="connections[].permissions[].description" type="string">
+  Human-readable description of the assigned permission.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/connections">
+  Test this endpoint interactively with your client credentials access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "connections": [
+    {
+      "connectionId": "2b76dfaf-6c2b-4ec1-baae-73d730db0b7c",
+      "orgId": "1234567",
+      "orgName": "Green Acres Farms",
+      "permissions": [
+        {
+          "scope": "ag3",
+          "userPermission": "Locations Access Level 3",
+          "code": "4003",
+          "description": "Manage Locations & Production Data (Website and API Access)"
+        },
+        {
+          "scope": "eq2",
+          "userPermission": "Equipment Access Level 2",
+          "code": "2002",
+          "description": "Edit Equipment (also View Detailed Machine Measurements)"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+### Delete connection by connection ID
+
+Remove a specific connection by ID.
+
+```text
+DELETE /platform/connections/{connectionId}
+```
+
+<ParamField path="connectionId" type="string" required>
+  Unique identifier of the connection to remove.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/connections/2b76dfaf-6c2b-4ec1-baae-73d730db0b7c" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+Successful requests return `204 No Content`.
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/connections/{connectionId}">
+  Test this endpoint interactively with your client credentials access token.
+</Card>
+
+---
+
+### Delete all partner connections by Org ID
+
+Remove all connections between the calling application and the specified organization. This includes all partner connections.
+
+```text
+DELETE /platform/organizations/{orgId}/connections
+```
+
+<ParamField path="orgId" type="string" required>
+  Operations Center organization identifier whose application connections should be removed.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/organizations/1234567/connections" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+Successful requests return `204 No Content`.
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/organizations/{orgId}/connections">
+  Test this endpoint interactively with your client credentials access token.
+</Card>

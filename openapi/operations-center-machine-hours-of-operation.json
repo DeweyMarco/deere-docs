@@ -1,0 +1,325 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Machine Hours of Operation API",
+    "description": "Returns **durations** for which a machine’s **engine** was **on** or **off** during a **time range**, plus the **last known engine state** for the query context. Each value typically includes **`startDate`** / **`endDate`**, **`engineState`**, optional **`detailedState`**, and a **`machine`** link. Responses use the **CollectionPage** pattern (`total`, `links`, `values`).\n\n**Terminal powered off:** When the **terminal** is powered off, hours of operation are **not** recorded.\n\n**Media type:** Use **`Accept: application/vnd.deere.axiom.v3+json`**.\n\n**eTags:** This endpoint **does not** support John Deere’s **`x-deere-signature`** / eTag optimization.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Hours of operation",
+      "description": "Engine on/off duration segments and detailed utilization states for a machine principal id."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. This endpoint requires **`eq1`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and hours of operation",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present). Items include **`machine`** and the collection may include **`self`**.",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": {
+            "type": "string",
+            "description": "Link relation, e.g. `self`, `machine`, `nextPage`.",
+            "example": "machine"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/machines/5432"
+          }
+        }
+      },
+      "HoursOfOperationSegment": {
+        "type": "object",
+        "description": "A time-bounded segment describing engine state and optional detailed utilization state. **`engineState`** uses the platform engine-state codes (see product documentation for full semantics).",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom resource type when present.",
+            "example": "HoursOfOperation"
+          },
+          "links": {
+            "type": "array",
+            "description": "Typically includes a **`machine`** link for the principal.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp when this segment **started**.",
+            "example": "2013-04-29T00:00:00Z"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp when this segment **ended**.",
+            "example": "2013-04-30T00:00:00Z"
+          },
+          "engineState": {
+            "type": "integer",
+            "description": "Engine / power-on key state: `0` — power-on key **OFF**; `1` — power-on key **ON**; `2` — terminal **SLEEPING**; `3` — terminal **HIBERNATING**.",
+            "enum": [0, 1, 2, 3],
+            "example": 0
+          },
+          "detailedState": {
+            "type": "string",
+            "description": "User-queried **detailedState** dimension when applicable (for example PTO or actuator utilization labels).",
+            "example": "PTO Status On"
+          }
+        },
+        "example": {
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/5432"
+            }
+          ],
+          "startDate": "2013-04-29T00:00:00Z",
+          "endDate": "2013-04-30T00:00:00Z",
+          "engineState": 0,
+          "detailedState": "PTO Status On"
+        }
+      },
+      "HoursOfOperationCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of hours-of-operation segments (**CollectionPage** pattern).",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Count of values in this response or available for the query (see product behavior for pagination).",
+            "example": 2
+          },
+          "links": {
+            "type": "array",
+            "description": "May include **`self`** and pagination links when applicable.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "description": "Duration segments for the requested range and filters.",
+            "items": { "$ref": "#/components/schemas/HoursOfOperationSegment" }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for 4xx responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/machines/{principalId}/hoursOfOperation": {
+      "get": {
+        "tags": ["Hours of operation"],
+        "operationId": "getMachineHoursOfOperation",
+        "summary": "Get machine hours of operation",
+        "description": "Returns **durations** for which the engine was **on** or **off** during a **specified period**, and supports viewing the **last known** engine state in the result set. Each request returns **`links`** including a **`machine`** link for the specified machine.\n\n**Note:** When the **terminal** is powered off, hours of operation are **not** recorded.\n\n**Please note:** This API **does not** support eTags.\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/hoursOfOperation`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "**Principal id** of the machine or equipment whose hours of operation you are reading.",
+            "schema": { "type": "string", "example": "5432" }
+          },
+          {
+            "name": "organizationId",
+            "in": "query",
+            "required": false,
+            "description": "Organization id of the machine/equipment when you need to scope the request to a specific organization context.",
+            "schema": { "type": "string", "example": "98765" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Filters hours of operation **starting from** this instant. Use a **UTC** timestamp.",
+            "schema": { "type": "string", "format": "date-time", "example": "2013-04-29T00:00:00Z" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Filters hours of operation **before** this instant. Use a **UTC** timestamp.",
+            "schema": { "type": "string", "format": "date-time", "example": "2013-04-30T23:30:00Z" }
+          },
+          {
+            "name": "detailedState",
+            "in": "query",
+            "required": false,
+            "description": "Request **one** detailed state dimension at a time. Supported values include **RearPTOEngagement**, **GenericMachineUtilization**, **GenericEngineUtilization**, **RoadbuildingMachineState**, **AutonomyMachineState**, and **FrontWheelDriveActuatorState**.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RearPTOEngagement",
+                "GenericMachineUtilization",
+                "GenericEngineUtilization",
+                "RoadbuildingMachineState",
+                "AutonomyMachineState",
+                "FrontWheelDriveActuatorState"
+              ],
+              "example": "FrontWheelDriveActuatorState"
+            }
+          },
+          {
+            "name": "summarizeDuration",
+            "in": "query",
+            "required": false,
+            "description": "Merge **EngagedStates** for **RearPTOEngagement** and **FWDActuatorState** when consecutive engaged states are closer than this duration (product-specific units; see developer documentation).",
+            "schema": { "type": "string", "example": "5" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size for **CollectionPage** responses: multiples of **10**, maximum **100**, when supported.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based offset aligned with **`itemLimit`** for paginated collections.",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/5432/hoursOfOperation?organizationId=98765&startDate=2013-04-29T00:00:00Z&endDate=2013-04-30T23:30:00Z&detailedState=FrontWheelDriveActuatorState&summarizeDuration=5' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — hours-of-operation segments (**CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/HoursOfOperationCollectionPage" },
+                "examples": {
+                  "segments": {
+                    "summary": "Two segments with machine links",
+                    "value": {
+                      "links": [
+                        {
+                          "@type": "Link",
+                          "rel": "self",
+                          "uri": "https://sandboxapi.deere.com/platform/machines/5432/hoursOfOperation"
+                        }
+                      ],
+                      "total": 2,
+                      "values": [
+                        {
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/5432"
+                            }
+                          ],
+                          "startDate": "2013-04-29T00:00:00Z",
+                          "endDate": "2013-04-30T00:00:00Z",
+                          "engineState": 0,
+                          "detailedState": "PTO Status On"
+                        },
+                        {
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/5432"
+                            }
+                          ],
+                          "startDate": "2013-04-29T00:00:00Z",
+                          "endDate": "2013-04-30T00:00:00Z",
+                          "engineState": 0,
+                          "detailedState": "PTO Status On"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues; check **X-Deere-Warning** / **X-Deere-Terms-Location** when present.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    }
+  }
+}

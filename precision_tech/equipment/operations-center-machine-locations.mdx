@@ -1,0 +1,252 @@
+---
+title: "Operations Center — Machine Locations"
+description: "Read machine location history (latitude, longitude, altitude) and breadcrumbs (location plus speed, fuel, heading, and machine state) for Operations Center machines."
+---
+
+## Overview
+
+The **Machine Locations** APIs expose **location history** and **breadcrumbs** for a machine identified by **`principalId`**. **Location history** returns reports with **longitude**, **latitude**, and **altitude**; each report links to the **`/machines`** resource. **Breadcrumbs** return richer samples while working: **speed**, **fuel level**, **heading**, **machine state**, **machine state defined type id**, **correlation id**, **location**, **altitude**, **origin**, **created timestamp**, and related fields.
+
+<CardGroup cols={2}>
+  <Card title="Location history" icon="map-pin">
+    Lat/long/alt reports over a time range; links back to the machine resource.
+  </Card>
+  <Card title="Breadcrumbs" icon="route">
+    Location plus operational telemetry (speed, fuel, heading, state, correlation id).
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Requires **`eq1`** on the access token.
+  </Card>
+  <Card title="Location history & eTags" icon="link-slash">
+    **Location history** does **not** support **`x-deere-signature`** / eTags.
+  </Card>
+</CardGroup>
+
+### Equipment concepts
+
+- **Machine** — Self-propelled or towed equipment; may pair with implements. **Implements** with modems may appear as **machine** resources today; future changes may model them separately.
+- **EquipmentType** vs **EquipmentApexType** vs **Category** — Prefer **EquipmentType** for classification. **EquipmentApexType** supports agriculture displays. **Category** is legacy and may be deprecated.
+
+### Related resources
+
+| Resource | Purpose |
+| --- | --- |
+| Equipment | Machines and implements for an organization or by id. |
+| Alerts | Terminal-captured alerts (diagnostics, geofence, maintenance). |
+| Device state reports | Call-in history and connectivity for a date range. |
+| Engine hours | Last reported engine hours with timestamp and source. |
+| Hours of operation | Engine on/off durations; last known engine state. |
+
+---
+
+## Getting started
+
+1. **Authenticate** — Complete OAuth 2.0 authorization code flow and organization connection (see below).
+2. **Resolve `principalId`** — Use the machine **principal id** from **`GET`** `/platform` discovery flows or machine/equipment resources your user can access.
+3. **Call location APIs** — **`GET`** `/platform/machines/{principalId}/locationHistory` and/or **`GET`** `/platform/machines/{principalId}/breadcrumbs` with **`Accept: application/vnd.deere.axiom.v3+json`**.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes** (include **`eq1`** for these APIs), **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration. Request only the scopes your app needs.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (refresh tokens expire after **365 days** without use).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Machine Locations APIs">
+    Send **`Authorization: Bearer {token}`** on every request.
+  </Step>
+</Steps>
+
+### Scope for these endpoints
+
+| Scope | Use |
+| --- | --- |
+| `eq1` | **Required** — Equipment Access Level 1 (view equipment and machine location data). |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Paths in this document use the **`/platform/`** prefix (for example **`/platform/machines/{principalId}/locationHistory`**). Use the production platform host for production traffic when provided for your integration.
+
+---
+
+## Compression
+
+You may send **`Accept-Encoding: gzip`** when your client supports gzip decompression.
+
+---
+
+## Paging and time ranges
+
+When responses use the **CollectionPage** pattern, use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** on the request URL. Use **`startDate`** and **`endDate`** (**ISO 8601**, UTC) to bound the window when querying history or breadcrumbs. Follow **`nextPage`** / **`previousPage`** links when present.
+
+You can optionally reduce link payload size with **`showLinks`** (for example `none`); see John Deere **Links** documentation for filtering.
+
+---
+
+## Endpoints
+
+### Get machine location history
+
+Returns **location reports** for the machine: **longitude**, **latitude**, and **altitude**. Each report links to the **`/machines`** resource. **This API does not support eTags.**
+
+```text
+GET /platform/machines/{principalId}/locationHistory
+```
+
+<ParamField path="principalId" type="string" required>
+  Machine **principal id** (from platform machine or equipment resources the user can access).
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Range start (**ISO 8601**, UTC). Use with **`endDate`** for a bounded window.
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Range end (**ISO 8601**, UTC).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of **10**, max **100**.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Zero-based offset aligned with **`itemLimit`**.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Optional link filtering (for example **`none`**).
+</ParamField>
+
+<ParamField header="Accept" type="string" required>
+  Use **`application/vnd.deere.axiom.v3+json`**.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/machines/12345/locationHistory?startDate=2024-05-01T00:00:00.000Z&endDate=2024-05-31T23:59:59.999Z&itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="200 OK" type="success">
+  Location history collection (**CollectionPage** with **`values`**); each value includes coordinates and typically a **`machine`** link.
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="error">
+  Invalid or expired token, or missing API license—refresh the token or verify application entitlements.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  User or client cannot access the machine, or token lacks **`eq1`**. For organization or terms issues, check **X-Deere-Warning** and **X-Deere-Terms-Location** when present.
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="error">
+  **`principalId`** is not valid for the caller’s current accessible resources.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/machines/{principalId}/locationHistory">
+  Interactive reference for **GET** `/platform/machines/{principalId}/locationHistory`.
+</Card>
+
+---
+
+### Get machine breadcrumbs
+
+Returns **breadcrumb** samples for the machine, including **speed**, **fuel level**, **heading** (direction of travel), **machine state**, **machine state defined type id**, **correlation id**, **location**, **altitude**, **origin**, **created timestamp**, and related fields.
+
+```text
+GET /platform/machines/{principalId}/breadcrumbs
+```
+
+<ParamField path="principalId" type="string" required>
+  Machine **principal id** (from platform machine or equipment resources the user can access).
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Range start (**ISO 8601**, UTC).
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Range end (**ISO 8601**, UTC).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of **10**, max **100**.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Zero-based offset aligned with **`itemLimit`**.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Optional link filtering (for example **`none`**).
+</ParamField>
+
+<ParamField header="Accept" type="string" required>
+  Use **`application/vnd.deere.axiom.v3+json`**.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/machines/12345/breadcrumbs?startDate=2024-05-01T00:00:00.000Z&endDate=2024-05-31T23:59:59.999Z&itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="200 OK" type="success">
+  Breadcrumb collection (**CollectionPage** with **`values`**) with telemetry and location-oriented fields per sample.
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="error">
+  Invalid or expired token, or missing API license.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  User or client cannot access the machine, or token lacks **`eq1`**.
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="error">
+  **`principalId`** is not valid for the caller’s accessible resources.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/machines/{principalId}/breadcrumbs">
+  Interactive reference for **GET** `/platform/machines/{principalId}/breadcrumbs`.
+</Card>

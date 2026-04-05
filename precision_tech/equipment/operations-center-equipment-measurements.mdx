@@ -1,0 +1,197 @@
+---
+title: "Operations Center — Equipment Measurements"
+description: "POST telematics metadata (speed, GPS, engine state, and more) for third-party equipment in Operations Center."
+---
+
+## Overview
+
+The **POST equipment measurements** API records **measurement batches** for equipment your users or apps created with the **Equipment POST** API. “Measurements” means operational data for **non–John Deere terminal** connected equipment—metadata for third-party managed devices shown in Operations Center. You call this endpoint at whatever interval fits your telematics pipeline.
+
+<CardGroup cols={2}>
+  <Card title="Third-party equipment" icon="tractor">
+    Targets equipment created via **POST** `/isg/organizations/{organizationId}/equipment`, not JD terminal telematics machines.
+  </Card>
+  <Card title="Map updates" icon="map-location-dot">
+    **204 No Content** means the batch was queued; the map usually reflects changes within about **30 seconds**.
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    Requires **`eq2`** on the access token.
+  </Card>
+  <Card title="Principal id" icon="fingerprint">
+    You must use the equipment **`principalId`** from the equipment record (**GET** `/isg/equipment` or the created resource).
+  </Card>
+</CardGroup>
+
+---
+
+## Getting started
+
+1. **Resolve make, type, and model ids** — **GET** `/isg/equipmentMakes` → **GET** `/isg/equipmentMakes/{id}/equipmentTypes` → **GET** `/isg/equipmentMakes/{id}/equipmentTypes/{id}/equipmentModels`. Alternatively **GET** `/isg/equipmentModels?equipmentModelName=…&embed=make,type` (or the ISG type variants used by your Equipment API workflow).
+2. **Create equipment** — **POST** `/isg/organizations/{orgId}/equipment` with **Machine** or **Implement**, `name`, optional `serialNumber`, and model reference. **201 Created** includes a `Location` header; follow it or **GET** equipment to read the **`principalId`**.
+3. **Contribute measurements** — **POST** `/isg/organizations/{organizationId}/equipment/{principalId}/measurements` with a JSON body (see below).
+
+Duplicate `serialNumber` or `name` in the same organization on create returns **400 Bad Request** with details in the body.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Send the user to authorize">
+    Use `response_type=code`, required **scopes** (include **`eq2`** for this API), **client_id**, **state**, and a **URL-encoded** `redirect_uri` that matches your app registration.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    **POST** the token endpoint with `grant_type=authorization_code`, the code, redirect URI, and client credentials. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token**.
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations` (or production). If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Measurements API">
+    Send **`Authorization: Bearer {token}`** on every request.
+  </Step>
+</Steps>
+
+### Scope for this endpoint
+
+| Scope | Use |
+| --- | --- |
+| `eq2` | **Required** — contribute measurements (Equipment Access Level 2). |
+
+---
+
+## Request format
+
+Send **`Content-Type: application/json`**. The body is a **JSON array** of objects. Each object has:
+
+- **`timestamp`** — ISO 8601 time when the measurements were recorded (helps order out-of-order delivery).
+- **`measurements`** — array of objects with **`name`**, **`value`**, and **`unit`** where applicable.
+
+### Supported measurement names
+
+| `name` | `value` | `unit` (when used) |
+| --- | --- | --- |
+| `vehicleSpeed` | number | `kph` |
+| `heading` | number | `degrees` |
+| `fuelLevelPercentage` | number | `percent` |
+| `latitude` | number | `degrees` |
+| `longitude` | number | `degrees` |
+| `engineState` | `On` or `Off` | — |
+| `odometer` | number | `km` |
+| `engineHours` | number | `hours` |
+| `engineSpeed` | number | `RPM` |
+| `ptoStatus` | `On`, `Off`, `Fault`, or `Unavailable` | — |
+
+Convert values to the correct units before sending; the API uses **`value`** as provided.
+
+---
+
+## Base URL
+
+```text
+https://equipmentapi.deere.com
+```
+
+Paths use the **`/isg/`** prefix.
+
+---
+
+## Endpoints
+
+### Contribute equipment measurements
+
+```text
+POST /isg/organizations/{organizationId}/equipment/{principalId}/measurements
+```
+
+<ParamField path="organizationId" type="string" required>
+  Organization id for the equipment’s **current controlling** organization.
+</ParamField>
+
+<ParamField path="principalId" type="string" required>
+  Equipment **principal id** from the equipment resource (**GET** `/isg/equipment`). Required; wrong or missing values return an error.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+#### Body
+
+An array of timestamped batches. Example:
+
+```json
+[
+  {
+    "timestamp": "2024-05-20T18:44:17.299Z",
+    "measurements": [
+      { "name": "vehicleSpeed", "value": 19.5, "unit": "kph" },
+      { "name": "latitude", "value": 41.51655, "unit": "degrees" },
+      { "name": "longitude", "value": -93.502778, "unit": "degrees" },
+      { "name": "engineState", "value": "On" },
+      { "name": "odometer", "value": 132992, "unit": "km" },
+      { "name": "engineHours", "value": 21350.8, "unit": "hours" },
+      { "name": "heading", "value": 89.9, "unit": "degrees" },
+      { "name": "fuelLevelPercentage", "value": 35.7, "unit": "percent" },
+      { "name": "ptoStatus", "value": "On" },
+      { "name": "engineSpeed", "value": 19.5, "unit": "RPM" }
+    ]
+  }
+]
+```
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://equipmentapi.deere.com/isg/organizations/283480/equipment/12345/measurements" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '[{"timestamp":"2024-05-20T18:44:17.299Z","measurements":[{"name":"vehicleSpeed","value":19.5,"unit":"kph"},{"name":"latitude","value":41.51655,"unit":"degrees"},{"name":"longitude","value":-93.502778,"unit":"degrees"},{"name":"engineState","value":"On"}]}]'
+```
+
+</CodeGroup>
+
+#### Responses
+
+<ResponseField name="204 No Content" type="success">
+  Batch accepted for processing.
+</ResponseField>
+
+<ResponseField name="400 Bad Request" type="error">
+  Invalid payload: malformed body, unmappable values, missing org/equipment, or **John Deere terminal telematics** equipment (cannot accept alternate measurement sources). See body for details.
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="error">
+  **License:** no API license or token missing **`eq2`** (and related scope requirements). **Permission:** user or client lacks access to the controlling organization—confirm connection, user access, and **equipment level 2+** connection permissions in Operations Center.
+</ResponseField>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /isg/organizations/{organizationId}/equipment/{principalId}/measurements">
+  Interactive reference for **POST** `/isg/organizations/{organizationId}/equipment/{principalId}/measurements`.
+</Card>
+
+---
+
+## Compression
+
+For APIs that return bodies, you may send **`Accept-Encoding: gzip`**. This POST typically returns **204** with no body.
+
+---
+
+## Common HTTP errors
+
+| Code | Meaning |
+| --- | --- |
+| 400 | Bad request body or client error (see OAuth docs for token errors). |
+| 401 | Expired or invalid token, or missing API license for the endpoint. |
+| 403 | Missing scopes, wrong org, or user cannot access the resource. |
+| 404 | Resource id invalid or no longer available. |
+| 429 | Rate limited; honor **`Retry-After`** when present. |
+| 503 | Service issue; back off or retry per **`Retry-After`**. |
+
+See product-wide OAuth and error documentation for full detail.

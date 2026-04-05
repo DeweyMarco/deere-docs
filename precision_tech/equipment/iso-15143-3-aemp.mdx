@@ -1,0 +1,202 @@
+---
+title: "ISO 15143-3 (AEMP 2.0)"
+description: "Retrieve machine fleet data per ISO 15143-3 (AEMP 2.0) using OAuth 2.0."
+---
+
+## Overview
+
+The **ISO 15143-3 (AEMP 2.0) API** returns machine data according to the ISO standard. Before you use this API, you must have a **username**, **password**, and **organization** set up through **Operations Center**. Ask your John Deere dealer or open a support ticket if you need help.
+
+Read the **ISO 15143-3** standard for full field definitions; updates are published on the ISO site. To obtain an **app profile** for this API, use **My Applications** on [Developer.Deere.com](https://developer.deere.com/).
+
+John Deere continues to add data points from the ISO specification. Check back for changes, and use **Support** on Developer.Deere.com to request additional fields.
+
+<CardGroup cols={2}>
+  <Card title="Standards-based fleet data" icon="truck">
+    XML responses aligned with ISO 15143-3 (AEMP 2.0).
+  </Card>
+  <Card title="OAuth 2.0 (three-legged)" icon="lock">
+    User authorization with scopes `eq1` and `offline_access`.
+  </Card>
+  <Card title="Paginated fleet snapshot" icon="list">
+    100 machines per page; follow `next` links for the full fleet.
+  </Card>
+  <Card title="Active telematics only" icon="signal">
+    Only machines with telematic state **active** (as on the Operations Center map).
+  </Card>
+</CardGroup>
+
+### Data available in this API
+
+Examples of data categories include:
+
+- Header information  
+- Last known location  
+- Locations  
+- Operating hours  
+- Cumulative operating hours  
+- Cumulative idle hours  
+- Cumulative fuel used  
+- Fuel remaining ratio  
+- DEF remaining ratio  
+- Cumulative load count  
+- Cumulative payload total  
+- Distance  
+
+Not every vehicle exposes every data point. Additional ISO fields may be added over time based on industry and customer feedback.
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** APIs use **three-legged OAuth 2.0**. Create an application on [Developer.Deere.com](https://developer.deere.com/) to receive a **Client Key** and **Client Secret**.
+
+<Steps>
+  <Step title="Add callback URLs (Redirect URIs)">
+    On your application’s **OAuth Profile** (under **Details**), define one or more **Callback URLs** and save. If callbacks do not sync correctly, users may see **400 Bad Redirect** after sign-in—contact support so the redirect can be synced with the OAuth provider if needed.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Discover authorization, token, and scope metadata:
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Send the user to the authorization server with `response_type=code`, scopes, **client ID**, **state**, and a **URL-encoded** `redirect_uri` (must match a registered callback).
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code at the token endpoint using grant type `authorization_code`, including **client authentication** and the same **redirect URI**. Access tokens expire after **12 hours**. Request scope **`offline_access`** to receive a **refresh token**.
+  </Step>
+  <Step title="Enable organization access (connections)">
+    After you have a valid access token, users must grant your application access to their organization(s). If you call fleet data without this step, you may receive **403 Forbidden**.
+
+    Call **`GET /Fleet/1`**. If the response includes a link with **`rel=connections`**, redirect the user once per session to the provided URI so they can select organization(s). Example pattern:
+
+    ```text
+    https://connections.deere.com/connections/{clientId}/select-organizations?redirect_uri={redirectUri}
+    ```
+
+    The `redirect_uri` query parameter must be **URL-encoded** and must match a **Redirect URI** on your application profile. After selection, the user returns to your app (or remains in Operations Center if `redirect_uri` is missing or invalid).
+
+    Avoid redirect loops: perform the connections redirect **once per user session**. If access is still missing after completion, tell the user they may need to sign in to **Operations Center** and adjust the connection manually.
+  </Step>
+  <Step title="Refresh the access token">
+    Before the access token expires, call the token endpoint with grant type **`refresh_token`** and the refresh token. Refresh tokens expire after **365 days** without use; the user must sign in again if that happens. Users are not re-prompted for scopes unless you request new scopes.
+  </Step>
+</Steps>
+
+### Required OAuth scopes for `/Fleet`
+
+| Scope | Purpose |
+| --- | --- |
+| `eq1` | View equipment |
+| `offline_access` | Request a refresh token |
+
+---
+
+## Compression
+
+Most John Deere REST APIs support **gzip** response compression via the **`Accept-Encoding`** header. Example:
+
+```http
+GET https://sandboxaemp.deere.com/Fleet/1
+Accept: application/xml
+Accept-Encoding: gzip
+```
+
+See [HTTP compression](https://en.wikipedia.org/wiki/HTTP_compression) for background.
+
+---
+
+## Paging
+
+Collections are paginated with a **fixed page size of 100**. You cannot change page size, offset, or disable paging. The XML response includes `next`, `previous`, and `last` links where applicable. The last page has **no** `next` link.
+
+---
+
+## Caching
+
+Fleet responses are **cached for one hour** on the server side. **Poll at most once per hour** to avoid unnecessary load.
+
+---
+
+## Base URLs
+
+```text
+Sandbox: https://sandboxaemp.deere.com
+Live:    https://partneraemp.deere.com
+```
+
+---
+
+## Endpoints
+
+### Get fleet list
+
+Retrieve a snapshot of the equipment owner’s fleet (paginated).
+
+```text
+GET /Fleet/{pageNumber}
+```
+
+<ParamField path="pageNumber" type="integer" required>
+  Page number (starts at **1**). Follow **`rel=next`** until there is no next link.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL (sandbox)
+curl --request GET \
+  --url "https://sandboxaemp.deere.com/Fleet/1" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml' \
+  --header 'Accept-Encoding: gzip'
+```
+
+```bash cURL (live)
+curl --request GET \
+  --url "https://partneraemp.deere.com/Fleet/1" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/xml' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+#### Response
+
+The body is **XML** in the ISO 15143-3 namespace. Pagination uses multiple **`Links`** elements with **`rel`** (`self`, `next`, `last`, `previous`) and **`href`**. When organization access is not fully granted, a **`connections`** link may appear—use the documented redirect flow above.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /Fleet/{pageNumber}">
+  Test this endpoint interactively with a user access token that includes `eq1` and `offline_access`.
+</Card>
+
+#### Sample response (pagination + connections link)
+
+```xml
+<Fleet xmlns="http://standards.iso.org/iso/15143/-3" version="2" snapshotTime="2017-03-24T13:02:38.191Z">
+  <Links>
+    <rel>self</rel>
+    <href>https://sandboxapi.deere.com/aemp/Fleet/1</href>
+  </Links>
+  <Links>
+    <rel>last</rel>
+    <href>https://sandboxapi.deere.com/aemp/Fleet/4</href>
+  </Links>
+  <Links>
+    <rel>next</rel>
+    <href>https://sandboxapi.deere.com/aemp/Fleet/2</href>
+  </Links>
+  <Links>
+    <rel>connections</rel>
+    <href>https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/select-organizations</href>
+  </Links>
+</Fleet>
+```
+
+---
+
+## Postman (OAuth 2)
+
+You can use **Postman** to obtain tokens and call the API. Turn off **automatic redirects** in Postman settings when debugging the authorization code flow. Use **OAuth 2** authorization, grant type **Authorization Code**, callback **`https://www.getpostman.com/oauth2/callback`** (must be registered on your application), and load **Auth URL** and **Access Token URL** from the well-known document above. **Client ID** maps to **Application Id**; **Client Secret** maps to **Secret** on Developer.Deere.com. Start with scope **`eq1`** and add **`offline_access`** as needed.

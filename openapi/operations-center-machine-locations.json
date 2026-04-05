@@ -1,0 +1,525 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Machine Locations API",
+    "description": "Read **machine location history** (latitude, longitude, altitude over time) and **machine breadcrumbs** (location plus speed, fuel, heading, machine state, and related telemetry samples). Responses use the **CollectionPage** pattern (`total`, `links`, `values`) where applicable.\n\n**Media type:** Use **`Accept: application/vnd.deere.axiom.v3+json`**.\n\n**eTags:** The **location history** endpoint **does not** support John Deere’s **`x-deere-signature`** / eTag optimization (see product documentation for breadcrumbs behavior).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Location history",
+      "description": "Latitude, longitude, and altitude reports for a machine over a time range; each item links to `/machines`."
+    },
+    {
+      "name": "Breadcrumbs",
+      "description": "Location and sensor samples (speed, fuel, heading, machine state, correlation id, origin, timestamps, and related fields)."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. These endpoints require **`eq1`**. Request `offline_access` if you need refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and machine location data",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present). Location items typically include a **`machine`** link.",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": {
+            "type": "string",
+            "description": "Link relation, e.g. `self`, `machine`, `nextPage`.",
+            "example": "machine"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sandboxapi.deere.com/platform/machines/12345"
+          }
+        }
+      },
+      "LocationHistoryReport": {
+        "type": "object",
+        "description": "A single location history report with geographic coordinates; links to the **`/machines`** resource for the machine.",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom resource type when present.",
+            "example": "LocationHistory"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "description": "Latitude in decimal degrees.",
+            "example": 41.5234
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "description": "Longitude in decimal degrees.",
+            "example": -93.6122
+          },
+          "altitude": {
+            "type": "number",
+            "format": "double",
+            "description": "Altitude (meters or feet per product convention—see field metadata in live responses).",
+            "example": 298.5
+          },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "example": {
+          "@type": "LocationHistory",
+          "latitude": 41.5234,
+          "longitude": -93.6122,
+          "altitude": 298.5,
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+            }
+          ]
+        }
+      },
+      "LocationHistoryCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of location history reports (**CollectionPage** pattern).",
+        "properties": {
+          "total": { "type": "integer", "example": 120 },
+          "links": {
+            "type": "array",
+            "description": "May include `nextPage` / `previousPage` when paginated.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/LocationHistoryReport" }
+          }
+        }
+      },
+      "BreadcrumbSample": {
+        "type": "object",
+        "description": "A breadcrumb sample: **speed**, **fuel level**, **heading**, **machine state**, **machine state defined type id**, **correlation id**, **location**, **altitude**, **origin**, **created timestamp**, and related fields as returned by the platform.",
+        "additionalProperties": true,
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "Breadcrumb"
+          },
+          "speed": {
+            "type": "number",
+            "format": "double",
+            "description": "Machine speed (units per product documentation).",
+            "example": 5.2
+          },
+          "fuelLevel": {
+            "type": "number",
+            "format": "double",
+            "description": "Reported fuel level when available.",
+            "example": 0.72
+          },
+          "heading": {
+            "type": "number",
+            "format": "double",
+            "description": "Direction of travel / heading.",
+            "example": 187.3
+          },
+          "machineState": {
+            "type": "integer",
+            "description": "Machine state code (see platform documentation for enumerations).",
+            "example": 1
+          },
+          "machineStateDefinedTypeId": {
+            "type": "string",
+            "description": "Identifier for the defined machine state type when present.",
+            "example": "MS_01"
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "Correlation identifier tying this sample to related telemetry.",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "location": {
+            "type": "object",
+            "description": "Geographic location payload (structure may include latitude/longitude nested objects—see live responses).",
+            "additionalProperties": true
+          },
+          "altitude": {
+            "type": "number",
+            "format": "double",
+            "example": 301.0
+          },
+          "origin": {
+            "type": "string",
+            "description": "Origin or source of the sample when provided.",
+            "example": "TM"
+          },
+          "createdTimestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this breadcrumb was created / recorded.",
+            "example": "2024-06-01T15:30:00.000Z"
+          },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "example": {
+          "@type": "Breadcrumb",
+          "speed": 5.2,
+          "fuelLevel": 0.72,
+          "heading": 187.3,
+          "machineState": 1,
+          "machineStateDefinedTypeId": "MS_01",
+          "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "altitude": 301.0,
+          "origin": "TM",
+          "createdTimestamp": "2024-06-01T15:30:00.000Z",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "machine",
+              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+            }
+          ]
+        }
+      },
+      "BreadcrumbCollectionPage": {
+        "type": "object",
+        "description": "Paged collection of breadcrumb samples (**CollectionPage** pattern).",
+        "properties": {
+          "total": { "type": "integer", "example": 500 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BreadcrumbSample" }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for 4xx responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/machines/{principalId}/locationHistory": {
+      "get": {
+        "tags": ["Location history"],
+        "operationId": "getMachineLocationHistory",
+        "summary": "Get machine location history",
+        "description": "Returns a **list of location reports** for the machine. Each report includes **longitude**, **latitude**, and **altitude**, and the response links to the **`/machines`** resource for the machine.\n\n**Please note:** This API **does not** support eTags (`x-deere-signature`).\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/locationHistory`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Machine **principal id** (from **`/platform`** machine or equipment resources the user can access).",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Range start (**ISO 8601**, UTC). Behavior when omitted follows other machine timeline APIs—use explicit bounds for reproducible queries.",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-05-01T00:00:00.000Z" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Range end (**ISO 8601**, UTC). Pair with **`startDate`** to bound the history window.",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-05-31T23:59:59.999Z" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, maximum **100** (John Deere **CollectionPage** convention).",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based offset aligned with **`itemLimit`**.",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Optional link filtering (for example `none` to reduce payload size); see platform **Links** documentation.",
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/12345/locationHistory?startDate=2024-05-01T00:00:00.000Z&endDate=2024-05-31T23:59:59.999Z&itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — location history (**CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/LocationHistoryCollectionPage" },
+                "examples": {
+                  "collection": {
+                    "summary": "Paged location points with machine link",
+                    "value": {
+                      "total": 1,
+                      "links": [],
+                      "values": [
+                        {
+                          "@type": "LocationHistory",
+                          "latitude": 41.5234,
+                          "longitude": -93.6122,
+                          "altitude": 298.5,
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues; check **X-Deere-Warning** / **X-Deere-Terms-Location** when present.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    },
+    "/platform/machines/{principalId}/breadcrumbs": {
+      "get": {
+        "tags": ["Breadcrumbs"],
+        "operationId": "getMachineBreadcrumbs",
+        "summary": "Get machine breadcrumbs",
+        "description": "Returns **breadcrumb** samples for the machine, including **speed**, **fuel level**, **heading** (direction of travel), **machine state**, **machine state defined type id**, **correlation id**, **location**, **altitude**, **origin**, **created timestamp**, and related fields as exposed by the platform.\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/machines/{principalId}/breadcrumbs`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "description": "Machine **principal id** (from **`/platform`** machine or equipment resources the user can access).",
+            "schema": { "type": "string", "example": "12345" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Range start (**ISO 8601**, UTC). Use with **`endDate`** to bound samples.",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-05-01T00:00:00.000Z" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Range end (**ISO 8601**, UTC).",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-05-31T23:59:59.999Z" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, maximum **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based offset aligned with **`itemLimit`**.",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Optional link filtering (for example `none`); see platform **Links** documentation.",
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use **`application/vnd.deere.axiom.v3+json`** for Axiom v3 JSON responses.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Request **gzip** response compression when supported (`gzip`).",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/machines/12345/breadcrumbs?startDate=2024-05-01T00:00:00.000Z&endDate=2024-05-31T23:59:59.999Z&itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — breadcrumb samples (**CollectionPage** with `values`).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/BreadcrumbCollectionPage" },
+                "examples": {
+                  "collection": {
+                    "summary": "Telemetry-rich breadcrumb with machine link",
+                    "value": {
+                      "total": 1,
+                      "links": [],
+                      "values": [
+                        {
+                          "@type": "Breadcrumb",
+                          "speed": 5.2,
+                          "fuelLevel": 0.72,
+                          "heading": 187.3,
+                          "machineState": 1,
+                          "machineStateDefinedTypeId": "MS_01",
+                          "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                          "altitude": 301.0,
+                          "origin": "TM",
+                          "createdTimestamp": "2024-06-01T15:30:00.000Z",
+                          "links": [
+                            {
+                              "@type": "Link",
+                              "rel": "machine",
+                              "uri": "https://sandboxapi.deere.com/platform/machines/12345"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token, expired access token, or application not licensed for the API.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user or client cannot access this machine or required OAuth scopes (ensure **`eq1`**) are not granted. May also indicate organization connection or terms (RCA) issues.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — **`principalId`** is not valid for the caller’s accessible resources.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — honor **Retry-After** when returned."
+          },
+          "503": {
+            "description": "Service unavailable — retry with backoff; honor **Retry-After** when returned."
+          }
+        }
+      }
+    }
+  }
+}

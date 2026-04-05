@@ -1,0 +1,148 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ISO 15143-3 (AEMP 2.0) Fleet API",
+    "description": "Retrieves machine fleet data according to the ISO 15143-3 (AEMP 2.0) standard. Responses are XML. The API returns only machines with a telematic state of **active** (visible on the Operations Center map).\n\n**Caching:** Responses are cached on Deere servers for one hour. A polling interval of at least one hour is recommended.\n\n**Paging:** Page size is fixed at 100. Follow the `next` link in the response to retrieve all pages.\n\n**Compression:** You may send `Accept-Encoding: gzip` to receive compressed responses.",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxaemp.deere.com",
+      "description": "Sandbox"
+    },
+    {
+      "url": "https://partneraemp.deere.com",
+      "description": "Live (production)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech APIs. Required scopes for `/Fleet` are `eq1` (view equipment) and `offline_access` (refresh token). Discover authorization and token endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "View equipment",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "FleetXml": {
+        "type": "string",
+        "description": "ISO 15143-3 Fleet snapshot document (XML). Contains pagination links (`self`, `next`, `last`, `previous`) and, when organization access is not fully enabled for the client, a `connections` link for the Operations Center organization-selection flow.",
+        "example": "<Fleet xmlns=\"http://standards.iso.org/iso/15143/-3\" version=\"2\" snapshotTime=\"2017-03-24T13:02:38.191Z\">\n  <Links>\n    <rel>self</rel>\n    <href>https://sandboxapi.deere.com/aemp/Fleet/1</href>\n  </Links>\n  <Links>\n    <rel>last</rel>\n    <href>https://sandboxapi.deere.com/aemp/Fleet/4</href>\n  </Links>\n  <Links>\n    <rel>next</rel>\n    <href>https://sandboxapi.deere.com/aemp/Fleet/2</href>\n  </Links>\n  <Links>\n    <rel>connections</rel>\n    <href>https://connections.deere.com/connections/deere-sld8shg8ee0o8ns8nhdh88hn/select-organizations</href>\n  </Links>\n</Fleet>"
+      },
+      "ErrorXml": {
+        "type": "string",
+        "description": "Error payload when the API returns an XML or text error body."
+      }
+    }
+  },
+  "paths": {
+    "/Fleet/{pageNumber}": {
+      "get": {
+        "operationId": "getFleetPage",
+        "summary": "Get fleet list",
+        "description": "Retrieve a paginated snapshot of an equipment owner’s fleet. Page size is **100**. If a `connections` link appears in the response, the user must complete organization access for your application (see product documentation).\n\n**Request (sandbox):** `GET https://sandboxaemp.deere.com/Fleet/{pageNumber}`\n\n**Request (live):** `GET https://partneraemp.deere.com/Fleet/{pageNumber}`\n\n**Accept:** `application/xml`\n\n**Optional:** `Accept-Encoding: gzip`",
+        "security": [
+          {
+            "OAuth2AuthorizationCode": [
+              "eq1",
+              "offline_access"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "path",
+            "required": true,
+            "description": "1-based page index. Use `1` for the first page, then follow `rel=next` links until no `next` link is returned.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Must be `application/xml` for this API.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/xml"
+              ],
+              "default": "application/xml"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Optional compression. Only `gzip` is supported.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "gzip"
+              ],
+              "example": "gzip"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (sandbox)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxaemp.deere.com/Fleet/1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml' \\\n  --header 'Accept-Encoding: gzip'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (live)",
+            "source": "curl --request GET \\\n  --url 'https://partneraemp.deere.com/Fleet/1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/xml' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fleet snapshot page (XML). Includes ISO 15143-3 machine data for active telematics machines and pagination links.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetXml"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing, invalid, or expired access token.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorXml"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden. Organization access may not be enabled for this client; complete the connections / organization selection flow.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorXml"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

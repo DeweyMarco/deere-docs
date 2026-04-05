@@ -1,0 +1,711 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center Equipment API",
+    "description": "Access machines, implements, and reference data (makes, ISG types, models) for Operations Center. Equipment may be John Deere–managed or created by third-party applications. Collections return a **CollectionPage** wrapper with `total`, `links` (pagination), and `values`.\n\n**Paging:** Use `itemLimit` (10–100, multiples of 10) and `pageOffset` with the collection endpoints.\n\n**Compression:** Send `Accept-Encoding: gzip` for gzip-compressed responses.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://equipmentapi.deere.com",
+      "description": "Equipment API (sandbox and production share this host; path `/isg/`)"
+    }
+  ],
+  "tags": [
+    { "name": "Equipment", "description": "List, create, read, update, and delete equipment records." },
+    { "name": "Reference data", "description": "Equipment makes, ISG types, models, and legacy type endpoints." }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech APIs. Endpoints require `eq1` (read) and/or `eq2` (create/update/delete equipment). Request `offline_access` for refresh tokens. Discover endpoints from the well-known URL.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view equipment and reference data",
+              "eq2": "Equipment Access Level 2 — create, edit, and delete contributed equipment",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (John Deere `@type` + `Link` pattern).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "nextPage" },
+          "uri": { "type": "string", "format": "uri", "example": "https://equipmentapi.deere.com/isg/equipment?pageOffset=10" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper used by many Precision Tech list endpoints.",
+        "properties": {
+          "total": { "type": "integer", "description": "Total number of available values.", "example": 42 },
+          "links": {
+            "type": "array",
+            "description": "May include `nextPage` and `previousPage` links when paginated.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "description": "Items for this page (default page size 10 unless `itemLimit` is set).",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "CreateEquipmentRequest": {
+        "type": "object",
+        "description": "Body for creating a machine or implement. `serialNumber` and `name` must be unique within the organization when provided (max 30 characters each).",
+        "required": ["@type", "name", "model"],
+        "properties": {
+          "@type": {
+            "type": "string",
+            "enum": ["Machine", "Implement"],
+            "description": "Discriminator for equipment category."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 30,
+            "description": "Display name in Operations Center.",
+            "example": "Equipment Name"
+          },
+          "serialNumber": {
+            "type": "string",
+            "maxLength": 30,
+            "description": "Optional unique identifier within the organization.",
+            "example": "must_be_unique_string"
+          },
+          "model": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["@type", "id"],
+              "properties": {
+                "@type": { "type": "string", "example": "EquipmentModel" },
+                "id": { "type": "integer", "format": "int64", "example": 66280 }
+              }
+            }
+          }
+        },
+        "example": {
+          "@type": "Machine",
+          "name": "Equipment Name",
+          "serialNumber": "must_be_unique_string",
+          "model": [{ "@type": "EquipmentModel", "id": 66280 }]
+        }
+      },
+      "EquipmentResource": {
+        "type": "object",
+        "description": "Single equipment resource (machine or implement). Actual fields may include links, paired devices, and metadata.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "Machine",
+          "id": "12345",
+          "name": "North 01",
+          "serialNumber": "SN-1001"
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error information (e.g. duplicate serial number on create).",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/isg/equipment": {
+      "get": {
+        "tags": ["Equipment"],
+        "operationId": "listEquipment",
+        "summary": "Get equipment",
+        "description": "Returns equipment the user can access across connected organizations. Filter by organizations, category (machine/implement), serial numbers, or IDs. If multiple organizations are requested and the user or client lacks access to any of them, the API returns **403 Forbidden**.\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://equipmentapi.deere.com/isg/equipment`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "organizationIds",
+            "in": "query",
+            "required": false,
+            "description": "Filter by one or more organization IDs (repeat parameter or comma-separated, per your client).",
+            "schema": { "type": "string", "example": "283480,283481" }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Secondary filter: `machine` or `implement`.",
+            "schema": { "type": "string", "enum": ["machine", "implement"] }
+          },
+          {
+            "name": "serialNumbers",
+            "in": "query",
+            "required": false,
+            "description": "Filter by serial number(s).",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "description": "Filter archived equipment records.",
+            "schema": { "type": "boolean" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of 10, max 100.",
+            "schema": { "type": "integer", "enum": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], "default": 10 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Starting offset for pagination (align with `itemLimit`, e.g. 0, 10, 20 with default page size 10).",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "default": "application/json" }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Use `gzip` for compressed responses.",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipment?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged list of equipment (CollectionPage or equivalent JSON).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — user lacks access to a requested organization, or insufficient OAuth scopes.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorBody" } } }
+          }
+        }
+      }
+    },
+    "/isg/organizations/{organizationId}/equipment": {
+      "post": {
+        "tags": ["Equipment"],
+        "operationId": "createEquipment",
+        "summary": "Create equipment",
+        "description": "Creates a **Machine** or **Implement** in the specified organization. On success, **201 Created** includes a `Location` header with the new equipment URI; the last path segment is the organization-specific equipment id.\n\nDuplicate `serialNumber` in the same organization returns **400 Bad Request**.\n\n**OAuth scope:** `eq2`\n\n**Request URL:** `POST https://equipmentapi.deere.com/isg/organizations/{organizationId}/equipment`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEquipmentRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://equipmentapi.deere.com/isg/organizations/283480/equipment' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"@type\":\"Machine\",\"name\":\"Equipment Name\",\"serialNumber\":\"must_be_unique_string\",\"model\":[{\"@type\":\"EquipmentModel\",\"id\":66280}]}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created. `Location` header contains the equipment resource URI.",
+            "headers": {
+              "Location": {
+                "description": "URI of the new equipment, e.g. `https://equipmentapi.deere.com/isg/equipment/12345`",
+                "schema": { "type": "string", "format": "uri" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EquipmentResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request — invalid body or duplicate serial number.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorBody" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipment/{id}": {
+      "get": {
+        "tags": ["Equipment"],
+        "operationId": "getEquipmentById",
+        "summary": "View equipment details by Id",
+        "description": "Returns details for one piece of equipment.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Equipment id.",
+            "schema": { "type": "string", "example": "12345" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipment/12345' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment details.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EquipmentResource" } } }
+          },
+          "404": { "description": "Equipment not found or not accessible." }
+        }
+      },
+      "put": {
+        "tags": ["Equipment"],
+        "operationId": "updateEquipment",
+        "summary": "Update equipment",
+        "description": "Updates equipment that was created via **POST** `/organizations/{organizationId}/equipment`. John Deere–controlled equipment must be managed in Operations Center.\n\n**OAuth scope:** `eq2`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "12345" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEquipmentRequest" },
+              "example": {
+                "@type": "Machine",
+                "name": "Updated Name",
+                "model": [{ "@type": "EquipmentModel", "id": 66280 }]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://equipmentapi.deere.com/isg/equipment/12345' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"@type\":\"Machine\",\"name\":\"Updated Name\",\"model\":[{\"@type\":\"EquipmentModel\",\"id\":66280}]}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated equipment.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EquipmentResource" } } }
+          },
+          "400": { "description": "Invalid request body." },
+          "403": { "description": "Cannot modify John Deere–managed equipment via API." }
+        }
+      },
+      "delete": {
+        "tags": ["Equipment"],
+        "operationId": "deleteEquipment",
+        "summary": "Delete equipment",
+        "description": "Deletes equipment created via **POST** `/organizations/{organizationId}/equipment`. John Deere–controlled equipment must be removed in Operations Center.\n\n**OAuth scope:** `eq2`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "12345" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://equipmentapi.deere.com/isg/equipment/12345' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": { "description": "Deleted successfully." },
+          "403": { "description": "Cannot delete John Deere–managed equipment via API." },
+          "404": { "description": "Not found." }
+        }
+      }
+    },
+    "/isg/equipmentMakes": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listEquipmentMakes",
+        "summary": "Get equipment makes",
+        "description": "Returns equipment makes with ids and names for use when creating third-party managed equipment.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of equipment makes.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "getEquipmentMakeById",
+        "summary": "View equipment by make Id",
+        "description": "Returns a single equipment make by id.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "1" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment make resource.",
+            "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}/equipmentTypes": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listEquipmentTypesByMake",
+        "summary": "Get equipment types by make id",
+        "deprecated": true,
+        "description": "**Deprecated** — use **GET** `/equipmentMakes/{equipmentMakeId}/equipmentISGTypes` instead.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment types for the make.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentTypes": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listEquipmentTypes",
+        "summary": "Get equipment types",
+        "deprecated": true,
+        "description": "**Deprecated** — use **GET** `/equipmentISGTypes` or make-scoped ISG type endpoints.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of equipment types.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentModels": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listEquipmentModels",
+        "summary": "Get equipment models",
+        "description": "Search and list models in the reference database. Example: `GET /equipmentModels?equipmentModelName=9RX*&embed=make,isgType` to include make and ISG type ids with each model.\n\n**OAuth scope:** `eq1` (recommended for integrated flows)",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentModelName",
+            "in": "query",
+            "required": false,
+            "description": "Search string; wildcards may be supported (e.g. `9RX*`).",
+            "schema": { "type": "string", "example": "9RX*" }
+          },
+          {
+            "name": "embed",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated embeds such as `make`, `isgType`.",
+            "schema": { "type": "string", "example": "make,isgType" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentModels?equipmentModelName=9RX%2A&embed=make%2CisgType' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment models (CollectionPage or list).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentISGTypes": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listEquipmentISGTypes",
+        "summary": "Get equipment ISG types",
+        "description": "Retrieves ISG types based on supplied query parameters.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentISGTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ISG types.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listISGTypesByMake",
+        "summary": "Get equipment ISG types by make id",
+        "description": "ISG types for a given equipment make.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "1" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ISG types for the make.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "getISGTypeByMakeAndId",
+        "summary": "Get equipment ISG type by make id and ISG type id",
+        "description": "Returns a single ISG type for the given make.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "equipmentISGTypeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Single ISG type.",
+            "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "listModelsByMakeAndISGType",
+        "summary": "Get equipment models by make id and ISG type id",
+        "description": "Models for a make and ISG type (use the returned model **id** when creating equipment).\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "equipmentISGTypeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100/equipmentModels' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment models.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionPage" } } }
+          }
+        }
+      }
+    },
+    "/isg/equipmentMakes/{equipmentMakeId}/equipmentISGTypes/{equipmentISGTypeId}/equipmentModels/{equipmentModelId}": {
+      "get": {
+        "tags": ["Reference data"],
+        "operationId": "getModelByMakeISGTypeAndId",
+        "summary": "Get equipment model by make id, ISG type id and model id",
+        "description": "Returns one equipment model.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "equipmentMakeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "equipmentISGTypeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "equipmentModelId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "66280" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://equipmentapi.deere.com/isg/equipmentMakes/1/equipmentISGTypes/100/equipmentModels/66280' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Equipment model resource.",
+            "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } }
+          },
+          "404": { "description": "Model not found." }
+        }
+      }
+    }
+  }
+}

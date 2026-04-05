@@ -1,0 +1,4331 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Work Order Execution Work Order Segments API",
+    "description": "Manage work order segments, actions, checklists, jobs, parts, images, and labor resources.",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://expertappapi-sandbox.deere.com",
+      "description": "Sandbox (Expert App API \u2014 work order microservice)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth 2.0. Use the authorization code flow (three-legged) for interactive users, or the client credentials grant for machine-to-machine access. The `axiom` scope is required unless your product documentation states otherwise.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "axiom": "Dealer Solutions API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "JsonPayload": {
+        "type": "object",
+        "description": "JSON request or response body; shape depends on the operation.",
+        "additionalProperties": true,
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "status": "OPEN"
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "UNAUTHORIZED"
+              },
+              "message": {
+                "type": "string",
+                "example": "Invalid or expired access token."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/adHoc": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_adHoc",
+        "summary": "Add ad hoc segment to work order",
+        "description": "Add an ad hoc job segment to a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/adHoc' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/byId": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_byId",
+        "summary": "Add segment by checklist or jobs",
+        "description": "Add a segment from job IDs or checklist ID.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/byId' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/groupByServiceArea": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_groupByServiceArea",
+        "summary": "List WO segments by service area",
+        "description": "View segments for a work order grouped by service area.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/groupByServiceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id",
+        "summary": "Get work order segment",
+        "description": "View a segment related to a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id",
+        "summary": "Update work order segment",
+        "description": "Update a segment related to a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id",
+        "summary": "Delete work order segment",
+        "description": "Delete a segment related to a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id",
+        "summary": "Patch work order segment",
+        "description": "Update properties of a segment.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}/groupByServiceArea": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id_groupByServiceArea",
+        "summary": "Get WO segment by service area",
+        "description": "View a segment with service-area grouping.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000/groupByServiceArea' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}/notification": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id_notification",
+        "summary": "Inspection summary email (segment)",
+        "description": "Send email notification of inspection summary details.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000/notification' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}/repairNotification": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id_repairNotification",
+        "summary": "Repair notification email",
+        "description": "Send email notification for repair summary.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000/repairNotification' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}/repairReport": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id_repairReport",
+        "summary": "Repair summary report",
+        "description": "Generate inspection summary report (repair).",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000/repairReport' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{id}/report": {
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_id_report",
+        "summary": "Inspection summary report",
+        "description": "Generate inspection summary report. Optional `reportType=INSPECTION_SUMMARY`.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "reportType",
+            "in": "query",
+            "required": false,
+            "description": "Report variant.",
+            "schema": {
+              "type": "string",
+              "example": "INSPECTION_SUMMARY"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/550e8400-e29b-41d4-a716-446655440000/report?reportType=INSPECTION_SUMMARY' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/actions": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_actions",
+        "summary": "Create segment action",
+        "description": "Create a new segment action.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/actions' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/actions/{actionId}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_actions_actionId",
+        "summary": "Get segment action",
+        "description": "Return an action for the given business key.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `actionId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/actions/act-1010' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/jobs/{jobId}/images": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_jobs_jobId_images",
+        "summary": "Add image to checklist task",
+        "description": "Add an image to a checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/jobs/job-5005/images' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/jobs/{jobId}/images/{id}": {
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_jobs_jobId_images_id",
+        "summary": "Remove image from checklist task",
+        "description": "Remove an image from the checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/jobs/job-5005/images/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: */*'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/tasks": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks",
+        "summary": "Create checklist task",
+        "description": "Create a new task on a checklist.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/tasks/{id}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_id",
+        "summary": "Get checklist task",
+        "description": "Get a task on a checklist.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_id",
+        "summary": "Delete checklist task",
+        "description": "Delete a task on a checklist.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_id",
+        "summary": "Patch checklist task",
+        "description": "Update properties on a checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/tasks/{jobId}/parts/{partId}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts_partId",
+        "summary": "Get part (work order checklist task)",
+        "description": "Get a part by ID on a work order checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts_partId",
+        "summary": "Put part (work order checklist task)",
+        "description": "Update a part on a checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '[]'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts_partId",
+        "summary": "Delete part (work order checklist task)",
+        "description": "Delete a part on a checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts_partId",
+        "summary": "Patch part (work order checklist task)",
+        "description": "Patch a part on a checklist task.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{checklistId}/tasks/{jobId}/parts": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts",
+        "summary": "List parts (work order checklist task)",
+        "description": "Get all parts on the work order job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts",
+        "summary": "Put parts array (work order checklist task)",
+        "description": "Replace parts using a part array.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '[]'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                }
+              },
+              "example": []
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_checklistId_tasks_jobId_parts",
+        "summary": "Create part (work order checklist task)",
+        "description": "Create a new part on the job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "checklistId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `checklistId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/chk-4004/tasks/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists/{id}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_id",
+        "summary": "Get checklist on work order segment",
+        "description": "View a checklist inside a segment for a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists_id",
+        "summary": "Patch checklist",
+        "description": "Patch values on a checklist.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/checklists": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_checklists",
+        "summary": "Create checklist on WO segment",
+        "description": "Add a checklist using query `type=byId` and Expert Services checklist ID.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Use `byId` to reference Expert Services checklist.",
+            "schema": {
+              "type": "string",
+              "example": "byId"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/checklists?type=byId' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/jobs": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs",
+        "summary": "List jobs on work order segment",
+        "description": "View all jobs inside a segment for a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/jobs/{id}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_id",
+        "summary": "Get job on work order segment",
+        "description": "View a job inside a segment for a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_id",
+        "summary": "Update job on work order segment",
+        "description": "Update a job inside a segment for a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_id",
+        "summary": "Patch job on work order segment",
+        "description": "Update properties of a job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `id`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/550e8400-e29b-41d4-a716-446655440000' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/jobs/{jobId}/parts/{partId}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts_partId",
+        "summary": "Get part (work order job path)",
+        "description": "Get a part by ID on a work order segment job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts_partId",
+        "summary": "Put part (work order job path)",
+        "description": "Update a part by ID on a segment job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '[]'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts_partId",
+        "summary": "Delete part (work order job path)",
+        "description": "Delete a part by ID on a segment job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts_partId",
+        "summary": "Patch part (work order job path)",
+        "description": "Patch a part by ID on a segment job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `partId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PATCH \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts/part-6006' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/jobs/{jobId}/parts": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts",
+        "summary": "List parts (work order job path)",
+        "description": "Get all parts on the work order job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts",
+        "summary": "Put parts array (work order job path)",
+        "description": "Replace parts using a part array.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '[]'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                }
+              },
+              "example": []
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_jobs_jobId_parts",
+        "summary": "Create part (work order job path)",
+        "description": "Create a new part on the job.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `jobId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/jobs/job-5005/parts' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/laborResources": {
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_laborResources",
+        "summary": "Create labor resource",
+        "description": "Create a new labor resource (POST).",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/laborResources' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments/{segmentId}/laborResources/{laborResourceId}": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_laborResources_laborResourceId",
+        "summary": "Get labor resource",
+        "description": "Get a labor resource for the given business key.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "laborResourceId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `laborResourceId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/laborResources/lr-9009' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_delsol_workorder_micro_v2_api_workorders_workOrderId_segments_segmentId_laborResources_laborResourceId",
+        "summary": "Upsert labor resource",
+        "description": "Create or update a labor resource by identifier.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "segmentId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `segmentId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "laborResourceId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `laborResourceId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments/seg-3003/laborResources/lr-9009' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/delsol/workorder-micro-v2/api/workorders/{workOrderId}/segments": {
+      "get": {
+        "operationId": "get_delsol_workorder_micro_v2_api_workorders_workOrderId_segments",
+        "summary": "List work order segments",
+        "description": "View segments for a work order. Optional `groupby=serviceArea`.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          },
+          {
+            "name": "groupby",
+            "in": "query",
+            "required": false,
+            "description": "Group by service area.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments?groupby=value' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_delsol_workorder_micro_v2_api_workorders_workOrderId_segments",
+        "summary": "Create work order segment",
+        "description": "Create a new segment related to a work order.",
+        "security": [
+          {
+            "OAuth2": [
+              "axiom"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "in": "path",
+            "required": true,
+            "description": "Path parameter `workOrderId`.",
+            "schema": {
+              "type": "string",
+              "example": "string"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\\n  --url 'https://expertappapi-sandbox.deere.com/delsol/workorder-micro-v2/api/workorders/wo-2002/segments' \\\\n  --header 'Authorization: Bearer <access_token>' \\\\n  --header 'Accept: application/json' \\\\n  --header 'Content-Type: application/json' \\\\n  --data '{}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonPayload"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonPayload"
+              },
+              "example": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}
