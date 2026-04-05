@@ -1,0 +1,1137 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Map Layers API",
+    "description": "Contribute **Map Layers** to **John Deere Operations Center** so growers see geospatial information per field—management zones, imagery, prescriptions, soil maps, and more. Map Layers are grouped under a **Map Layer Summary** (context and Markdown text). Each **Map Layer** holds one image (or processed shapefile), optional **legend** ranges, **extent**, and **metadata**.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) and **CollectionPage** (`total`, `links`, `values`) where applicable.\n\n**Paging:** Use `itemLimit` (10–100, multiples of 10) and `pageOffset` on list endpoints.\n\n**Markdown:** Map Layer Summary and Map Layer text fields support a **subset of Markdown** (see platform Markdown documentation).\n\n**eTags:** **GET** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`, **GET** `/platform/mapLayerSummaries/{id}/mapLayers`, and **GET** `/platform/mapLayers/{id}/fileResources` **do not** support `x-deere-signature` eTags.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Map layer summaries",
+      "description": "Summaries group Map Layers for a field and carry Markdown overview text."
+    },
+    {
+      "name": "Map layers",
+      "description": "Individual map layer resources (one image per layer) and PNG extraction."
+    },
+    {
+      "name": "File resources",
+      "description": "Reserve, upload, download, and delete binary files (PNG, GeoTIFF, ZIP shapefile) for a Map Layer."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. Scopes **`ag1`**, **`ag2`**, and **`ag3`** are used by these endpoints. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "ag1": "Locations Access Level 1 — view locations and map layers",
+              "ag2": "Locations Access Level 2 — analyze production data (summaries list/read)",
+              "ag3": "Locations Access Level 3 — manage locations and production data (create/update/delete)",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 2 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "MetadataDetail": {
+        "type": "object",
+        "description": "Key/value metadata; **value** supports limited Markdown.",
+        "properties": {
+          "name": { "type": "string", "example": "time" },
+          "value": { "type": "string", "example": "Friday, June 29, 2018 (CDT)" }
+        }
+      },
+      "LegendRange": {
+        "type": "object",
+        "description": "Min inclusive, max exclusive range for legend coloring.",
+        "properties": {
+          "label": { "type": "string", "example": "Some Label" },
+          "minimum": { "type": "number", "format": "double", "example": 0.0 },
+          "maximum": { "type": "number", "format": "double", "example": 100.0 },
+          "hexColor": { "type": "string", "example": "#0BA74A" },
+          "percent": { "type": "number", "format": "double", "example": 0.13 }
+        }
+      },
+      "ExtentDetails": {
+        "type": "object",
+        "properties": {
+          "minimumLatitude": { "type": "number", "format": "double", "example": 41.76073 },
+          "maximumLatitude": { "type": "number", "format": "double", "example": 41.771366 },
+          "minimumLongitude": { "type": "number", "format": "double", "example": -93.488106 },
+          "maximumLongitude": { "type": "number", "format": "double", "example": -93.4837 }
+        }
+      },
+      "MapLayerSummaryResource": {
+        "type": "object",
+        "description": "A Map Layer Summary resource (structure follows live Axiom responses).",
+        "additionalProperties": true,
+        "example": {
+          "@type": "MapLayerSummary",
+          "id": "335c06b6-f645-42fd-99f6-74c84f633d46",
+          "text": "## NDVI overview\nSatellite pass from 2024-06-15.",
+          "type": "SATELLITE"
+        }
+      },
+      "CreateMapLayerSummaryRequest": {
+        "type": "object",
+        "description": "Body for **POST** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`. Markdown supported on summary text fields per API.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "MapLayerSummary",
+          "text": "## Field summary\nUse **Markdown** for context.",
+          "type": "SATELLITE"
+        }
+      },
+      "MapLayerResource": {
+        "type": "object",
+        "description": "A single Map Layer (Axiom). **status** may be `VALID`, `INVALID`, `QUEUED`, or `NO_FILE_RESOURCE`.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "MapLayer",
+          "id": "c303004d-beb8-471d-b144-c44bb5318e55",
+          "type": "PRESCRIPTION",
+          "status": "VALID"
+        }
+      },
+      "CreateMapLayerRequest": {
+        "type": "object",
+        "description": "Body for **POST** `/platform/mapLayerSummaries/{id}/mapLayers`. Markdown supported on text fields per API.",
+        "additionalProperties": true,
+        "example": {
+          "@type": "MapLayer",
+          "text": "## Layer details\nLegend and notes.",
+          "type": "PRESCRIPTION"
+        }
+      },
+      "FileResourceResource": {
+        "type": "object",
+        "description": "File Resource metadata and links (upload target, MIME type, processing status).",
+        "additionalProperties": true
+      },
+      "CreateFileResourceRequest": {
+        "type": "object",
+        "description": "Body for **POST** `/platform/mapLayers/{id}/fileResources`. MIME type selects processing (PNG, GeoTIFF, ZIP shapefile).",
+        "additionalProperties": true,
+        "example": {
+          "@type": "FileResource",
+          "mimeType": "image/png"
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries": {
+      "get": {
+        "tags": ["Map layer summaries"],
+        "operationId": "listFieldMapLayerSummaries",
+        "summary": "List Map Layer Summaries",
+        "description": "Lists **all Map Layer Summaries** for the specified **field**.\n\n**Note:** This API **does not** support eTags.\n\n**OAuth scope:** `ag2`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Field id.",
+            "schema": { "type": "string", "example": "5513840f-1a8d-4dd4-aff2-3020d308d154" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/5513840f-1a8d-4dd4-aff2-3020d308d154/mapLayerSummaries?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged Map Layer Summaries (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Map layer summaries"],
+        "operationId": "createMapLayerSummary",
+        "summary": "Create a Map Layer Summary",
+        "description": "Creates a **Map Layer Summary** for the field. The response typically includes a **Location** header with the new summary URI—use it in subsequent steps.\n\n**OAuth scope:** `ag3`\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Field id.",
+            "schema": { "type": "string", "example": "5513840f-1a8d-4dd4-aff2-3020d308d154" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "enum": ["application/vnd.deere.axiom.v3+json"] }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateMapLayerSummaryRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/fields/5513840f-1a8d-4dd4-aff2-3020d308d154/mapLayerSummaries' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"MapLayerSummary\",\"text\":\"## Summary\\\\nContext for this field.\",\"type\":\"SATELLITE\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created — typically includes **Location** header.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MapLayerSummaryResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/mapLayerSummaries/{id}": {
+      "get": {
+        "tags": ["Map layer summaries"],
+        "operationId": "getMapLayerSummary",
+        "summary": "View a Map Layer Summary",
+        "description": "Returns one **Map Layer Summary** by id.\n\n**OAuth scope:** `ag2`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag2"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer Summary id.",
+            "schema": { "type": "string", "example": "335c06b6-f645-42fd-99f6-74c84f633d46" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Map Layer Summary resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MapLayerSummaryResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Map layer summaries"],
+        "operationId": "deleteMapLayerSummary",
+        "summary": "Delete a Map Layer Summary",
+        "description": "Deletes the **Map Layer Summary** and its underlying **Map Layers** and **File Resources**.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "335c06b6-f645-42fd-99f6-74c84f633d46" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/mapLayerSummaries/{id}/mapLayers": {
+      "get": {
+        "tags": ["Map layers"],
+        "operationId": "listMapLayersForSummary",
+        "summary": "List Map Layers",
+        "description": "Lists **all Map Layers** for a **Map Layer Summary**.\n\n**Note:** This API **does not** support eTags.\n\n**OAuth scope:** `ag1`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer Summary id.",
+            "schema": { "type": "string", "example": "335c06b6-f645-42fd-99f6-74c84f633d46" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46/mapLayers?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged Map Layers (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Map layers"],
+        "operationId": "createMapLayer",
+        "summary": "Create a Map Layer",
+        "description": "Creates a **Map Layer** under the summary. Associate **file resources** in a follow-up flow. Response typically includes **Location** header.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer Summary id.",
+            "schema": { "type": "string", "example": "335c06b6-f645-42fd-99f6-74c84f633d46" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "enum": ["application/vnd.deere.axiom.v3+json"] }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateMapLayerRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46/mapLayers' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"MapLayer\",\"text\":\"## Layer\\\\nDetails.\",\"type\":\"PRESCRIPTION\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MapLayerResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/mapLayers/{id}": {
+      "get": {
+        "tags": ["Map layers"],
+        "operationId": "getMapLayerOrImage",
+        "summary": "View a Map Layer or extract PNG image",
+        "description": "Content negotiation:\n\n- **`Accept: application/vnd.deere.axiom.v3+json`** — returns the **Map Layer** resource JSON.\n- **`Accept: image/png`** or **`Accept: application/octet-stream`** — returns the **processed image** for the layer (PNG), regardless of original upload format.\n\n**OAuth scope:** `ag1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/mapLayers/{id}`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer id.",
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Use Axiom JSON for metadata, or **image/png** / **application/octet-stream** for the raster image.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/vnd.deere.axiom.v3+json",
+                "image/png",
+                "application/octet-stream"
+              ],
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (JSON)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (PNG)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: image/png' \\\n  --output layer.png"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Map Layer JSON or binary PNG.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/MapLayerResource" }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary",
+                  "description": "PNG image bytes."
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary",
+                  "description": "Image as octet stream (PNG output)."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Map layers"],
+        "operationId": "deleteMapLayer",
+        "summary": "Delete a Map Layer",
+        "description": "Deletes the **Map Layer** and its underlying **File Resource**.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/mapLayers/{id}/fileResources": {
+      "get": {
+        "tags": ["File resources"],
+        "operationId": "listMapLayerFileResources",
+        "summary": "List a Map Layer's File Resources",
+        "description": "Returns **File Resources** for the Map Layer.\n\n**Note:** This API **does not** support eTags.\n\n**OAuth scope:** `ag1`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer id.",
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55/fileResources' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File Resource list (**CollectionPage** or equivalent).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["File resources"],
+        "operationId": "createMapLayerFileResource",
+        "summary": "Create a Map Layer File Resource",
+        "description": "Reserves storage for an upload. Use the returned links to **PUT** binary data. Check processing via the **targetResource** link on the File Resource.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Map Layer id.",
+            "schema": { "type": "string", "example": "c303004d-beb8-471d-b144-c44bb5318e55" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "enum": ["application/vnd.deere.axiom.v3+json"] }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateFileResourceRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55/fileResources' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"FileResource\",\"mimeType\":\"image/png\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created — follow **upload** / **targetResource** links from the response.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResourceResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/fileResources/{id}": {
+      "get": {
+        "tags": ["File resources"],
+        "operationId": "getFileResource",
+        "summary": "View or download a File Resource",
+        "description": "**Metadata:** `Accept: application/vnd.deere.axiom.v3+json`\n\n**Download:** use one of **application/zip**, **application/octet-stream**, **application/x-zip**, **application/x-zip-compressed** (shapefile zip) or binary streams as documented by the API.\n\n**OAuth scope:** `ag1`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag1"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "File Resource id.",
+            "schema": { "type": "string", "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "description": "Axiom JSON for metadata, or zip/octet-stream Accept values to download bytes.",
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL (metadata)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          },
+          {
+            "lang": "bash",
+            "label": "cURL (download)",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/zip' \\\n  --output layer.zip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata JSON or file bytes.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResourceResource" }
+              },
+              "application/zip": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/octet-stream": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/x-zip": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/x-zip-compressed": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["File resources"],
+        "operationId": "uploadFileResource",
+        "summary": "Upload a File Resource",
+        "description": "Uploads binary data to a **File Resource** created with **POST** `/platform/mapLayers/{id}/fileResources`. Valid **Content-Type** values include **application/zip**, **application/octet-stream**, **application/x-zip**, **application/x-zip-compressed**.\n\n**Accept:** `application/vnd.deere.axiom.v3+json`\n\nPoll the File Resource (or **targetResource** link) for processing status.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "File Resource id from the create response.",
+            "schema": { "type": "string", "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "enum": ["application/vnd.deere.axiom.v3+json"] }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "description": "Must match the uploaded payload (zip or octet stream family).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/zip",
+                "application/octet-stream",
+                "application/x-zip",
+                "application/x-zip-compressed"
+              ],
+              "example": "application/octet-stream"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/octet-stream' \\\n  --data-binary @layer.png"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload accepted (see File Resource for processing state).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/FileResourceResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["File resources"],
+        "operationId": "deleteFileResource",
+        "summary": "Delete a File Resource",
+        "description": "Deletes a **File Resource**.\n\n**OAuth scope:** `ag3`",
+        "security": [{ "OAuth2AuthorizationCode": ["ag3"] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

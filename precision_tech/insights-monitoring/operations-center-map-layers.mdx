@@ -1,0 +1,669 @@
+---
+title: "Map Layers"
+description: "Add Map Layers and summaries to Operations Center fields: imagery, legends, file uploads, and PNG extraction."
+---
+
+## Overview
+
+**Map Layers** in the John Deere **Operations Center** help users understand their operation on a **field-by-field** basis. Layer types include management zones, drone and satellite imagery, topographic and soil maps, prescriptions, financial views, and more. You can set **legend** ranges, **extent**, **metadata**, and Markdown text so growers know your tool produced the layer.
+
+**Map Layer Summaries** group layers for a field and carry high-level context (Markdown supported). Each **Map Layer** represents **one** image (or one processed upload such as a shapefile). Map layers appear in **Field Analyzer** on the web and in **Operations Center** and **Connect Mobile** apps (Android and iOS).
+
+<CardGroup cols={2}>
+  <Card title="Summary first" icon="layer-group">
+    Create a **Map Layer Summary**, then **Map Layers**, then **File Resources** and upload bytes. Follow the links returned in responses (including **Location** headers).
+  </Card>
+  <Card title="Webhooks" icon="webhook">
+    For frequent polling, consider the **Data Subscription Service** to receive webhooks when new Map Layers are available. See [Data Subscription Service](/precision_tech/application/data-subscription-service).
+  </Card>
+  <Card title="OAuth scopes" icon="lock">
+    Endpoints use **`ag1`**, **`ag2`**, or **`ag3`** depending on read vs. manage operations.
+  </Card>
+  <Card title="Markdown" icon="pen-to-square">
+    Map Layer Summary and Map Layer text fields support a **subset of Markdown** (lists, emphasis, links, horizontal rule, and more—see platform Markdown documentation).
+  </Card>
+</CardGroup>
+
+---
+
+## Endpoints overview
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| **GET** | `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries` | List Map Layer Summaries for a field. |
+| **POST** | `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries` | Create a Map Layer Summary. |
+| **GET** | `/platform/mapLayerSummaries/{id}` | Get one Map Layer Summary. |
+| **DELETE** | `/platform/mapLayerSummaries/{id}` | Delete summary, layers, and file resources. |
+| **GET** | `/platform/mapLayerSummaries/{id}/mapLayers` | List Map Layers for a summary. |
+| **POST** | `/platform/mapLayerSummaries/{id}/mapLayers` | Create a Map Layer. |
+| **GET** | `/platform/mapLayers/{id}` | Get Map Layer JSON **or** extract **PNG** image (see **Accept**). |
+| **DELETE** | `/platform/mapLayers/{id}` | Delete a Map Layer and its file resource. |
+| **GET** | `/platform/mapLayers/{id}/fileResources` | List file resources for a Map Layer. |
+| **POST** | `/platform/mapLayers/{id}/fileResources` | Reserve a file resource (upload target). |
+| **GET** | `/platform/fileResources/{id}` | Metadata or download original upload. |
+| **PUT** | `/platform/fileResources/{id}` | Upload file bytes. |
+| **DELETE** | `/platform/fileResources/{id}` | Delete a file resource. |
+
+---
+
+## Getting started
+
+<Steps>
+  <Step title="1. Create a Map Layer Summary">
+    **POST** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries` with **`Content-Type: application/vnd.deere.axiom.v3+json`**. Use the **Location** response header (or links in the body) for the new summary URI in the next steps.
+  </Step>
+  <Step title="2. Create a Map Layer">
+    **POST** `/platform/mapLayerSummaries/{id}/mapLayers` with the summary id from step 1. Save the Map Layer **id** and **Location** header as needed.
+  </Step>
+  <Step title="3. Create a File Resource">
+    **POST** `/platform/mapLayers/{id}/fileResources` to reserve storage. Request returns links for upload and for checking status (**targetResource**).
+  </Step>
+  <Step title="4. Upload the File Resource">
+    **PUT** `/platform/fileResources/{id}` with a valid **Content-Type** (for example **application/octet-stream** or **application/zip** for a shapefile). Upload **PNG** or **ZIP** shapefile as supported. Poll the File Resource (or **targetResource** link) until processing completes. Initial layer status is often **QUEUED**, then **VALID** or **INVALID**.
+  </Step>
+</Steps>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** platform APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize and exchange the code">
+    Request only the **scopes** your app needs. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations`. If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Map Layers API">
+    Send **`Authorization: Bearer {token}`** on every request. Use **`ag1`**, **`ag2`**, and **`ag3`** as required per endpoint.
+  </Step>
+</Steps>
+
+### Scopes used by this API
+
+| Scope | Typical use |
+| --- | --- |
+| `ag1` | List/read Map Layers, list file resources, get file resource metadata or download, extract PNG via **GET** `/platform/mapLayers/{id}`. |
+| `ag2` | List Map Layer Summaries; read a Map Layer Summary. |
+| `ag3` | Create/delete summaries and layers; create/delete file resources; upload files. |
+| `offline_access` | Refresh tokens (optional). |
+
+---
+
+## Map layer types (Field Analyzer)
+
+| Value | Field Analyzer icon |
+| --- | --- |
+| `DRONE` | Drone |
+| `FINANCIAL` | Financial |
+| `PRESCRIPTION` | Prescription |
+| `SATELLITE` | Satellite |
+| `SOIL` | Soil |
+| `OTHER` | Other |
+
+---
+
+## Models (conceptual)
+
+### Metadata
+
+| Field | Type | Example | Description |
+| --- | --- | --- | --- |
+| `name` | string | `time` | Metadata key. |
+| `value` | string | `Friday, June 29, 2018 (CDT)` | Metadata value; supports **limited Markdown**. |
+
+### Extent
+
+| Field | Type | Example | Description |
+| --- | --- | --- | --- |
+| `minimumLatitude` | decimal | `41.76073` | Minimum latitude. |
+| `maximumLatitude` | decimal | `41.771366` | Maximum latitude. |
+| `minimumLongitude` | decimal | `-93.488106` | Minimum longitude. |
+| `maximumLongitude` | decimal | `-93.4837` | Maximum longitude. |
+
+### Legend
+
+| Field | Type | Example | Description |
+| --- | --- | --- | --- |
+| `unitId` | string | `seeds1ha-1` | Unit of measure for the layer. |
+| `ranges` | array | — | **Range** objects: min inclusive, max exclusive; matches **hexColor** in the image. |
+
+### Range
+
+| Field | Type | Example | Description |
+| --- | --- | --- | --- |
+| `label` | string | `Some Label` | Legend label. |
+| `minimum` | decimal | `0.0` | Minimum value (inclusive). |
+| `maximum` | decimal | `100.0` | Maximum value (exclusive). |
+| `hexColor` | string | `#0BA74A` | Color for the range. |
+| `percent` | decimal | `0.13` | Optional percent display. |
+
+### Map Layer status
+
+`VALID` · `INVALID` · `QUEUED` · `NO_FILE_RESOURCE`
+
+---
+
+## File Resource MIME types
+
+| Type | Description |
+| --- | --- |
+| `image/png` | Stays **PNG** for use in Operations Center. |
+| `image/tif` | Single-band GeoTIFF; converted to **PNG** for Operations Center. |
+| `image/tiff` | Same as **tif**. |
+| `application/zip` | **Shapefile** (polygon only in product); converted to **PNG**. Include a **`zone_color`** column in the **.dbf** for custom colors (8-bit RGB per row; default white `(255, 255, 255)`). Other geometry types must be uploaded as **PNG** first. |
+
+---
+
+## Map Layer events (Data Subscription Service)
+
+When a **File Resource** is uploaded, status is typically **QUEUED**, then updated when processing finishes. Subscribe to **Map Layer** events via the [Data Subscription Service](/precision_tech/application/data-subscription-service). Prefer subscriptions scoped to a **single** `orgId` (you cannot change org lists after create; losing access to any org can terminate the subscription).
+
+### Event statuses
+
+| Status | Description |
+| --- | --- |
+| `QUEUED` | Initial state after requesting a Map Layer image. |
+| `VALID` | Image processed and associated with the Map Layer. |
+| `INVALID` | Processing failed. |
+| `NO_FILE_RESOURCE` | File resource missing in the system. |
+
+### Example MetaDataFilter fields
+
+| Field | Required | Example | Description |
+| --- | --- | --- | --- |
+| `orgId` | Yes | `"123456"` | Organization id. |
+| `id` | No | UUID | Map Layer id. |
+| `fieldId` | No | UUID | Field id. |
+| `summaryId` | No | UUID | Map Layer Summary id. |
+| `type` | No | `PRESCRIPTION` | Map layer type. |
+| `status` | No | `VALID` | Image status. |
+| `action` | No | `CREATED` | Action performed. |
+
+---
+
+## Compression
+
+Send **`Accept-Encoding: gzip`** when you want gzip-compressed responses (where supported).
+
+---
+
+## Paging
+
+List responses use **CollectionPage** (**`total`**, **`links`**, **`values`**). Default page size is **10**. Use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** to page through results.
+
+---
+
+## eTags
+
+These list endpoints **do not** support **`x-deere-signature`** eTags:
+
+- **GET** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`
+- **GET** `/platform/mapLayerSummaries/{id}/mapLayers`
+- **GET** `/platform/mapLayers/{id}/fileResources`
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+All paths in this document are under the **`/platform/`** prefix.
+
+---
+
+## Endpoints
+
+### List Map Layer Summaries
+
+```text
+GET /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries
+```
+
+<ParamField path="orgId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Field id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Optional link filtering (for example `none`).
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/5513840f-1a8d-4dd4-aff2-3020d308d154/mapLayerSummaries?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`.
+</Card>
+
+---
+
+### Create a Map Layer Summary
+
+```text
+POST /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries
+```
+
+<ParamField path="orgId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Field id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/fields/5513840f-1a8d-4dd4-aff2-3020d308d154/mapLayerSummaries" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"MapLayerSummary","text":"## Summary\nContext for this field.","type":"SATELLITE"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/fields/{id}/mapLayerSummaries`.
+</Card>
+
+---
+
+### View a Map Layer Summary
+
+```text
+GET /platform/mapLayerSummaries/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer Summary id.
+</ParamField>
+
+**OAuth scope:** `ag2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/mapLayerSummaries/{id}">
+  Interactive reference for **GET** `/platform/mapLayerSummaries/{id}`.
+</Card>
+
+---
+
+### Delete a Map Layer Summary
+
+```text
+DELETE /platform/mapLayerSummaries/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer Summary id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/mapLayerSummaries/{id}">
+  Interactive reference for **DELETE** `/platform/mapLayerSummaries/{id}`.
+</Card>
+
+---
+
+### List Map Layers
+
+```text
+GET /platform/mapLayerSummaries/{id}/mapLayers
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer Summary id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46/mapLayers?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/mapLayerSummaries/{id}/mapLayers">
+  Interactive reference for **GET** `/platform/mapLayerSummaries/{id}/mapLayers`.
+</Card>
+
+---
+
+### Create a Map Layer
+
+```text
+POST /platform/mapLayerSummaries/{id}/mapLayers
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer Summary id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/mapLayerSummaries/335c06b6-f645-42fd-99f6-74c84f633d46/mapLayers" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"MapLayer","text":"## Layer\nDetails.","type":"PRESCRIPTION"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/mapLayerSummaries/{id}/mapLayers">
+  Interactive reference for **POST** `/platform/mapLayerSummaries/{id}/mapLayers`.
+</Card>
+
+---
+
+### View a Map Layer or extract PNG image
+
+Use the **same path** with different **`Accept`** headers:
+
+- **`Accept: application/vnd.deere.axiom.v3+json`** — Map Layer resource JSON.
+- **`Accept: image/png`** or **`Accept: application/octet-stream`** — processed **PNG** image (regardless of original upload format).
+
+```text
+GET /platform/mapLayers/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer id.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL (JSON)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+```bash cURL (PNG)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: image/png' \
+  --output layer.png
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/mapLayers/{id}">
+  Interactive reference for **GET** `/platform/mapLayers/{id}`.
+</Card>
+
+---
+
+### Delete a Map Layer
+
+```text
+DELETE /platform/mapLayers/{id}
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/mapLayers/{id}">
+  Interactive reference for **DELETE** `/platform/mapLayers/{id}`.
+</Card>
+
+---
+
+### List a Map Layer's File Resources
+
+```text
+GET /platform/mapLayers/{id}/fileResources
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer id.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55/fileResources" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/mapLayers/{id}/fileResources">
+  Interactive reference for **GET** `/platform/mapLayers/{id}/fileResources`.
+</Card>
+
+---
+
+### Create a Map Layer File Resource
+
+```text
+POST /platform/mapLayers/{id}/fileResources
+```
+
+<ParamField path="id" type="string" required>
+  Map Layer id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/mapLayers/c303004d-beb8-471d-b144-c44bb5318e55/fileResources" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"FileResource","mimeType":"image/png"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/mapLayers/{id}/fileResources">
+  Interactive reference for **POST** `/platform/mapLayers/{id}/fileResources`.
+</Card>
+
+---
+
+### View or download a File Resource
+
+**Metadata:** `Accept: application/vnd.deere.axiom.v3+json`
+
+**Download:** `application/zip`, `application/octet-stream`, `application/x-zip`, or `application/x-zip-compressed`
+
+```text
+GET /platform/fileResources/{id}
+```
+
+<ParamField path="id" type="string" required>
+  File Resource id.
+</ParamField>
+
+**OAuth scope:** `ag1`
+
+<CodeGroup>
+
+```bash cURL (metadata)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+```bash cURL (download)
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/zip' \
+  --output layer.zip
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/fileResources/{id}">
+  Interactive reference for **GET** `/platform/fileResources/{id}`.
+</Card>
+
+---
+
+### Upload a File Resource
+
+```text
+PUT /platform/fileResources/{id}
+```
+
+<ParamField path="id" type="string" required>
+  File Resource id from **POST** `/platform/mapLayers/{id}/fileResources`.
+</ParamField>
+
+Use **`Accept: application/vnd.deere.axiom.v3+json`** and a **Content-Type** that matches the payload (**application/octet-stream**, **application/zip**, etc.). Check status via the File Resource’s **targetResource** link.
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/octet-stream' \
+  --data-binary @layer.png
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/fileResources/{id}">
+  Interactive reference for **PUT** `/platform/fileResources/{id}`.
+</Card>
+
+---
+
+### Delete a File Resource
+
+```text
+DELETE /platform/fileResources/{id}
+```
+
+<ParamField path="id" type="string" required>
+  File Resource id.
+</ParamField>
+
+**OAuth scope:** `ag3`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/fileResources/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/fileResources/{id}">
+  Interactive reference for **DELETE** `/platform/fileResources/{id}`.
+</Card>
+
+---
+
+## Related platform topics
+
+For OAuth details (organization **connections** redirect, refresh tokens, Postman), common HTTP errors (**400**, **401**, **403**, **404**, **429**, **503**), **Links** (`showLinks`), **RCA** headers (**X-Deere-Warning**, **X-Deere-Terms-Location**), and general **Markdown** support, see the Precision Tech platform documentation in Dev Docs.

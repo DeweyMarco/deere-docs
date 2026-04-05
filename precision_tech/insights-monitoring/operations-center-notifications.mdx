@@ -1,0 +1,334 @@
+---
+title: "Notifications"
+description: "Operations Center notifications: fetch by source event, create and delete notification events, and search events for a staff organization."
+---
+
+## Overview
+
+The **Operations Center — Notifications** APIs let you **read** a single notification by **source event**, **create** and **delete** **notification events** that generate in-app notifications for users subscribed to your services, and **search** notification events for an **organization**. Search results are limited to the user’s **staff** organization(s); **do not** use a **partner** organization id in the path.
+
+<CardGroup cols={2}>
+  <Card title="Source events" icon="link">
+    **POST** `/platform/notificationEvents` should include a **source** link that defines the event. The new event id is returned in the **Location** header.
+  </Card>
+  <Card title="Staff org only (search)" icon="building">
+    **GET** `/platform/organizations/{orgId}/notifications/events` applies to **staff** orgs. Partner notifications for shared resources can appear under the staff org when partnership permissions allow.
+  </Card>
+  <Card title="Webhook events" icon="webhook">
+    To subscribe to **notification** events via **Data Subscription Service**, require an **`orgId`** filter and see [Data Subscription Service](/precision_tech/application/data-subscription-service).
+  </Card>
+  <Card title="OAuth scopes" icon="lock">
+    Reads use **`org1`**; creating and deleting notification events use **`org2`** (confirm against your license in Dev Docs).
+  </Card>
+</CardGroup>
+
+---
+
+## Endpoints overview
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| **GET** | `/isg/notifications/{sourceEvent}` | Fetch one notification by source event. |
+| **POST** | `/platform/notificationEvents` | Create a notification event (notifications go to subscribers). |
+| **DELETE** | `/platform/notificationEvents/{sourceEvent}` | Delete a notification event and generated notifications. |
+| **GET** | `/platform/organizations/{orgId}/notifications/events` | Search notification events (paged; **Accept-Language** supported). |
+
+---
+
+## Getting started
+
+<Steps>
+  <Step title="1. Authenticate and enable organization access">
+    Obtain an OAuth **authorization code** token and complete the **connections** flow so your application has access to the customer’s organization. See [Authentication](#authentication-oauth-20) below.
+  </Step>
+  <Step title="2. Create a notification event (optional)">
+    **POST** `/platform/notificationEvents` with **`Content-Type: application/vnd.deere.axiom.v3+json`** and a body that includes a **source** link. Save the **Location** header or response links for follow-up or cleanup.
+  </Step>
+  <Step title="3. Search or fetch">
+    Use **GET** `/platform/organizations/{orgId}/notifications/events` with paging (**itemLimit**, **pageOffset**) and optional filters. Use **GET** `/isg/notifications/{sourceEvent}` when you already know the **sourceEvent** id.
+  </Step>
+</Steps>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** platform APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs**; mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize and exchange the code">
+    Request only the **scopes** your app needs. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations`. If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Notifications API">
+    Send **`Authorization: Bearer {token}`** on every request. Use **`org1`** for read operations and **`org2`** for creating and deleting notification events.
+  </Step>
+</Steps>
+
+### Scopes used by this API
+
+| Scope | Typical use |
+| --- | --- |
+| `org1` | **GET** notification by source event; **GET** organization notification events search. |
+| `org2` | **POST** and **DELETE** notification events. |
+| `offline_access` | Refresh tokens (optional). |
+
+---
+
+## Enumerations
+
+### Event severity
+
+| Value | Description |
+| --- | --- |
+| `NONE` | No severity set. |
+| `LOW` | Low severity. |
+| `MEDIUM` | Medium severity. |
+| `HIGH` | High severity. |
+
+### Event type (representative set)
+
+Includes **AGRONOMY**, **ANNOUNCEMENT**, **AUTONOMY**, **CONSTRUCTION**, **CURFENCE_ALERT**, **CUSTOM_ALERT**, **DTC_ALERT**, **EQUIPMENT**, **FILE**, **LICENSE_MANAGEMENT**, **MACHINE_INSIGHTS**, **MAINTENANCE_ALERT**, **ORGANIZATION**, **PERFORMANCE**, **PEST**, **SCOUTING**, and others per platform documentation.
+
+**Read-only** for **POST** `/platform/notificationEvents`: **CURFENCE_ALERT**, **DTC_ALERT**, **DTC_EVENT**, **FIELD_IMAGERY**, **FIELD_OPERATIONS**, **FINANCIAL**, **MAINTENANCE_ALERT**, **WEATHER**.
+
+### Affected types
+
+**LOCATION** (per platform documentation).
+
+### Event status code
+
+**QUEUED** · **PROCESSING** · **SUCCESS** · **FAILURE**
+
+### Notification state
+
+**ACTIVE** · **DISMISSED**
+
+### Accept-Language
+
+Examples include **en**, **es**, **de**, **pt_BR**, and other locale codes supported by the platform (see Dev Docs for the full list).
+
+---
+
+## Notification events (Data Subscription Service)
+
+Notification events are delivered through **Data Subscription Service** when you subscribe to the appropriate **event type**. You must include an **`orgId`** filter when creating the subscription. See [Data Subscription Service](/precision_tech/application/data-subscription-service) and the **Getting Started** material on Developer.Deere.com.
+
+### Example metadata filters
+
+| Field | Required | Example | Description |
+| --- | --- | --- | --- |
+| `orgId` | Yes | `"123456"` | Organization associated with the notification. |
+| `severity` | No | `"NONE"` | Severity filter. |
+| `notificationType` | No | `"DTC_EVENT"` | Notification type filter. |
+
+---
+
+## Compression
+
+Send **`Accept-Encoding: gzip`** when you want gzip-compressed responses (where supported).
+
+---
+
+## Paging
+
+List responses use **CollectionPage** (**`total`**, **`links`**, **`values`**). Default page size is **10**. Use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** to page through results.
+
+---
+
+## eTags
+
+**GET** `/platform/organizations/{orgId}/notifications/events` **does not** support **`x-deere-signature`** eTags.
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+Use the **`/platform/…`** paths below for organization and notification event resources. A single notification is read from **`/isg/notifications/{sourceEvent}`**.
+
+---
+
+## Endpoints
+
+### Fetch a single notification
+
+Retrieves one notification by **source event** id.
+
+```text
+GET /isg/notifications/{sourceEvent}
+```
+
+<ParamField path="sourceEvent" type="string" required>
+  Source event identifier for the notification.
+</ParamField>
+
+**OAuth scope:** `org1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/isg/notifications/src-event-abc123" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /isg/notifications/{sourceEvent}">
+  Interactive reference for **GET** `/isg/notifications/{sourceEvent}`.
+</Card>
+
+---
+
+### Create a notification event
+
+Creates an event Operations Center uses to generate notifications for users subscribed to your services. The **event id** is available in the **Location** response header.
+
+```text
+POST /platform/notificationEvents
+```
+
+#### Body (conceptual)
+
+<ResponseField name="@type" type="string">
+  Axiom type (for example **NotificationEvent**).
+</ResponseField>
+
+<ResponseField name="eventType" type="string">
+  Writable types include **FILE**, **ORGANIZATION**, **MACHINE_INSIGHTS**, and others; do not use **read-only** types listed above.
+</ResponseField>
+
+<ResponseField name="severity" type="string">
+  **NONE**, **LOW**, **MEDIUM**, or **HIGH**.
+</ResponseField>
+
+<ResponseField name="links" type="array">
+  Include a link with **rel** **source** pointing at the resource that defines the event.
+</ResponseField>
+
+**OAuth scope:** `org2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/notificationEvents" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"NotificationEvent","eventType":"FILE","severity":"MEDIUM","links":[{"@type":"Link","rel":"source","uri":"https://sandboxapi.deere.com/platform/organizations/283480/files/550e8400-e29b-41d4-a716-446655440000"}]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/notificationEvents">
+  Interactive reference for **POST** `/platform/notificationEvents`.
+</Card>
+
+---
+
+### Delete a notification event
+
+Deletes a previously posted notification event and any generated notifications.
+
+```text
+DELETE /platform/notificationEvents/{sourceEvent}
+```
+
+<ParamField path="sourceEvent" type="string" required>
+  Source event id to delete.
+</ParamField>
+
+**OAuth scope:** `org2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/notificationEvents/src-event-abc123" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/notificationEvents/{sourceEvent}">
+  Interactive reference for **DELETE** `/platform/notificationEvents/{sourceEvent}`.
+</Card>
+
+---
+
+### Search notifications for an organization
+
+Returns notification events matching your criteria. Results are limited to the user’s **staff** organization(s). Each item can include **targetResource** and **contributionDefinition** links. Optional **Accept-Language** (for example **en**) controls the language of notification text.
+
+```text
+GET /platform/organizations/{orgId}/notifications/events
+```
+
+<ParamField path="orgId" type="string" required>
+  **Staff** organization id (not a partner organization id).
+</ParamField>
+
+<ParamField header="Accept-Language" type="string">
+  Preferred language for notification text (for example **en**).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+<ParamField query="severity" type="string">
+  Filter by severity: **NONE**, **LOW**, **MEDIUM**, **HIGH**.
+</ParamField>
+
+<ParamField query="notificationType" type="string">
+  Filter by notification type (for example **FILE**, **DTC_EVENT**).
+</ParamField>
+
+**OAuth scope:** `org1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/notifications/events?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Language: en' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/notifications/events">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/notifications/events`.
+</Card>
+
+---
+
+## Related documentation
+
+| Topic | Description |
+| --- | --- |
+| [Notification Subscriptions](/precision_tech/insights-monitoring/operations-center-notification-subscriptions) | Dedicated **HTTPS** URL for **Maintenance**, **Curfew**, **Geofence**, and **DTC** alerts. |
+| [Data Subscription Service](/precision_tech/application/data-subscription-service) | Webhook **event** subscriptions, filters, and delivery settings. |
+
+For OAuth details (organization **connections** redirect, refresh tokens, Postman), common HTTP errors (**400**, **401**, **403**, **404**, **429**, **503**), **Links** (`showLinks`), **RCA** headers (**X-Deere-Warning**, **X-Deere-Terms-Location**), and **paging**, see the Precision Tech platform documentation on Developer.Deere.com.

@@ -1,0 +1,491 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Notifications API",
+    "description": "Work with **Operations Center notifications**: retrieve a single notification by **source event**, **create** or **delete** **notification events** that drive in-app notifications for subscribed users, and **search** notification events for a **staff** organization.\n\nResponses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) and **CollectionPage** (`total`, `links`, `values`) where applicable.\n\n**Paging:** Use `itemLimit` (10–100, multiples of 10) and `pageOffset` on list endpoints.\n\n**Partner orgs:** **GET** `/platform/organizations/{orgId}/notifications/events` returns data for the user’s **staff** organization(s) only—**do not** use a **partner** organization id in the path. Partner notifications for shared resources appear under the staff org that holds the partnership when permissions allow.\n\n**eTags:** **GET** `/platform/organizations/{orgId}/notifications/events` **does not** support `x-deere-signature` eTags.\n\n**Read-only event types** (cannot be used with **POST** **notificationEvents**): `CURFENCE_ALERT`, `DTC_ALERT`, `DTC_EVENT`, `FIELD_IMAGERY`, `FIELD_OPERATIONS`, `FINANCIAL`, `MAINTENANCE_ALERT`, `WEATHER`.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox (`/platform/…` and `/isg/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Notifications",
+      "description": "Fetch one notification, search events for an organization, and manage notification events."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech APIs. Request **`org1`** to read notifications and search events; **`org2`** to create or delete notification events. Request **`offline_access`** for refresh tokens. Exact scope requirements follow your **Developer.Deere.com** license and endpoint documentation.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "org1": "Organization Management Access Level 1 — view staff, operators, partners; read notifications",
+              "org2": "Organization Management Access Level 2 — modify staff, operators, partners; create/delete notification events",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "source" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 42 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "example": {
+          "total": 2,
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "nextPage",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/notifications/events?itemLimit=10&pageOffset=10"
+            }
+          ],
+          "values": [
+            {
+              "@type": "MinimizedNotification",
+              "id": "evt-001",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "targetResource",
+                  "uri": "https://sandboxapi.deere.com/platform/files/550e8400-e29b-41d4-a716-446655440000"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "contributionDefinition",
+                  "uri": "https://sandboxapi.deere.com/platform/notificationDefinitions/abc"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "NotificationResource": {
+        "type": "object",
+        "description": "A single notification returned by **GET** `/isg/notifications/{sourceEvent}` (Axiom shape; fields follow live API).",
+        "additionalProperties": true,
+        "example": {
+          "@type": "Notification",
+          "id": "notif-001",
+          "notificationState": "ACTIVE",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/isg/notifications/src-event-abc123"
+            }
+          ]
+        }
+      },
+      "CreateNotificationEventRequest": {
+        "type": "object",
+        "description": "Creates an event Operations Center uses to generate notifications for users subscribed to your services. Include a **source** link that defines the event. **Event id** is returned in the **Location** response header.\n\n**Writable event types** include: `AGRONOMY`, `ANNOUNCEMENT`, `AUTONOMY`, `CONSTRUCTION`, `CUSTOM_ALERT`, `EQUIPMENT`, `FILE`, `LICENSE_MANAGEMENT`, `MACHINE_INSIGHTS`, `ORGANIZATION`, `PERFORMANCE`, `PEST`, `SCOUTING` (see API reference for the full list and restrictions).",
+        "required": ["@type"],
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "NotificationEvent"
+          },
+          "eventType": {
+            "type": "string",
+            "description": "Notification event type. **Read-only** types (not valid on **POST**): `CURFENCE_ALERT`, `DTC_ALERT`, `DTC_EVENT`, `FIELD_IMAGERY`, `FIELD_OPERATIONS`, `FINANCIAL`, `MAINTENANCE_ALERT`, `WEATHER`.",
+            "example": "FILE",
+            "enum": [
+              "AGRONOMY",
+              "ANNOUNCEMENT",
+              "AUTONOMY",
+              "CONSTRUCTION",
+              "CUSTOM_ALERT",
+              "EQUIPMENT",
+              "FILE",
+              "LICENSE_MANAGEMENT",
+              "MACHINE_INSIGHTS",
+              "ORGANIZATION",
+              "PERFORMANCE",
+              "PEST",
+              "SCOUTING"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "description": "Event severity.",
+            "enum": ["NONE", "LOW", "MEDIUM", "HIGH"],
+            "example": "MEDIUM"
+          },
+          "links": {
+            "type": "array",
+            "description": "Include a link with **rel** `source` pointing at the resource that defines this event.",
+            "items": { "$ref": "#/components/schemas/Link" }
+          }
+        },
+        "additionalProperties": true,
+        "example": {
+          "@type": "NotificationEvent",
+          "eventType": "FILE",
+          "severity": "MEDIUM",
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "source",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/283480/files/550e8400-e29b-41d4-a716-446655440000"
+            }
+          ]
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/isg/notifications/{sourceEvent}": {
+      "get": {
+        "tags": ["Notifications"],
+        "operationId": "getNotificationBySourceEvent",
+        "summary": "Fetch a single notification",
+        "description": "Retrieves **one notification** by **source event** identifier.\n\n**OAuth scope:** `org1` (see your license for exact requirements)\n\n**Request URL:** `GET https://sandboxapi.deere.com/isg/notifications/{sourceEvent}`",
+        "security": [{ "OAuth2AuthorizationCode": ["org1"] }],
+        "parameters": [
+          {
+            "name": "sourceEvent",
+            "in": "path",
+            "required": true,
+            "description": "Source event id for the notification.",
+            "schema": { "type": "string", "example": "src-event-abc123" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Use `gzip` when supported.",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/isg/notifications/src-event-abc123' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/NotificationResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/notificationEvents": {
+      "post": {
+        "tags": ["Notifications"],
+        "operationId": "createNotificationEvent",
+        "summary": "Create a notification event",
+        "description": "Creates an event that **Operations Center** uses to generate notifications. Users who are **subscribed** to your services receive them. Each event should include a **source** link that defines the event.\n\n**Note:** The new event id is available in the **Location** response header.\n\n**OAuth scope:** `org2` (see your license for exact requirements)\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/notificationEvents`",
+        "security": [{ "OAuth2AuthorizationCode": ["org2"] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "enum": ["application/vnd.deere.axiom.v3+json"] }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateNotificationEventRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/notificationEvents' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"NotificationEvent\",\"eventType\":\"FILE\",\"severity\":\"MEDIUM\",\"links\":[{\"@type\":\"Link\",\"rel\":\"source\",\"uri\":\"https://sandboxapi.deere.com/platform/organizations/283480/files/550e8400-e29b-41d4-a716-446655440000\"}]}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created. Use the **Location** header for the new notification event URI.",
+            "headers": {
+              "Location": {
+                "description": "URI of the created notification event.",
+                "schema": { "type": "string", "format": "uri" }
+              }
+            },
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "type": "object", "additionalProperties": true }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/notificationEvents/{sourceEvent}": {
+      "delete": {
+        "tags": ["Notifications"],
+        "operationId": "deleteNotificationEvent",
+        "summary": "Delete a notification event",
+        "description": "Deletes a **notification event** previously posted to MyJohnDeere and any **generated notifications** tied to it.\n\n**OAuth scope:** `org2` (see your license for exact requirements)\n\n**Request URL:** `DELETE https://sandboxapi.deere.com/platform/notificationEvents/{sourceEvent}`",
+        "security": [{ "OAuth2AuthorizationCode": ["org2"] }],
+        "parameters": [
+          {
+            "name": "sourceEvent",
+            "in": "path",
+            "required": true,
+            "description": "Source event id of the notification event to delete.",
+            "schema": { "type": "string", "example": "src-event-abc123" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/notificationEvents/src-event-abc123' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/notifications/events": {
+      "get": {
+        "tags": ["Notifications"],
+        "operationId": "searchOrganizationNotificationEvents",
+        "summary": "Search notifications for an organization",
+        "description": "Searches **notification events** using **query parameters** you supply. Returns notifications visible in the user’s **staff** organization(s) only—**do not** pass a **partner** organization id. When partnership permissions are set up in Operations Center, partner notifications for shared resources can appear under the staff org that holds the partnership.\n\nEach **MinimizedNotification** in the response can include links such as:\n- **targetResource** — open the target (for example a **file**) for this notification.\n- **contributionDefinition** — open the **notification** definition.\n\n**This API does not support eTags.** Use **Accept-Language** (for example `en`) to control the **language** of notification text in the response.\n\n**OAuth scope:** `org1` (see your license for exact requirements)\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/notifications/events`",
+        "security": [{ "OAuth2AuthorizationCode": ["org1"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Staff **organization id** (not a partner org id).",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "description": "Preferred language for notification text (for example `en`, `es`, `de`, `pt_BR`).",
+            "schema": {
+              "type": "string",
+              "example": "en"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "enum": ["gzip"] }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of 10, max 100.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based offset aligned with `itemLimit`.",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "description": "Filter by notification severity.",
+            "schema": {
+              "type": "string",
+              "enum": ["NONE", "LOW", "MEDIUM", "HIGH"]
+            }
+          },
+          {
+            "name": "notificationType",
+            "in": "query",
+            "required": false,
+            "description": "Filter by notification type (for example `DTC_EVENT`, `FILE`).",
+            "schema": { "type": "string", "example": "FILE" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/notifications/events?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Language: en' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged list of minimized notifications (**CollectionPage**).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

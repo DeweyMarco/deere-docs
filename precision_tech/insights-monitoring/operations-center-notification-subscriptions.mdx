@@ -1,0 +1,52 @@
+---
+title: "Notification Subscriptions"
+description: "Subscribe to Maintenance, Curfew, Geofence, and DTC machine alerts with a dedicated HTTPS URL for your organization and partnered orgs."
+---
+
+## Overview
+
+The **notification subscription** service gives you more freedom to **view and manage** machine notifications. You create a subscription with a **dedicated URL**, then receive **Maintenance**, **Curfew**, **Geofence**, and **DTC** (diagnostic trouble code) alerts for machines in your **organization** and/or **partnered** organizations.
+
+<Note>
+  John Deere does **not** publish an **OpenAPI** specification for Notification Subscriptions in this documentation set. For full technical detail (including any REST paths and request bodies), sign in to [Developer.Deere.com](https://developer.deere.com/dev-docs/notification-subscriptions) and open the **Operations Center — Notification Subscriptions** topic.
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="Dedicated URL" icon="link">
+    You register an endpoint where the platform can deliver notification payloads—typically a public **HTTPS** URL you control.
+  </Card>
+  <Card title="Alert types" icon="bell">
+    Coverage includes **Maintenance**, **Curfew**, **Geofence**, and **DTC** alerts aligned with machine notifications in Operations Center.
+  </Card>
+  <Card title="Organizations" icon="building">
+    Subscriptions can apply to your org and, where supported, **partnered** organizations so shared equipment is included.
+  </Card>
+  <Card title="Get started" icon="book">
+    Follow [Get started with John Deere](https://developer.deere.com/precision/get-started) for applications, OAuth, and sandbox access to Precision Tech APIs.
+  </Card>
+</CardGroup>
+
+---
+
+## Getting started
+
+<Steps>
+  <Step title="1. Review the official reference">
+    Open [Notification Subscriptions](https://developer.deere.com/dev-docs/notification-subscriptions) on Developer.Deere.com (sign-in may be required) for the authoritative description of how to create and manage subscriptions.
+  </Step>
+  <Step title="2. Prepare your integration">
+    Plan an **HTTPS** listener that can receive deliveries from John Deere infrastructure. Follow any validation, authentication, and acknowledgement rules described in the signed-in documentation (for example response time and status codes).
+  </Step>
+  <Step title="3. Choose related APIs where applicable">
+    If you also need **generic** Operations Center **event** webhooks (field operations, boundaries, and other event types), see [Data Subscription Service](/precision_tech/application/data-subscription-service). To **pull** machine alerts for a single machine by id, see [Machine Alerts](/precision_tech/equipment/operations-center-machine-alerts).
+  </Step>
+</Steps>
+
+---
+
+## Related documentation
+
+| Topic | Description |
+| --- | --- |
+| [Data Subscription Service](/precision_tech/application/data-subscription-service) | Webhook **event** subscriptions (`/platform/eventSubscriptions`, delivery settings, event types). |
+| [Machine Alerts](/precision_tech/equipment/operations-center-machine-alerts) | **GET** `/platform/machines/{principalId}/alerts` for terminal alerts (including geofence and maintenance where applicable). |

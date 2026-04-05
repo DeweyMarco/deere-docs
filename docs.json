@@ -60,6 +60,8 @@
             "openapi/operations-center-machine-engine-hours.json",
             "openapi/operations-center-machine-hours-of-operation.json",
             "openapi/operations-center-machine-locations.json",
+            "openapi/operations-center-map-layers.json",
+            "openapi/operations-center-notifications.json",
             "openapi/operations-center-device-state-reports.json",
             "openapi/quote-vendor-services.json",
             "openapi/transaction-pricing.json",
@@ -1054,7 +1056,7 @@
                         "group": "Insights / Monitoring",
                         "pages": [
                             {
-                                "group": "Operations Center — Assets",
+                                "group": "Assets",
                                 "root": "precision_tech/insights-monitoring/operations-center-assets",
                                 "pages": [
                                     {
@@ -1072,7 +1074,49 @@
                                         ]
                                     }
                                 ]
-                            }
+                            },
+                            {
+                                "group": "Map Layers",
+                                "root": "precision_tech/insights-monitoring/operations-center-map-layers",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-map-layers.json",
+                                        "pages": [
+                                            "GET /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries",
+                                            "POST /platform/organizations/{orgId}/fields/{id}/mapLayerSummaries",
+                                            "GET /platform/mapLayerSummaries/{id}",
+                                            "DELETE /platform/mapLayerSummaries/{id}",
+                                            "GET /platform/mapLayerSummaries/{id}/mapLayers",
+                                            "POST /platform/mapLayerSummaries/{id}/mapLayers",
+                                            "GET /platform/mapLayers/{id}",
+                                            "DELETE /platform/mapLayers/{id}",
+                                            "GET /platform/mapLayers/{id}/fileResources",
+                                            "POST /platform/mapLayers/{id}/fileResources",
+                                            "GET /platform/fileResources/{id}",
+                                            "PUT /platform/fileResources/{id}",
+                                            "DELETE /platform/fileResources/{id}"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Notifications",
+                                "root": "precision_tech/insights-monitoring/operations-center-notifications",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-notifications.json",
+                                        "pages": [
+                                            "GET /isg/notifications/{sourceEvent}",
+                                            "POST /platform/notificationEvents",
+                                            "DELETE /platform/notificationEvents/{sourceEvent}",
+                                            "GET /platform/organizations/{orgId}/notifications/events"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "precision_tech/insights-monitoring/operations-center-notification-subscriptions"
                         ]
                     },
                     {
