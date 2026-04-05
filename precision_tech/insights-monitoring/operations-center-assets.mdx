@@ -1,0 +1,442 @@
+---
+title: "Operations Center — Assets"
+description: "Contribute IoT assets to the Operations Center run map: catalog, CRUD, locations, and measurement updates."
+---
+
+## Overview
+
+An **Asset** is an IoT device that can appear on the **John Deere Operations Center run map**. The API is flexible: you can surface readings for many device types. Each time you update data for the device, customers see the new values and **last updated** time. For movement and history, post **asset locations** with newer timestamps—users can review **location history** as the asset moves.
+
+<CardGroup cols={2}>
+  <Card title="Run map visibility" icon="map">
+    Assets show on the run map alongside equipment, machines, and boundaries—users can open cards and detail dialogs for contributed assets.
+  </Card>
+  <Card title="Catalog-driven types" icon="tags">
+    **GET** `/platform/assetCatalog` lists categories, types, and subtypes (and icons). Use **OTHER** when nothing else fits.
+  </Card>
+  <Card title="Locations required" icon="location-dot">
+    You must **POST** at least one **asset location** or the asset will not appear on the map.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Reads use **`eq1`**; create, update, delete, and location posts use **`eq2`**.
+  </Card>
+</CardGroup>
+
+### Example catalog mappings
+
+These examples illustrate how **assetSubType** selects the icon in Operations Center (see **GET** `/platform/assetCatalog` for the full list).
+
+| Asset | Example `assetSubType` | Notes |
+| --- | --- | --- |
+| Smart barn / high population barn | `SMART_BARN` | Barns with sensors |
+| Technician truck | (equipment tank / vehicle types from catalog) | Service vehicles |
+| Nurse wagon | `NURSE_WAGON` | Product support wagons |
+| Grain bin | `GRAIN_BIN` | Connected bins |
+| Irrigation pivot | `IRRIGATION_PIVOT` | Pivot status and position |
+
+### Map card and Markdown
+
+The **map card** and **details** dialog support a **subset of Markdown**, including **links** to external sites. For **measurement** rows on an asset location, only **links** in the **name** field are supported (see **Measurement data** below).
+
+---
+
+## Endpoints overview
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| **GET** | `/platform/assetCatalog` | Asset catalog (categories, types, subtypes, icons). |
+| **GET** | `/platform/organizations/{orgId}/assets` | All assets for an organization. |
+| **POST** | `/platform/organizations/{orgId}/assets` | Create an asset (returns unique id). |
+| **GET** | `/platform/assets/{assetId}` | Get one asset. |
+| **PUT** | `/platform/assets/{assetId}` | Update an asset (not category/type/subtype). |
+| **DELETE** | `/platform/assets/{assetId}` | Delete an asset. |
+| **GET** | `/platform/assets/{assetId}/locations` | Location history; optional **startDate** / **endDate**. |
+| **POST** | `/platform/assets/{assetId}/locations` | Append a new location / measurements. |
+
+---
+
+## Getting started
+
+<Steps>
+  <Step title="1. Request the asset catalog">
+    **GET** `/platform/assetCatalog` with **`Accept: application/vnd.deere.axiom.v3+json`** to see allowed **assetCategory**, **assetType**, and **assetSubType** values. **assetSubType** controls the icon. Use **OTHER** when no listed subtype fits.
+  </Step>
+  <Step title="2. Create an asset">
+    **POST** `/platform/organizations/{orgId}/assets` with a valid combination from the catalog. Save the returned **asset** id from the response or **Location** header.
+  </Step>
+  <Step title="3. Assign a location">
+    **POST** `/platform/assets/{assetId}/locations` with geometry and timestamp. Without at least one location, the asset **does not** show on the run map.
+  </Step>
+  <Step title="4. Update over time">
+    Post **new** asset locations with a **newer** timestamp to move the asset or refresh **measurementData**. You **cannot** update an existing location row; duplicate timestamps return **409 Conflict**. Fractional seconds are not distinguished (see below).
+  </Step>
+</Steps>
+
+---
+
+## Authentication (OAuth 2.0)
+
+John Deere **Precision Tech** platform APIs use **OAuth 2.0** with the **authorization code** grant. Create an application on [Developer.Deere.com](https://developer.deere.com/) for your **Application Id** and **Secret**. Register **Redirect URIs** (for example `http://localhost:9090/callback`); mismatched callbacks can yield **400 Bad Redirect**.
+
+<Steps>
+  <Step title="Discover endpoints and scopes">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Authorize and exchange the code">
+    Send the user to authorize with only the **scopes** your app needs. Exchange the code at the token endpoint. Access tokens expire after **12 hours**. Request **`offline_access`** if you need a **refresh token** (unused refresh tokens expire after **365 days**).
+  </Step>
+  <Step title="Enable organization access">
+    After token exchange, call **`GET`** `https://sandboxapi.deere.com/platform/organizations`. If a link with **`rel=connections`** appears, redirect the user once per session to complete organization selection. Avoid redirect loops.
+  </Step>
+  <Step title="Call the Assets API">
+    Send **`Authorization: Bearer {token}`** on every request. Use **`eq1`** for read operations and **`eq2`** for create, update, delete, and location posts.
+  </Step>
+</Steps>
+
+### Scopes used by this API
+
+| Scope | Typical use |
+| --- | --- |
+| `eq1` | View asset catalog, list/get assets, list locations. |
+| `eq2` | Create, update, delete assets; create asset locations. |
+| `offline_access` | Refresh tokens (optional). |
+
+---
+
+## Compression
+
+Send **`Accept-Encoding: gzip`** when you want gzip-compressed responses (where supported).
+
+---
+
+## Paging
+
+List responses use the **CollectionPage** pattern: **`total`**, **`links`** (e.g. **nextPage** / **previousPage**), and **`values`**. Default page size is **10**. Use **`itemLimit`** (multiples of **10**, up to **100**) and **`pageOffset`** to page through results.
+
+---
+
+## eTags
+
+**GET** `/platform/assets/{assetId}/locations` **does not** support John Deere’s **`x-deere-signature`** eTag optimization. Other list APIs may support eTags as described in platform documentation.
+
+---
+
+## Measurement data
+
+| Field | Type | Example | Description |
+| --- | --- | --- | --- |
+| `name` | string | `Level [docs](https://example.com)` | Label; **Markdown links** are supported in the UI for this field. |
+| `value` | string | `72.4` | Numeric value as a string. |
+| `unit` | string | `percent` | Unit of measure. |
+
+---
+
+## Base URL
+
+```text
+https://sandboxapi.deere.com
+```
+
+All paths in this document are under the **`/platform/`** prefix.
+
+---
+
+## Endpoints
+
+### Get asset catalog list
+
+Returns the **Asset Catalog**: valid combinations of **assetCategory**, **assetType**, and **assetSubType**, and the icon associated with each subtype.
+
+```text
+GET /platform/assetCatalog
+```
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/assetCatalog" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/assetCatalog">
+  Interactive reference for **GET** `/platform/assetCatalog`.
+</Card>
+
+---
+
+### Get all assets
+
+Returns all **assets** for the given organization (paged by default).
+
+```text
+GET /platform/organizations/{orgId}/assets
+```
+
+<ParamField path="orgId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+<ParamField query="showLinks" type="string">
+  Optional link filtering (for example `none`).
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/assets?itemLimit=50&pageOffset=0" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Accept-Encoding: gzip'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/organizations/{orgId}/assets">
+  Interactive reference for **GET** `/platform/organizations/{orgId}/assets`.
+</Card>
+
+---
+
+### Create a new asset
+
+Creates an asset. Use **GET** `/platform/assetCatalog` for all valid **assetCategory**, **assetType**, and **assetSubType** combinations.
+
+```text
+POST /platform/organizations/{orgId}/assets
+```
+
+<ParamField path="orgId" type="string" required>
+  Operations Center organization id.
+</ParamField>
+
+#### Body (conceptual)
+
+<ResponseField name="assetCategory" type="string">
+  From the asset catalog (for example **DEVICE**, **EQUIPMENT**).
+</ResponseField>
+
+<ResponseField name="assetType" type="string">
+  From the asset catalog (for example **SENSOR**, **OTHER**).
+</ResponseField>
+
+<ResponseField name="assetSubType" type="string">
+  From the asset catalog; drives the map icon (for example **SMART_BARN**, **OTHER**).
+</ResponseField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/organizations/283480/assets" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"Asset","assetCategory":"DEVICE","assetType":"SENSOR","assetSubType":"SMART_BARN","name":"North barn sensor"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/organizations/{orgId}/assets">
+  Interactive reference for **POST** `/platform/organizations/{orgId}/assets`.
+</Card>
+
+---
+
+### Get a specific asset
+
+```text
+GET /platform/assets/{assetId}
+```
+
+<ParamField path="assetId" type="string" required>
+  Asset id returned from create or list responses.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/assets/{assetId}">
+  Interactive reference for **GET** `/platform/assets/{assetId}`.
+</Card>
+
+---
+
+### Update an asset
+
+Updates mutable fields. **assetCategory**, **assetType**, and **assetSubType** cannot be changed after create.
+
+```text
+PUT /platform/assets/{assetId}
+```
+
+<ParamField path="assetId" type="string" required>
+  Asset id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request PUT \
+  --url "https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"Asset","name":"Updated display name"}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/PUT /platform/assets/{assetId}">
+  Interactive reference for **PUT** `/platform/assets/{assetId}`.
+</Card>
+
+---
+
+### Delete an asset
+
+```text
+DELETE /platform/assets/{assetId}
+```
+
+<ParamField path="assetId" type="string" required>
+  Asset id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request DELETE \
+  --url "https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/DELETE /platform/assets/{assetId}">
+  Interactive reference for **DELETE** `/platform/assets/{assetId}`.
+</Card>
+
+---
+
+### Get all locations for an asset
+
+Returns location history. Optional **startDate** and **endDate** filter the time range. This endpoint **does not** support eTags.
+
+```text
+GET /platform/assets/{assetId}/locations
+```
+
+<ParamField path="assetId" type="string" required>
+  Asset id.
+</ParamField>
+
+<ParamField query="startDate" type="string">
+  Range start (ISO 8601).
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Range end (ISO 8601).
+</ParamField>
+
+<ParamField query="itemLimit" type="integer">
+  Page size: multiples of 10, max 100.
+</ParamField>
+
+<ParamField query="pageOffset" type="integer">
+  Offset aligned with `itemLimit`.
+</ParamField>
+
+**OAuth scope:** `eq1`
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890/locations?startDate=2024-06-01T00:00:00Z&endDate=2024-06-30T23:59:59Z" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /platform/assets/{assetId}/locations">
+  Interactive reference for **GET** `/platform/assets/{assetId}/locations`.
+</Card>
+
+---
+
+### Create new asset location
+
+Appends a location record. Use a **new** timestamp for each post. **409 Conflict** if a location with the same timestamp already exists. **measurementData** **name** supports Markdown **links only**.
+
+Asset locations **do not** honor fractional seconds: `2019-01-01T12:34:56.900Z` and `2019-01-01T12:34:56Z` are treated as the same instant for conflict detection.
+
+```text
+POST /platform/assets/{assetId}/locations
+```
+
+<ParamField path="assetId" type="string" required>
+  Asset id.
+</ParamField>
+
+**OAuth scope:** `eq2`
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url "https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890/locations" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/vnd.deere.axiom.v3+json' \
+  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \
+  --data '{"@type":"AssetLocation","timestamp":"2024-06-15T14:30:00Z","geometry":{"type":"Point","coordinates":[-93.6122,41.5234]},"measurementData":[{"name":"Humidity","value":"61","unit":"percent"}]}'
+```
+
+</CodeGroup>
+
+<Card title="Try it in the API Playground" icon="play" href="/POST /platform/assets/{assetId}/locations">
+  Interactive reference for **POST** `/platform/assets/{assetId}/locations`.
+</Card>
+
+---
+
+## Related platform topics
+
+For OAuth details (organization **connections** redirect, refresh tokens, Postman), common HTTP errors (**400**, **401**, **403**, **404**, **429**, **503**), **Links** (`showLinks`), **RCA** headers (**X-Deere-Warning**, **X-Deere-Terms-Location**), and general **Markdown** support, see the Precision Tech OAuth and platform documentation in Dev Docs.

@@ -1,0 +1,819 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Operations Center — Assets API",
+    "description": "Contribute **IoT assets** that appear on the **Operations Center run map**. Create assets, assign **locations** so they are visible on the map, and post ongoing **location history** and **measurement** updates. Responses use **Axiom v3** JSON (`application/vnd.deere.axiom.v3+json`) and **CollectionPage** (`total`, `links`, `values`) where applicable.\n\n**Paging:** Use `itemLimit` (10–100, multiples of 10) and `pageOffset` on list endpoints.\n\n**Map UI:** Map cards and detail dialogs support a **subset of Markdown** (including links). **Measurement data** `name` fields on asset locations support **links only** in Markdown.\n\n**Timestamps:** Asset locations do **not** honor fractional seconds—`2019-01-01T12:34:56.900Z` and `2019-01-01T12:34:56Z` are treated as equivalent. Posting a new location with the **same** timestamp as an existing one returns **409 Conflict**.\n\n**eTags:** **GET** `/platform/assets/{assetId}/locations` **does not** support `x-deere-signature` eTags.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandboxapi.deere.com",
+      "description": "Sandbox platform API (`/platform/…` paths)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Asset catalog",
+      "description": "Discover allowed **assetCategory**, **assetType**, and **assetSubType** values before creating an asset."
+    },
+    {
+      "name": "Assets",
+      "description": "List, create, read, update, and delete contributed assets for an organization."
+    },
+    {
+      "name": "Asset locations",
+      "description": "Create location history and measurement updates for an asset (required for map visibility)."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2AuthorizationCode": {
+        "type": "oauth2",
+        "description": "Three-legged OAuth 2.0 (authorization code) for John Deere Precision Tech platform APIs. Read operations require **`eq1`**; create, update, delete, and location posts require **`eq2`**. Request **`offline_access`** for refresh tokens.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "refreshUrl": "https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token",
+            "scopes": {
+              "eq1": "Equipment Access Level 1 — view assets and catalog",
+              "eq2": "Equipment Access Level 2 — create, edit, delete assets and locations",
+              "offline_access": "Request a refresh token"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Link": {
+        "type": "object",
+        "description": "Hypermedia link (`@type` **Link** when present).",
+        "properties": {
+          "@type": { "type": "string", "example": "Link" },
+          "rel": { "type": "string", "example": "self" },
+          "uri": { "type": "string", "format": "uri" }
+        }
+      },
+      "CollectionPage": {
+        "type": "object",
+        "description": "Paged collection wrapper (`total`, `links`, `values`).",
+        "properties": {
+          "total": { "type": "integer", "example": 3 },
+          "links": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Link" }
+          },
+          "values": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "AssetCatalogList": {
+        "type": "object",
+        "description": "Asset catalog payload returned by **GET** `/platform/assetCatalog` (structure follows live API; may be a collection or catalog document).",
+        "additionalProperties": true
+      },
+      "CreateAssetRequest": {
+        "type": "object",
+        "description": "Body for **POST** `/platform/organizations/{orgId}/assets`. Use **GET** `/platform/assetCatalog` for valid **assetCategory**, **assetType**, and **assetSubType** combinations.",
+        "required": ["@type", "assetCategory", "assetType", "assetSubType"],
+        "properties": {
+          "@type": {
+            "type": "string",
+            "description": "Axiom type discriminator for an asset.",
+            "example": "Asset"
+          },
+          "assetCategory": {
+            "type": "string",
+            "description": "High-level category from the asset catalog (for example **DEVICE** or **EQUIPMENT**).",
+            "example": "DEVICE"
+          },
+          "assetType": {
+            "type": "string",
+            "description": "Type within the category (for example **SENSOR** or **OTHER**).",
+            "example": "SENSOR"
+          },
+          "assetSubType": {
+            "type": "string",
+            "description": "Subtype that selects the map icon (for example **SMART_BARN**, **IRRIGATION_PIVOT**, **OTHER**).",
+            "example": "SMART_BARN"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name when supported by the API.",
+            "example": "North barn sensor"
+          }
+        },
+        "example": {
+          "@type": "Asset",
+          "assetCategory": "DEVICE",
+          "assetType": "SENSOR",
+          "assetSubType": "SMART_BARN",
+          "name": "North barn sensor"
+        }
+      },
+      "UpdateAssetRequest": {
+        "type": "object",
+        "description": "Body for **PUT** `/platform/assets/{assetId}`. **assetCategory**, **assetType**, and **assetSubType** cannot be changed after create.",
+        "additionalProperties": true,
+        "properties": {
+          "@type": { "type": "string", "example": "Asset" },
+          "name": { "type": "string", "example": "Updated display name" }
+        }
+      },
+      "AssetResource": {
+        "type": "object",
+        "description": "A single asset resource (fields follow live Axiom responses).",
+        "additionalProperties": true,
+        "example": {
+          "@type": "Asset",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "assetCategory": "DEVICE",
+          "assetType": "SENSOR",
+          "assetSubType": "SMART_BARN",
+          "name": "North barn sensor"
+        }
+      },
+      "MeasurementData": {
+        "type": "object",
+        "description": "A labeled measurement on an asset location. **name** supports Markdown **links only** (for example `[label](https://example.com)`).",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Measurement label; Markdown **links** are supported in the UI.",
+            "example": "Tank level [spec](https://www.example.com)"
+          },
+          "value": { "type": "string", "example": "72.4" },
+          "unit": { "type": "string", "example": "percent" }
+        }
+      },
+      "CreateAssetLocationRequest": {
+        "type": "object",
+        "description": "Body for **POST** `/platform/assets/{assetId}/locations`. Use a **new** timestamp for each update; duplicate timestamps return **409 Conflict**.",
+        "required": ["@type"],
+        "properties": {
+          "@type": {
+            "type": "string",
+            "example": "AssetLocation"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Observation time (fractional seconds are not distinguished).",
+            "example": "2024-06-15T14:30:00Z"
+          },
+          "geometry": {
+            "type": "object",
+            "description": "Geographic geometry (structure per API; often GeoJSON-compatible).",
+            "additionalProperties": true,
+            "example": {
+              "type": "Point",
+              "coordinates": [-93.6122, 41.5234]
+            }
+          },
+          "measurementData": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MeasurementData" }
+          }
+        },
+        "example": {
+          "@type": "AssetLocation",
+          "timestamp": "2024-06-15T14:30:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [-93.6122, 41.5234]
+          },
+          "measurementData": [
+            {
+              "name": "Humidity",
+              "value": "61",
+              "unit": "percent"
+            }
+          ]
+        }
+      },
+      "AssetLocationResource": {
+        "type": "object",
+        "description": "A single asset location record.",
+        "additionalProperties": true
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Error payload for error responses.",
+        "additionalProperties": true
+      }
+    }
+  },
+  "paths": {
+    "/platform/assetCatalog": {
+      "get": {
+        "tags": ["Asset catalog"],
+        "operationId": "getAssetCatalog",
+        "summary": "Get asset catalog list",
+        "description": "Returns the **Asset Catalog**: categories, types, and subtypes you can use when creating assets (including which **icon** applies to each subtype).\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/assetCatalog`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "Use `gzip` when supported.",
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/assetCatalog' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset catalog list.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AssetCatalogList" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — missing scopes or organization access.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/organizations/{orgId}/assets": {
+      "get": {
+        "tags": ["Assets"],
+        "operationId": "listOrganizationAssets",
+        "summary": "Get all assets",
+        "description": "Returns **all assets** for the specified organization (paged **CollectionPage** by default).\n\n**OAuth scope:** `eq1`\n\n**Request URL:** `GET https://sandboxapi.deere.com/platform/organizations/{orgId}/assets`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "description": "Operations Center organization id.",
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "description": "Page size: multiples of **10**, max **100**.",
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "description": "Offset aligned with **itemLimit**.",
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "showLinks",
+            "in": "query",
+            "required": false,
+            "description": "Optional link filtering (for example `none`); see platform **Links** documentation.",
+            "schema": { "type": "string", "example": "none" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "application/vnd.deere.axiom.v3+json",
+              "example": "application/vnd.deere.axiom.v3+json"
+            }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "enum": ["gzip"] }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/assets?itemLimit=50&pageOffset=0' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Accept-Encoding: gzip'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged list of assets.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Assets"],
+        "operationId": "createAsset",
+        "summary": "Create a new asset",
+        "description": "Creates an asset and returns a **unique id**. Use **GET** `/platform/assetCatalog` for all valid **assetCategory** / **assetType** / **assetSubType** combinations.\n\n**OAuth scope:** `eq2`\n\n**Request URL:** `POST https://sandboxapi.deere.com/platform/organizations/{orgId}/assets`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "283480" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["application/vnd.deere.axiom.v3+json"]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateAssetRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/organizations/283480/assets' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"Asset\",\"assetCategory\":\"DEVICE\",\"assetType\":\"SENSOR\",\"assetSubType\":\"SMART_BARN\",\"name\":\"North barn sensor\"}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created — typically includes **Location** header with the new asset URI.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AssetResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — invalid body.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/assets/{assetId}": {
+      "get": {
+        "tags": ["Assets"],
+        "operationId": "getAsset",
+        "summary": "Get a specific asset",
+        "description": "Retrieves one asset by **assetId**.\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset resource.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AssetResource" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Assets"],
+        "operationId": "updateAsset",
+        "summary": "Update an asset",
+        "description": "Updates mutable fields on an asset. **assetCategory**, **assetType**, and **assetSubType** **cannot** be updated.\n\n**OAuth scope:** `eq2`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["application/vnd.deere.axiom.v3+json"]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/UpdateAssetRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request PUT \\\n  --url 'https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"Asset\",\"name\":\"Updated display name\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated asset.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AssetResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Assets"],
+        "operationId": "deleteAsset",
+        "summary": "Delete an asset",
+        "description": "Deletes an asset by **assetId**.\n\n**OAuth scope:** `eq2`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request DELETE \\\n  --url 'https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/platform/assets/{assetId}/locations": {
+      "get": {
+        "tags": ["Asset locations"],
+        "operationId": "listAssetLocations",
+        "summary": "Get all locations for an asset",
+        "description": "Returns **location history** for the asset. Optional **startDate** and **endDate** bound the time range.\n\n**Note:** This API **does not** support eTags (**`x-deere-signature`**).\n\n**OAuth scope:** `eq1`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq1"] }],
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Range start (ISO 8601).",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-06-01T00:00:00Z" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Range end (ISO 8601).",
+            "schema": { "type": "string", "format": "date-time", "example": "2024-06-30T23:59:59Z" }
+          },
+          {
+            "name": "itemLimit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 10, "maximum": 100, "multipleOf": 10, "example": 50 }
+          },
+          {
+            "name": "pageOffset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "example": 0 }
+          },
+          {
+            "name": "Accept",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "application/vnd.deere.axiom.v3+json" }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url 'https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890/locations?startDate=2024-06-01T00:00:00Z&endDate=2024-06-30T23:59:59Z' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Location history (**CollectionPage** or equivalent).",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/CollectionPage" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Asset locations"],
+        "operationId": "createAssetLocation",
+        "summary": "Create new asset location",
+        "description": "Creates a new **Asset Location** record (append-only). Use this to place the asset on the map and to record movement and **measurementData** updates. Posting the **same timestamp** as an existing location returns **409 Conflict** (locations cannot be updated in place—post a new row with a new time).\n\n**measurementData** **name** supports Markdown **links only**.\n\n**OAuth scope:** `eq2`",
+        "security": [{ "OAuth2AuthorizationCode": ["eq2"] }],
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+          },
+          {
+            "name": "Content-Type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["application/vnd.deere.axiom.v3+json"]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.deere.axiom.v3+json": {
+              "schema": { "$ref": "#/components/schemas/CreateAssetLocationRequest" }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://sandboxapi.deere.com/platform/assets/a1b2c3d4-e5f6-7890-abcd-ef1234567890/locations' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/vnd.deere.axiom.v3+json' \\\n  --header 'Content-Type: application/vnd.deere.axiom.v3+json' \\\n  --data '{\"@type\":\"AssetLocation\",\"timestamp\":\"2024-06-15T14:30:00Z\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-93.6122,41.5234]},\"measurementData\":[{\"name\":\"Humidity\",\"value\":\"61\",\"unit\":\"percent\"}]}'"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/AssetLocationResource" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — duplicate timestamp for an asset location.",
+            "content": {
+              "application/vnd.deere.axiom.v3+json": {
+                "schema": { "$ref": "#/components/schemas/ErrorBody" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

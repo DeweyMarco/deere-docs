@@ -53,6 +53,7 @@
             "openapi/connection-management.json",
             "openapi/data-subscription-service.json",
             "openapi/om-equipment.json",
+            "openapi/operations-center-assets.json",
             "openapi/operations-center-equipment.json",
             "openapi/operations-center-equipment-measurements.json",
             "openapi/operations-center-machine-alerts.json",
@@ -1052,7 +1053,26 @@
                     {
                         "group": "Insights / Monitoring",
                         "pages": [
-                            "precision_tech/insights-monitoring/index"
+                            {
+                                "group": "Operations Center — Assets",
+                                "root": "precision_tech/insights-monitoring/operations-center-assets",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/operations-center-assets.json",
+                                        "pages": [
+                                            "GET /platform/assetCatalog",
+                                            "GET /platform/organizations/{orgId}/assets",
+                                            "POST /platform/organizations/{orgId}/assets",
+                                            "GET /platform/assets/{assetId}",
+                                            "PUT /platform/assets/{assetId}",
+                                            "DELETE /platform/assets/{assetId}",
+                                            "GET /platform/assets/{assetId}/locations",
+                                            "POST /platform/assets/{assetId}/locations"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
