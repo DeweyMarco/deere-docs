@@ -20,6 +20,16 @@
         "openapi": [
             "openapi/dealer-data-feed.json",
             "openapi/dealer-data-hub.json",
+            "openapi/dealer-invoice-update.json",
+            "openapi/dealer-location-update.json",
+            "openapi/retrieve-claim.json",
+            "openapi/retrieve-credit-memo.json",
+            "openapi/retrieve-incentive-programs.json",
+            "openapi/retrieve-maintenance-contracts.json",
+            "openapi/retrieve-multiple-claims.json",
+            "openapi/retrieve-pip.json",
+            "openapi/retrieve-warranty-confirmations.json",
+            "openapi/retrieve-warranty-information.json",
             "openapi/supplier-part-quoting.json",
             "openapi/oca-crm.json",
             "openapi/merchant-integration.json",
@@ -494,7 +504,142 @@
                     {
                         "group": "Warranty",
                         "pages": [
-                            "dealer_solutions/warranty/index"
+                            {
+                                "group": "Dealer Invoice Update",
+                                "root": "dealer_solutions/warranty/dealer-invoice-update",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/dealer-invoice-update.json",
+                                        "pages": [
+                                            "POST /digcust/wy/cert/{applicationId}/DealerInvoiceSet"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Dealer Location Update",
+                                "root": "dealer_solutions/warranty/dealer-location-update",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/dealer-location-update.json",
+                                        "pages": [
+                                            "POST /digcust/wy/cert/{applicationId}/DealerLocnDetailsSet"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Claim",
+                                "root": "dealer_solutions/warranty/retrieve-claim",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-claim.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/ClaimSet(DealerAccount='{DealerAccount}',Segment='{Segment}',WorkOrder='{WorkOrder}')"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Credit Memo",
+                                "root": "dealer_solutions/warranty/retrieve-credit-memo",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-credit-memo.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/WorkOrderDetSet(DealerAccount='{DealerAccount}',WorkOrder='{WorkOrder}',Segment='{Segment}')"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Incentive Programs",
+                                "root": "dealer_solutions/warranty/retrieve-incentive-programs",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-incentive-programs.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/IncProgHeaderSet(Dealer='{Dealer}',Pin='{Pin}',RepairDate='{RepairDate}')"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Maintenance Contracts",
+                                "root": "dealer_solutions/warranty/retrieve-maintenance-contracts",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-maintenance-contracts.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/PinDealerSet(Pin='{Pin}',Dealer='{Dealer}')",
+                                            "GET /digcust/wy/cert/{applicationId}/PinDealerSet(Pin='{Pin}',Dealer='{Dealer}')/Contracts"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Multiple Claims",
+                                "root": "dealer_solutions/warranty/retrieve-multiple-claims",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-multiple-claims.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/DealerDateTypeSet(Dealer='{Dealer}',DateType='{DateType}',BeginDt='{BeginDt}',EndDt='{EndDt}')"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve PIP",
+                                "root": "dealer_solutions/warranty/retrieve-pip",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-pip.json",
+                                        "pages": [
+                                            "POST /digcust/wy/cert/{applicationId}/$batch",
+                                            "GET /digcust/wy/cert/{applicationId}/PinSet('{Pin}')",
+                                            "GET /digcust/wy/cert/{applicationId}/PinSet('{Pin}')/Pips",
+                                            "GET /digcust/wy/cert/{applicationId}/PipDetailsSet",
+                                            "GET /digcust/wy/cert/{applicationId}/PipSet"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Warranty Confirmations",
+                                "root": "dealer_solutions/warranty/retrieve-warranty-confirmations",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-warranty-confirmations.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/WtyHeaderSet(Dealer='{Dealer}',BeginDate='{BeginDate}',EndDate='{EndDate}')",
+                                            "POST /digcust/wy/cert/{applicationId}/$batch"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Retrieve Warranty Information",
+                                "root": "dealer_solutions/warranty/retrieve-warranty-information",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/retrieve-warranty-information.json",
+                                        "pages": [
+                                            "GET /digcust/wy/cert/{applicationId}/WtyInfoSet(DealerNum='{DealerNum}',Pin='{Pin}')"
+                                        ]
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {

@@ -1,0 +1,233 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Save Claim API",
+    "description": "Creates a **new claim** in the John Deere Warranty System using **work order data**. The integration can be configured to **auto-submit** the claim or **save as a draft** for manual submission through the **JDWS Portal**. Multiple legacy claim types are consolidated into this API — valid fields and values depend on the claim type; use your **Multiple Option Values**, **Save Claim Field Legend**, **SOAP-to-REST field mapping**, and **REST API FAQ** attachments.\n\n**Note:** The request body must contain **at least one** valid field.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Save Claim API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Save Claim API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SaveClaimRequest": {
+        "type": "object",
+        "description": "Payload to create a **Claim** via **ClaimCollection**. Include **at least one** valid field for your claim type and program (see **Save Claim Field Legend** and SOAP-to-REST mapping). Additional properties are accepted per the underlying OData contract.",
+        "minProperties": 1,
+        "additionalProperties": true,
+        "properties": {
+          "dealerAccount": {
+            "type": "string",
+            "description": "Dealer account identifier when required for the claim key or header context.",
+            "example": "550012345"
+          },
+          "segment": {
+            "type": "string",
+            "description": "Segment code when required for the claim.",
+            "example": "01"
+          },
+          "workOrder": {
+            "type": "string",
+            "description": "Work order number driving the claim creation.",
+            "example": "WO-2026-00012345"
+          },
+          "submitMode": {
+            "type": "string",
+            "description": "When supported by your configuration, indicates auto-submit vs. draft behavior (exact values depend on your program — confirm in field legend).",
+            "example": "DRAFT"
+          }
+        }
+      },
+      "SaveClaimResponse": {
+        "type": "object",
+        "description": "Response after the claim is persisted. The service returns the **claim number** (claim no.) when creation succeeds. Additional fields may appear per claim type.",
+        "additionalProperties": true,
+        "properties": {
+          "claimNumber": {
+            "type": "string",
+            "description": "Assigned warranty claim number (claim no.).",
+            "example": "CLM-2026-00451234"
+          },
+          "claimStatus": {
+            "type": "string",
+            "description": "High-level status when returned (for example draft vs. submitted).",
+            "example": "DRAFT"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "The request body must include at least one valid field."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/ClaimCollection": {
+      "post": {
+        "operationId": "createClaim",
+        "summary": "Create a normal claim",
+        "description": "Creates a **normal claim** in the warranty database from work order data. The response includes the **claim number** when successful. The body must contain **at least one** valid field.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtySaveClaim/ClaimCollection`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtySaveClaim`).",
+            "schema": {
+              "type": "string",
+              "example": "WtySaveClaim"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveClaimRequest"
+              },
+              "example": {
+                "dealerAccount": "550012345",
+                "segment": "01",
+                "workOrder": "WO-2026-00012345"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtySaveClaim/ClaimCollection' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerAccount\":\"550012345\",\"segment\":\"01\",\"workOrder\":\"WO-2026-00012345\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim created; response includes the claim number and may include additional entity fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveClaimResponse"
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-00451234",
+                  "claimStatus": "DRAFT"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Claim created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveClaimResponse"
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-00451234",
+                  "claimStatus": "SUBMITTED"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — empty body, no valid fields, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request body must include at least one valid field."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

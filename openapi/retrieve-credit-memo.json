@@ -1,0 +1,238 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Retrieve Credit Memo API",
+    "description": "Retrieves **credit memo** information associated with a specified **work order number**, keyed by **dealer account**, **work order**, and **segment**. The legacy SOAP **Retrieve Credit Memo** operation maps to this REST API; see your SOAP-to-REST field mapping and REST API FAQ attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Retrieve Credit Memo API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Retrieve Credit Memo API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "CreditMemoDetail": {
+        "type": "object",
+        "description": "Work order / credit memo entity returned from **WorkOrderDetSet**. The exact properties depend on the OData contract and your SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "workOrder": {
+            "type": "string",
+            "description": "Work order number used in the lookup key.",
+            "example": "WO-2026-00012345"
+          },
+          "dealerAccount": {
+            "type": "string",
+            "description": "Dealer account identifier used in the lookup key.",
+            "example": "550012345"
+          },
+          "segment": {
+            "type": "string",
+            "description": "Segment code used in the lookup key.",
+            "example": "01"
+          },
+          "creditMemoNumber": {
+            "type": "string",
+            "description": "Credit memo identifier when present on the entity.",
+            "example": "CM-2026-00987654"
+          },
+          "creditMemoStatus": {
+            "type": "string",
+            "description": "High-level credit memo or processing status when returned by the service.",
+            "example": "POSTED"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "No credit memo was found for the supplied work order key."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/WorkOrderDetSet(DealerAccount='{DealerAccount}',WorkOrder='{WorkOrder}',Segment='{Segment}')": {
+      "get": {
+        "operationId": "getCreditMemoByWorkOrderKey",
+        "summary": "Get credit memo by dealer account, work order, and segment",
+        "description": "Retrieves **WorkOrderDet** entities from **WorkOrderDetSet** using the OData-style key: dealer account, work order number, and segment.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsRetrieveCreditMemo/WorkOrderDetSet(DealerAccount='550012345',WorkOrder='WO-2026-00012345',Segment='01')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `DbsRetrieveCreditMemo`).",
+            "schema": {
+              "type": "string",
+              "example": "DbsRetrieveCreditMemo"
+            }
+          },
+          {
+            "name": "DealerAccount",
+            "in": "path",
+            "required": true,
+            "description": "Dealer account identifier in the WorkOrderDetSet key.",
+            "schema": {
+              "type": "string",
+              "example": "550012345"
+            }
+          },
+          {
+            "name": "WorkOrder",
+            "in": "path",
+            "required": true,
+            "description": "Work order number in the WorkOrderDetSet key.",
+            "schema": {
+              "type": "string",
+              "example": "WO-2026-00012345"
+            }
+          },
+          {
+            "name": "Segment",
+            "in": "path",
+            "required": true,
+            "description": "Segment code in the WorkOrderDetSet key.",
+            "schema": {
+              "type": "string",
+              "example": "01"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsRetrieveCreditMemo/WorkOrderDetSet(DealerAccount='550012345',WorkOrder='WO-2026-00012345',Segment='01')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit memo / work order detail returned for the supplied key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditMemoDetail"
+                },
+                "example": {
+                  "workOrder": "WO-2026-00012345",
+                  "dealerAccount": "550012345",
+                  "segment": "01",
+                  "creditMemoNumber": "CM-2026-00987654",
+                  "creditMemoStatus": "POSTED"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The WorkOrderDetSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No credit memo found for the supplied dealer account, work order, and segment.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No credit memo was found for the supplied work order key."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

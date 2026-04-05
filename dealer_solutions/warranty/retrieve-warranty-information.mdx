@@ -1,0 +1,229 @@
+---
+title: "Retrieve Warranty Information API"
+description: "Retrieve detailed warranty coverage and history for a PIN using REST (replaces legacy SOAP Retrieve Warranty Information)."
+---
+
+## Overview
+
+The **Retrieve Warranty Information** API returns **detailed warranty coverage and history** for a specified **PIN** (product identification number), keyed by **dealer number** and **PIN**.
+
+The legacy SOAP **Retrieve Warranty Information** operation corresponds to this REST API. Use your **SOAP-to-REST field mapping** and **REST API FAQ** attachments from the source documentation for exact property names, nested entities, and validation rules.
+
+<CardGroup cols={2}>
+  <Card title="PIN-level coverage" icon="magnifying-glass">
+    Look up warranty details using **dealer number** and **PIN** — the same logical key described in the technical reference.
+  </Card>
+  <Card title="Coverage and history" icon="file-lines">
+    Response shape follows the OData **WtyInfoSet** contract; expect coverage and history your program is entitled to see.
+  </Card>
+  <Card title="OData entity set" icon="database">
+    Reads from **WtyInfoSet** with a **GET** and an OData-style key in the path.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    Authenticate with John Deere Dealer Solutions using **authorization code** (three-legged) or **client credentials**, per your integration pattern.
+  </Card>
+</CardGroup>
+
+<Note>
+  **Support:** [Warranty_Api_Support@JohnDeere.com](mailto:Warranty_Api_Support@JohnDeere.com)
+</Note>
+
+---
+
+## Authentication
+
+John Deere Dealer Solutions API endpoints use **OAuth 2.0**. You can use the **authorization code** flow (interactive users) or the **client credentials** grant (machine-to-machine, including internal applications).
+
+### Authorization code (three-legged)
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Your application receives a **Client Key** and **Client Secret**. You sign API requests with these credentials.
+
+    On the **OAuth Profile** page (under application details), add one or more **Callback URLs (Redirect URIs)**. Click **Add** for additional URLs, then **Save**.
+
+    <Note>
+      If callback URLs do not sync correctly, users may see a `400 Bad Redirect` after authentication. Contact John Deere support if needed — the callback may need to be synced manually with the OAuth provider.
+    </Note>
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    Discover the authorization endpoint, token endpoint, and scopes.
+
+    ```bash
+    GET https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an authorization code">
+    Send the user to the authorization server with `response_type=code`, **OAuth scopes**, `client_id`, `state`, and **`redirect_uri`** (URL-encoded, for example `https%3A%2F%2Fexample.client.com%2Fcallback`).
+
+    Under Dealer Solutions documentation, required scopes are listed per method. The **`offline_access`** scope is used to request a **refresh token**.
+  </Step>
+  <Step title="Acquire an access token">
+    Exchange the authorization code at the token endpoint using `grant_type=authorization_code`, the code, and `redirect_uri`. The access token typically expires after **12 hours** (use the `expires_in` value from the token response as authoritative).
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token
+    ```
+  </Step>
+  <Step title="Call the API with your access token">
+    Send the access token on each API request:
+
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+
+    After the user grants **organization access** for your client, use this token to call the resource server.
+  </Step>
+  <Step title="Refresh the access token (optional)">
+    If you requested **`offline_access`**, use `grant_type=refresh_token` before the access token expires. Refresh tokens can expire after extended inactivity — if they expire, the user must sign in again (scope prompts may be skipped unless new scopes are requested).
+  </Step>
+</Steps>
+
+### Client credentials (machine-to-machine)
+
+<Note>
+  **Client credentials** are often used for internal users and non-interactive applications. Confirm with your John Deere program that this grant is approved for your use case.
+</Note>
+
+<Steps>
+  <Step title="Create an application on Developer.Deere.com">
+    Obtain your **Client Key** and **Client Secret**.
+
+    In the **Security** section of your application, add at least one **Callback URL**. Even if the client credentials flow does not redirect users, add a URI (for example `https://localhost:9090/callback`) to satisfy registration requirements.
+  </Step>
+  <Step title="Call the OAuth 2 well-known URL">
+    ```bash
+    GET https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/.well-known/oauth-authorization-server
+    ```
+  </Step>
+  <Step title="Acquire an access token">
+    Request a token with **`grant_type=client_credentials`**. Send the client ID and secret using **HTTP Basic Auth** in the `Authorization` header — **not** in the form body.
+
+    ```bash
+    POST https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token
+    ```
+
+    **Headers:**
+
+    ```
+    Authorization: Basic <base64(clientKey:clientSecret)>
+    Accept: application/json
+    Content-Type: application/x-www-form-urlencoded
+    ```
+
+    **Body (example):**
+
+    ```
+    grant_type=client_credentials&cache-control=no-cache&scope=<your_scope>
+    ```
+
+    **Sample response:**
+
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 43200,
+      "access_token": "eyJhbG[...]1LQ",
+      "scope": "<your_scope>"
+    }
+    ```
+
+    Refresh the access token at least every **12 hours**, or as needed before expiry.
+  </Step>
+  <Step title="Call the API with your access token">
+    ```bash
+    Authorization: Bearer <access_token>
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Base URLs
+
+**Sandbox (cert)**
+
+```
+https://jdws-api-sandbox.deere.com
+```
+
+Example path (replace the application segment with the value issued for your integration; sandbox documentation uses `DbsWtyInfo`):
+
+```
+GET /digcust/wy/cert/DbsWtyInfo/WtyInfoSet(DealerNum='{DealerNum}',Pin='{Pin}')
+```
+
+**Production**
+
+```
+https://warrantyext-api-prod.deere.com
+```
+
+Confirm the exact path prefix under `/digcust/wy/` for production with your integration materials (it may differ from the sandbox `cert` path).
+
+---
+
+## Endpoints
+
+### Get entities from related AmtUse
+
+Returns warranty information for the OData key **DealerNum** and **Pin**.
+
+```
+GET /digcust/wy/cert/{applicationId}/WtyInfoSet(DealerNum='{DealerNum}',Pin='{Pin}')
+```
+
+**OAuth scope:** Use the scope configured for this API on your Developer.Deere.com application. The API reference uses **`warranty`** as an example scope name — replace it with your assigned scope if different.
+
+<ParamField path="applicationId" type="string" required>
+  Application or service instance segment for your route (sandbox example: `DbsWtyInfo`).
+</ParamField>
+
+<ParamField path="DealerNum" type="string" required>
+  Dealer number in the WtyInfoSet key.
+</ParamField>
+
+<ParamField path="Pin" type="string" required>
+  Product identification number (PIN) in the WtyInfoSet key.
+</ParamField>
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url "https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsWtyInfo/WtyInfoSet(DealerNum='550012345',Pin='1E012345678901')" \
+  --header 'Authorization: Bearer <access_token>' \
+  --header 'Accept: application/json'
+```
+
+</CodeGroup>
+
+#### Response fields
+
+<ResponseField name="dealerNum" type="string">
+  Dealer number from the warranty payload when returned.
+</ResponseField>
+
+<ResponseField name="pin" type="string">
+  PIN from the warranty payload when returned.
+</ResponseField>
+
+<ResponseField name="coverageStatus" type="string">
+  High-level coverage status when returned by the service.
+</ResponseField>
+
+The service may return **additional properties** beyond those listed; rely on your SOAP-to-REST mapping for the authoritative field list.
+
+<Card title="Try it in the API Playground" icon="play" href="/GET /digcust/wy/cert/{applicationId}/WtyInfoSet(DealerNum='{DealerNum}',Pin='{Pin}')">
+  Test this endpoint interactively with your access token.
+</Card>
+
+#### Sample response
+
+```json
+{
+  "dealerNum": "550012345",
+  "pin": "1E012345678901",
+  "coverageStatus": "ACTIVE"
+}
+```

@@ -1,0 +1,260 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Retrieve Multiple Claims API",
+    "description": "Returns **comprehensive claim details** for claims matching a **dealer**, **date type**, and **begin/end date range**. The legacy SOAP **Retrieve Multiple claims** operation maps to this REST API; see your **SOAP-to-REST field mapping** and **REST API FAQ** attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Retrieve Multiple Claims API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Retrieve Multiple Claims API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ClaimSummary": {
+        "type": "object",
+        "description": "Claim entity returned from **DealerDateTypeSet**. The exact properties depend on the OData contract and your SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "dealer": {
+            "type": "string",
+            "description": "Dealer identifier associated with the claim when returned.",
+            "example": "550012345"
+          },
+          "workOrder": {
+            "type": "string",
+            "description": "Work order number when present on the entity.",
+            "example": "WO-2026-00012345"
+          },
+          "claimNumber": {
+            "type": "string",
+            "description": "Warranty claim number when present.",
+            "example": "CLM-2026-00451234"
+          },
+          "claimStatus": {
+            "type": "string",
+            "description": "High-level claim status when returned by the service.",
+            "example": "OPEN"
+          }
+        }
+      },
+      "MultipleClaimsResponse": {
+        "type": "object",
+        "description": "Typical OData-style collection wrapper; the service may return a single object, an array, or another envelope — rely on your integration contract.",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "description": "Claim rows returned for the dealer and date window.",
+            "items": {
+              "$ref": "#/components/schemas/ClaimSummary"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "The DealerDateTypeSet key could not be parsed."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/DealerDateTypeSet(Dealer='{Dealer}',DateType='{DateType}',BeginDt='{BeginDt}',EndDt='{EndDt}')": {
+      "get": {
+        "operationId": "getMultipleClaimsByDealerAndDateRange",
+        "summary": "Get claims by dealer, date type, and date range",
+        "description": "Retrieves **Claim** entities from **DealerDateTypeSet** using the OData-style key: **dealer**, **date type**, **begin date**, and **end date**.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetrMultiClaims/DealerDateTypeSet(Dealer='550012345',DateType='WO',BeginDt='2026-01-01',EndDt='2026-04-01')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetrMultiClaims`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetrMultiClaims"
+            }
+          },
+          {
+            "name": "Dealer",
+            "in": "path",
+            "required": true,
+            "description": "Dealer identifier in the DealerDateTypeSet key.",
+            "schema": {
+              "type": "string",
+              "example": "550012345"
+            }
+          },
+          {
+            "name": "DateType",
+            "in": "path",
+            "required": true,
+            "description": "Date type code governing how **BeginDt** and **EndDt** are interpreted (values are defined by the warranty service contract — confirm with your SOAP-to-REST mapping).",
+            "schema": {
+              "type": "string",
+              "example": "WO"
+            }
+          },
+          {
+            "name": "BeginDt",
+            "in": "path",
+            "required": true,
+            "description": "Range start date (format per service contract, e.g. ISO `YYYY-MM-DD`).",
+            "schema": {
+              "type": "string",
+              "example": "2026-01-01"
+            }
+          },
+          {
+            "name": "EndDt",
+            "in": "path",
+            "required": true,
+            "description": "Range end date (format per service contract, e.g. ISO `YYYY-MM-DD`).",
+            "schema": {
+              "type": "string",
+              "example": "2026-04-01"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetrMultiClaims/DealerDateTypeSet(Dealer='550012345',DateType='WO',BeginDt='2026-01-01',EndDt='2026-04-01')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim details returned for the supplied dealer and date window.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultipleClaimsResponse"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "dealer": "550012345",
+                      "workOrder": "WO-2026-00012345",
+                      "claimNumber": "CLM-2026-00451234",
+                      "claimStatus": "OPEN"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The DealerDateTypeSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No claims found for the supplied dealer and date criteria.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No claims were found for the supplied date range."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

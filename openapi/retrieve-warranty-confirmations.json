@@ -1,0 +1,372 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Retrieve Warranty Confirmations API",
+    "description": "Retrieves a **list of PINs** (product identification numbers) that were **registered within a specified date range** for a dealer.\n\nThe legacy SOAP **Retrieve Warranty Confirms** operation maps to this REST API (**Retrieve Warranty Confirmation API**). Use your **SOAP-to-REST field mapping** and **REST API FAQ** attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Retrieve Warranty Confirmations API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Retrieve Warranty Confirmations API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "WtyHeaderEntity": {
+        "type": "object",
+        "description": "OData entity from **WtyHeaderSet** / related **WtyConf** data. Exact properties follow your OData contract and SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "Product identification number when returned for a confirmation row.",
+            "example": "1E012345678901234"
+          },
+          "dealer": {
+            "type": "string",
+            "description": "Dealer identifier aligned with the **Dealer** key in the request.",
+            "example": "550012345"
+          },
+          "beginDate": {
+            "type": "string",
+            "description": "Begin of registration window (format per service contract, often ISO date).",
+            "example": "2026-01-01"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "End of registration window (format per service contract, often ISO date).",
+            "example": "2026-03-31"
+          }
+        }
+      },
+      "WtyHeaderSetCollection": {
+        "type": "object",
+        "description": "OData collection returned from **WtyHeaderSet** (may include `@odata.context` and other OData annotations).",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WtyHeaderEntity"
+            },
+            "description": "Warranty confirmation header rows matching the dealer and date range."
+          }
+        }
+      },
+      "ODataBatchResponse": {
+        "type": "string",
+        "format": "binary",
+        "description": "OData **$batch** response as **multipart/mixed** MIME parts (per OData batch protocol)."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "The WtyHeaderSet key or date range could not be parsed."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/WtyHeaderSet(Dealer='{Dealer}',BeginDate='{BeginDate}',EndDate='{EndDate}')": {
+      "get": {
+        "operationId": "getWtyHeaderSetByDealerAndDateRange",
+        "summary": "Get entities from related WtyConf (WtyHeaderSet)",
+        "description": "Retrieves **WtyHeaderSet** entities for the given **Dealer** and **BeginDate** / **EndDate** range — the REST successor to SOAP **Retrieve Warranty Confirms**.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsWtyConfirmations/WtyHeaderSet(Dealer='550012345',BeginDate='2026-01-01',EndDate='2026-03-31')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `DbsWtyConfirmations`).",
+            "schema": {
+              "type": "string",
+              "example": "DbsWtyConfirmations"
+            }
+          },
+          {
+            "name": "Dealer",
+            "in": "path",
+            "required": true,
+            "description": "Dealer identifier in the WtyHeaderSet key.",
+            "schema": {
+              "type": "string",
+              "example": "550012345"
+            }
+          },
+          {
+            "name": "BeginDate",
+            "in": "path",
+            "required": true,
+            "description": "Start date for the registration range (format per OData contract; use the same format as in John Deere examples).",
+            "schema": {
+              "type": "string",
+              "example": "2026-01-01"
+            }
+          },
+          {
+            "name": "EndDate",
+            "in": "path",
+            "required": true,
+            "description": "End date for the registration range (format per OData contract).",
+            "schema": {
+              "type": "string",
+              "example": "2026-03-31"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsWtyConfirmations/WtyHeaderSet(Dealer='550012345',BeginDate='2026-01-01',EndDate='2026-03-31')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Warranty confirmation headers (PINs registered in the date range, per service contract).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WtyHeaderSetCollection"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "pin": "1E012345678901234",
+                      "dealer": "550012345",
+                      "beginDate": "2026-01-01",
+                      "endDate": "2026-03-31"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid date parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The WtyHeaderSet key or date range could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No data found for the supplied dealer and date range (when the service returns 404 for empty results).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No warranty confirmations were found for the supplied criteria."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/$batch": {
+      "post": {
+        "operationId": "postODataBatchRetrieveWarrantyConfirmations",
+        "summary": "Send a group of requests (OData $batch)",
+        "description": "Groups multiple OData requests into a **single** HTTP request using the **$batch** endpoint. See [OData batch requests](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_BatchRequests). Request and response bodies use **multipart/mixed** per OData batch semantics.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsWtyConfirmations/$batch`\n\n**Accept / Content-Type:** `multipart/mixed` (include a valid MIME **boundary** in the Content-Type header for the request body).\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `DbsWtyConfirmations`).",
+            "schema": {
+              "type": "string",
+              "example": "DbsWtyConfirmations"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "OData batch request body as **multipart/mixed** (batch boundary and MIME parts per OData specification).",
+          "content": {
+            "multipart/mixed": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsWtyConfirmations/$batch\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/mixed' \\\n  --header 'Content-Type: multipart/mixed; boundary=batch_12345' \\\n  --data-binary @batch-request.mime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch completed; response is **multipart/mixed** containing per-request results.",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Batch accepted (when the service returns 202 for async batch processing).",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed batch payload or boundary.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The batch request could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

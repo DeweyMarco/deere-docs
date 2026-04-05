@@ -1,0 +1,781 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Retrieve PIP API",
+    "description": "Retrieves applicable **Product Improvement Programs (PIPs)**, along with associated **kits** and **labor**, for a specified **PIN** (product identification number).\n\nLegacy SOAP **Retrieve Open PIPs**, **Retrieve PIPs**, **Retrieve PIPs Detail**, and PIP-related data from **Retrieve Open PIPs Maintenance contract** are consolidated into this REST API. Use your **SOAP-to-REST field mapping** attachments and **REST API FAQ** for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Retrieve PIP API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Retrieve PIP API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PinSetEntity": {
+        "type": "object",
+        "description": "OData entity from **PinSet** for a PIN key. Exact properties follow your OData contract and SOAP-to-REST mapping; additional fields may appear.",
+        "additionalProperties": true,
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "Product identification number when returned.",
+            "example": "1E012345678901234"
+          },
+          "pipCount": {
+            "type": "integer",
+            "description": "Count of related PIPs when returned by the service.",
+            "example": 3
+          }
+        }
+      },
+      "PipEntity": {
+        "type": "object",
+        "description": "A single PIP line or header from the **Pips** navigation. Field names follow your OData and SOAP-to-REST mapping.",
+        "additionalProperties": true,
+        "properties": {
+          "pipNumber": {
+            "type": "string",
+            "description": "PIP identifier when present.",
+            "example": "PIP-2026-001122"
+          },
+          "pipStatus": {
+            "type": "string",
+            "description": "Status when returned.",
+            "example": "OPEN"
+          },
+          "description": {
+            "type": "string",
+            "description": "Program description when returned.",
+            "example": "Hydraulic line inspection kit"
+          }
+        }
+      },
+      "PipsCollection": {
+        "type": "object",
+        "description": "OData collection payload for **Pips** under **PinSet**.",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipEntity"
+            },
+            "description": "PIP entities returned for the PIN."
+          }
+        }
+      },
+      "PipDetailsEntity": {
+        "type": "object",
+        "description": "Entity from **PipDetailsSet** (kits, labor, or detail rows per your mapping).",
+        "additionalProperties": true,
+        "properties": {
+          "pipNumber": {
+            "type": "string",
+            "example": "PIP-2026-001122"
+          },
+          "kitPartNumber": {
+            "type": "string",
+            "example": "RE123456"
+          },
+          "laborOperation": {
+            "type": "string",
+            "example": "OP-440"
+          }
+        }
+      },
+      "PipDetailsSetCollection": {
+        "type": "object",
+        "description": "OData collection for **PipDetailsSet**.",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipDetailsEntity"
+            }
+          }
+        }
+      },
+      "PipSetEntity": {
+        "type": "object",
+        "description": "Entity from **PipSet** (related PIPs entity set).",
+        "additionalProperties": true,
+        "properties": {
+          "pipNumber": {
+            "type": "string",
+            "example": "PIP-2026-001122"
+          },
+          "pin": {
+            "type": "string",
+            "example": "1E012345678901234"
+          }
+        }
+      },
+      "PipSetCollection": {
+        "type": "object",
+        "description": "OData collection for **PipSet**.",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipSetEntity"
+            }
+          }
+        }
+      },
+      "ODataBatchResponse": {
+        "type": "string",
+        "format": "binary",
+        "description": "OData **$batch** response as **multipart/mixed** MIME parts (per OData batch protocol)."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string",
+                "example": "No PIP data was found for the supplied PIN."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/$batch": {
+      "post": {
+        "operationId": "postODataBatchRetrievePip",
+        "summary": "Send a group of requests (OData $batch)",
+        "description": "Groups multiple OData requests into a **single** HTTP request using the **$batch** endpoint. Request and response bodies use **multipart/mixed** per OData batch semantics.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/$batch`\n\n**Accept / Content-Type:** `multipart/mixed` (include a valid MIME **boundary** in the Content-Type header for the request body).\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetreivePIP`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetreivePIP"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "OData batch request body as **multipart/mixed** (batch boundary and MIME parts per OData specification).",
+          "content": {
+            "multipart/mixed": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/$batch\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: multipart/mixed' \\\n  --header 'Content-Type: multipart/mixed; boundary=batch_12345' \\\n  --data-binary @batch-request.mime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch completed; response is **multipart/mixed** containing per-request results.",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Batch accepted (when the service returns 202 for async batch processing).",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "$ref": "#/components/schemas/ODataBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed batch payload or boundary.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The batch request could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/PinSet('{Pin}')": {
+      "get": {
+        "operationId": "getPipsFromPin",
+        "summary": "Get PIPs from PIN",
+        "description": "Retrieves **PinSet** for the given **PIN** — applicable PIPs context for that machine.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PinSet('1E012345678901234')`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetreivePIP`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetreivePIP"
+            }
+          },
+          {
+            "name": "Pin",
+            "in": "path",
+            "required": true,
+            "description": "Product identification number (PIN) in the PinSet key.",
+            "schema": {
+              "type": "string",
+              "example": "1E012345678901234"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PinSet('1E012345678901234')\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PinSet entity returned for the supplied PIN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinSetEntity"
+                },
+                "example": {
+                  "pin": "1E012345678901234",
+                  "pipCount": 3
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The PinSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No PinSet data found for the supplied PIN.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No PIP data was found for the supplied PIN."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/PinSet('{Pin}')/Pips": {
+      "get": {
+        "operationId": "getPipDetailsForPin",
+        "summary": "Get PIP details for PIN",
+        "description": "Retrieves **Pips** linked to **PinSet** for the given **PIN** (PIP program rows, kits, labor associations per your mapping).\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PinSet('1E012345678901234')/Pips`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetreivePIP`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetreivePIP"
+            }
+          },
+          {
+            "name": "Pin",
+            "in": "path",
+            "required": true,
+            "description": "Product identification number (PIN) in the PinSet key.",
+            "schema": {
+              "type": "string",
+              "example": "1E012345678901234"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PinSet('1E012345678901234')/Pips\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PIP rows returned for the supplied PIN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipsCollection"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "pipNumber": "PIP-2026-001122",
+                      "pipStatus": "OPEN",
+                      "description": "Hydraulic line inspection kit"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — malformed key or invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The PinSet key could not be parsed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Pips found for the supplied PIN.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No PIPs were found for the supplied PIN."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/PipDetailsSet": {
+      "get": {
+        "operationId": "getPipDetailsSet",
+        "summary": "Get entities from PipDetailsSet",
+        "description": "Reads the **PipDetailsSet** entity set (detail rows such as kits and labor, per your OData model and SOAP-to-REST mapping). You may combine this with OData query options (`$filter`, `$top`, etc.) when supported by the service.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PipDetailsSet`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetreivePIP`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetreivePIP"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PipDetailsSet\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PipDetails entities returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipDetailsSetCollection"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "pipNumber": "PIP-2026-001122",
+                      "kitPartNumber": "RE123456",
+                      "laborOperation": "OP-440"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request could not be processed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No data found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No PipDetailsSet data was found."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/digcust/wy/cert/{applicationId}/PipSet": {
+      "get": {
+        "operationId": "getPipSet",
+        "summary": "Get entities from PipSet",
+        "description": "Reads the **PipSet** entity set (related PIPs). Use OData query options when supported by the service.\n\n**Sandbox example:** `GET https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PipSet`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program.\n\n**Accept:** `application/json`",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtyDbsRetreivePIP`).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsRetreivePIP"
+            }
+          }
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request GET \\\n  --url \"https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsRetreivePIP/PipSet\" \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PIP entities returned from PipSet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipSetCollection"
+                },
+                "example": {
+                  "value": [
+                    {
+                      "pipNumber": "PIP-2026-001122",
+                      "pin": "1E012345678901234"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request could not be processed."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No data found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "NOT_FOUND",
+                    "message": "No PipSet data was found."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,247 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer Location Update API",
+    "description": "Updates the **responsible dealership** associated with a specific machine. The legacy SOAP **Dealer Machine Location Update** operation maps to this REST API; see your SOAP-to-REST field mapping and FAQ attachments for property-level details.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path segment (for example whether `cert` is present) with your integration guide."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Dealer Location Update API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Dealer Location Update API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DealerLocationUpdateRequest": {
+        "type": "object",
+        "description": "Payload to add a **DealerLocnDetails** entity. Include **at least one** valid field that the service accepts (see SOAP-to-REST field mapping). Additional properties may be returned or accepted per the underlying OData contract.",
+        "minProperties": 1,
+        "additionalProperties": true,
+        "properties": {
+          "machineSerialNumber": {
+            "type": "string",
+            "description": "Machine serial number or identifier for the equipment whose responsible dealership is being updated.",
+            "example": "1XYZ12345678901234"
+          },
+          "responsibleDealerCode": {
+            "type": "string",
+            "description": "John Deere dealer code for the dealership that should be responsible for the machine.",
+            "example": "123456"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Effective date for the location change, when applicable to your mapping.",
+            "example": "2026-04-01"
+          }
+        }
+      },
+      "DealerLocationUpdateResponse": {
+        "type": "object",
+        "description": "Acknowledgement or created entity payload from the DealerLocnDetails set.",
+        "additionalProperties": true,
+        "properties": {
+          "machineSerialNumber": {
+            "type": "string",
+            "description": "Machine serial number that was updated.",
+            "example": "1XYZ12345678901234"
+          },
+          "responsibleDealerCode": {
+            "type": "string",
+            "description": "Responsible dealer code after the update.",
+            "example": "123456"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Effective date when returned by the service.",
+            "example": "2026-04-01"
+          },
+          "status": {
+            "type": "string",
+            "description": "Processing or entity status when returned by the service.",
+            "example": "UPDATED"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "The request body must include at least one valid field."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/DealerLocnDetailsSet": {
+      "post": {
+        "operationId": "createDealerLocnDetails",
+        "summary": "Add dealer location details for a machine",
+        "description": "Creates a new **DealerLocnDetails** entity in **DealerLocnDetailsSet**, updating the responsible dealership for a machine. The request body must contain **at least one** valid field.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsDealerLocnUpd/DealerLocnDetailsSet`\n\n**Production:** Use the production host with the path pattern documented for your environment (path may omit the `cert` segment compared to sandbox).",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (for example `WtyDbsDealerLocnUpd` in sandbox).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsDealerLocnUpd"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerLocationUpdateRequest"
+              },
+              "example": {
+                "machineSerialNumber": "1XYZ12345678901234",
+                "responsibleDealerCode": "123456",
+                "effectiveDate": "2026-04-01"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsDealerLocnUpd/DealerLocnDetailsSet' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"machineSerialNumber\":\"1XYZ12345678901234\",\"responsibleDealerCode\":\"123456\",\"effectiveDate\":\"2026-04-01\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update accepted; response body may include the updated entity or acknowledgement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerLocationUpdateResponse"
+                },
+                "example": {
+                  "machineSerialNumber": "1XYZ12345678901234",
+                  "responsibleDealerCode": "123456",
+                  "effectiveDate": "2026-04-01",
+                  "status": "UPDATED"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Entity created in DealerLocnDetailsSet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerLocationUpdateResponse"
+                },
+                "example": {
+                  "machineSerialNumber": "1XYZ12345678901234",
+                  "responsibleDealerCode": "123456",
+                  "effectiveDate": "2026-04-01",
+                  "status": "CREATED"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Update accepted with no response body."
+          },
+          "400": {
+            "description": "Bad request — empty body, no valid fields, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request body must include at least one valid field."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

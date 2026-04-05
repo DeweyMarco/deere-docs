@@ -1,0 +1,247 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer Invoice Update API",
+    "description": "Updates the dealer invoice number and date on an existing warranty claim. This supports compliance with regional regulations such as Brazil's Nota Fiscal process. The legacy SOAP Update Claim operation maps to this REST API; see your migration guide for field-level mappings.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://jdws-api-sandbox.deere.com",
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path segment (for example whether `cert` is present) with your integration guide."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "John Deere Dealer Solutions OAuth 2.0. Use the **authorization code** flow (three-legged) for interactive users, or the **client credentials** grant for machine-to-machine access. Request the OAuth scope assigned to your application for this API (this reference uses `warranty` as an example — confirm the scope in your Developer.Deere.com application and technical documentation).",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/authorize",
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "offline_access": "Request a refresh token",
+              "warranty": "Dealer Invoice Update API access"
+            }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
+            "scopes": {
+              "warranty": "Dealer Invoice Update API access"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "DealerInvoiceUpdateRequest": {
+        "type": "object",
+        "description": "Payload to add a **DealerInvoice** entity. Include **at least one** valid field that the service accepts for your region and claim type (see SOAP-to-REST field mapping). Additional properties may be returned or accepted per the underlying OData contract.",
+        "minProperties": 1,
+        "additionalProperties": true,
+        "properties": {
+          "claimNumber": {
+            "type": "string",
+            "description": "Identifier of the warranty claim to update.",
+            "example": "CLM-2026-00451234"
+          },
+          "dealerInvoiceNumber": {
+            "type": "string",
+            "description": "Dealer invoice number (for example Nota Fiscal number where applicable).",
+            "example": "NF-987654321"
+          },
+          "dealerInvoiceDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Invoice date associated with the dealer invoice.",
+            "example": "2026-04-01"
+          }
+        }
+      },
+      "DealerInvoiceUpdateResponse": {
+        "type": "object",
+        "description": "Acknowledgement or created entity payload from the DealerInvoice set.",
+        "additionalProperties": true,
+        "properties": {
+          "claimNumber": {
+            "type": "string",
+            "description": "Claim identifier that was updated.",
+            "example": "CLM-2026-00451234"
+          },
+          "dealerInvoiceNumber": {
+            "type": "string",
+            "description": "Dealer invoice number after the update.",
+            "example": "NF-987654321"
+          },
+          "dealerInvoiceDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Dealer invoice date after the update.",
+            "example": "2026-04-01"
+          },
+          "status": {
+            "type": "string",
+            "description": "Processing or entity status when returned by the service.",
+            "example": "UPDATED"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "BAD_REQUEST"
+              },
+              "message": {
+                "type": "string",
+                "example": "The request body must include at least one valid field."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/digcust/wy/cert/{applicationId}/DealerInvoiceSet": {
+      "post": {
+        "operationId": "createDealerInvoice",
+        "summary": "Add dealer invoice to a claim",
+        "description": "Creates a new **DealerInvoice** entity in **DealerInvoiceSet**, updating invoice number and/or date on an existing claim. The request body must contain **at least one** valid field.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsDealerInvoiceUpd/DealerInvoiceSet`\n\n**Production:** Use the production host with the path pattern documented for your environment (path may omit the `cert` segment compared to sandbox).",
+        "security": [{ "OAuth2": ["warranty"] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "description": "Application or service instance segment for your Dealer Solutions integration (for example `WtyDbsDealerInvoiceUpd` in sandbox).",
+            "schema": {
+              "type": "string",
+              "example": "WtyDbsDealerInvoiceUpd"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerInvoiceUpdateRequest"
+              },
+              "example": {
+                "claimNumber": "CLM-2026-00451234",
+                "dealerInvoiceNumber": "NF-987654321",
+                "dealerInvoiceDate": "2026-04-01"
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "cURL",
+            "source": "curl --request POST \\\n  --url 'https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtyDbsDealerInvoiceUpd/DealerInvoiceSet' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"claimNumber\":\"CLM-2026-00451234\",\"dealerInvoiceNumber\":\"NF-987654321\",\"dealerInvoiceDate\":\"2026-04-01\"}'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update accepted; response body may include the updated entity or acknowledgement.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerInvoiceUpdateResponse"
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-00451234",
+                  "dealerInvoiceNumber": "NF-987654321",
+                  "dealerInvoiceDate": "2026-04-01",
+                  "status": "UPDATED"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Entity created in DealerInvoiceSet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerInvoiceUpdateResponse"
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-00451234",
+                  "dealerInvoiceNumber": "NF-987654321",
+                  "dealerInvoiceDate": "2026-04-01",
+                  "status": "CREATED"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Update accepted with no response body."
+          },
+          "400": {
+            "description": "Bad request — empty body, no valid fields, or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "BAD_REQUEST",
+                    "message": "The request body must include at least one valid field."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid access token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid or expired access token."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — token does not include the required scope or organization access.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Access token is missing the required scope."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred. Please try again later."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
