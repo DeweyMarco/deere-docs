@@ -30,6 +30,8 @@
             "openapi/retrieve-pip.json",
             "openapi/retrieve-warranty-confirmations.json",
             "openapi/retrieve-warranty-information.json",
+            "openapi/save-claim.json",
+            "openapi/submit-delivery-receipt.json",
             "openapi/supplier-part-quoting.json",
             "openapi/oca-crm.json",
             "openapi/merchant-integration.json",
@@ -526,6 +528,32 @@
                                         "openapi": "openapi/dealer-location-update.json",
                                         "pages": [
                                             "POST /digcust/wy/cert/{applicationId}/DealerLocnDetailsSet"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Save Claim",
+                                "root": "dealer_solutions/warranty/save-claim",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/save-claim.json",
+                                        "pages": [
+                                            "POST /digcust/wy/cert/{applicationId}/ClaimCollection"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Submit Delivery Receipt",
+                                "root": "dealer_solutions/warranty/submit-delivery-receipt",
+                                "pages": [
+                                    {
+                                        "group": "API Reference",
+                                        "openapi": "openapi/submit-delivery-receipt.json",
+                                        "pages": [
+                                            "POST /digcust/wy/cert/{applicationId}/DealerInputSet"
                                         ]
                                     }
                                 ]

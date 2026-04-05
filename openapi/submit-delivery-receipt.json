@@ -1,14 +1,14 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Save Claim API",
-    "description": "Creates a **new claim** in the John Deere Warranty System using **work order data**. The integration can be configured to **auto-submit** the claim or **save as a draft** for manual submission through the **JDWS Portal**. Multiple legacy claim types are consolidated into this API — valid fields and values depend on the claim type; use your **Multiple Option Values**, **Save Claim Field Legend**, **SOAP-to-REST field mapping**, and **REST API FAQ** attachments.\n\n**Note:** The request body must contain **at least one** valid field.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
+    "title": "Submit Delivery Receipt API",
+    "description": "Submits **end customer registration** details to the John Deere Warranty System and can **register a machine to the dealership** when the unit is taken in on trade. The legacy SOAP **Submit Delivery Receipt** operation maps to this REST API; use your **SOAP-to-REST field mapping** and **REST API FAQ** for exact field names and values.\n\nThe request body must contain **at least one** valid field.\n\nSupport: Warranty_Api_Support@JohnDeere.com",
     "version": "1.0.0"
   },
   "servers": [
     {
       "url": "https://jdws-api-sandbox.deere.com",
-      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path prefix under `/digcust/wy/` and whether the `cert` segment is present for your environment."
+      "description": "Sandbox (cert). Production uses `https://warrantyext-api-prod.deere.com` — confirm the path under `/digcust/wy/` and whether the `cert` segment is present for your environment."
     }
   ],
   "components": {
@@ -22,56 +22,61 @@
             "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
             "scopes": {
               "offline_access": "Request a refresh token",
-              "warranty": "Save Claim API access"
+              "warranty": "Submit Delivery Receipt API access"
             }
           },
           "clientCredentials": {
             "tokenUrl": "https://signin.johndeere.com/oauth2/ausabzzga86EIeR4l1t7/v1/token",
             "scopes": {
-              "warranty": "Save Claim API access"
+              "warranty": "Submit Delivery Receipt API access"
             }
           }
         }
       }
     },
     "schemas": {
-      "SaveClaimRequest": {
+      "SubmitDeliveryReceiptRequest": {
         "type": "object",
-        "description": "Payload to create a **Claim** via **ClaimCollection**. Include **at least one** valid field for your claim type and program (see **Save Claim Field Legend** and SOAP-to-REST mapping). Additional properties are accepted per the underlying OData contract.",
+        "description": "Payload to create a **DealerInput** entity in **DealerInputSet** for customer registration and optional trade-in registration. Include **at least one** valid field per your program (see SOAP-to-REST mapping). Additional properties are accepted per the underlying OData contract.",
         "minProperties": 1,
         "additionalProperties": true,
         "properties": {
           "dealerAccount": {
             "type": "string",
-            "description": "Dealer account identifier when required for the claim key or header context.",
+            "description": "Dealer account identifier when required for the submission context.",
             "example": "550012345"
           },
-          "segment": {
+          "pin": {
             "type": "string",
-            "description": "Segment code when required for the claim.",
-            "example": "01"
+            "description": "Product identification number (PIN) for the machine when applicable.",
+            "example": "1XYZ123456"
           },
-          "workOrder": {
+          "serialNumber": {
             "type": "string",
-            "description": "Work order number driving the claim creation.",
-            "example": "WO-2026-00012345"
+            "description": "Machine serial number when required for registration or trade-in.",
+            "example": "SN-2026-889900"
+          },
+          "tradeInPin": {
+            "type": "string",
+            "description": "PIN for a machine taken in on trade, when registering it to the dealership.",
+            "example": "1ABC987654"
           }
         }
       },
-      "SaveClaimResponse": {
+      "SubmitDeliveryReceiptResponse": {
         "type": "object",
-        "description": "Response after the claim is persisted. The service returns the **claim number** (claim no.) when creation succeeds. Additional fields may appear per claim type.",
+        "description": "Response after the delivery receipt / registration is processed. Additional fields may appear per entity type.",
         "additionalProperties": true,
         "properties": {
-          "claimNumber": {
+          "status": {
             "type": "string",
-            "description": "Assigned warranty claim number (claim no.).",
-            "example": "CLM-2026-00451234"
+            "description": "Processing or entity status when returned by the service.",
+            "example": "ACCEPTED"
           },
-          "claimStatus": {
+          "confirmationId": {
             "type": "string",
-            "description": "High-level status when returned (for example draft vs. submitted).",
-            "example": "DRAFT"
+            "description": "Reference or confirmation identifier when returned.",
+            "example": "SDR-2026-00112233"
           }
         }
       },
@@ -96,21 +101,21 @@
     }
   },
   "paths": {
-    "/digcust/wy/cert/{applicationId}/ClaimCollection": {
+    "/digcust/wy/cert/{applicationId}/DealerInputSet": {
       "post": {
-        "operationId": "createClaim",
-        "summary": "Create a normal claim",
-        "description": "Creates a **normal claim** in the warranty database from work order data. The response includes the **claim number** when successful. The body must contain **at least one** valid field.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtySaveClaim/ClaimCollection`\n\n**Production:** Use the production host (`https://warrantyext-api-prod.deere.com`) with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
+        "operationId": "createSubmitDeliveryReceipt",
+        "summary": "Create submit delivery receipt",
+        "description": "Submits **end customer registration** to the warranty system via **DealerInputSet**. Optionally supports **trade-in** machine registration for the dealership. The body must contain **at least one** valid field.\n\n**Sandbox example:** `POST https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsSubmitDelReceipt/DealerInputSet`\n\n**Production:** Use `https://warrantyext-api-prod.deere.com` with the path pattern documented for your program (the `cert` segment or application id may differ from sandbox).\n\n**Accept:** `application/json`",
         "security": [{ "OAuth2": ["warranty"] }],
         "parameters": [
           {
             "name": "applicationId",
             "in": "path",
             "required": true,
-            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `WtySaveClaim`).",
+            "description": "Application or service instance segment for your Dealer Solutions integration (sandbox example: `DbsSubmitDelReceipt`).",
             "schema": {
               "type": "string",
-              "example": "WtySaveClaim"
+              "example": "DbsSubmitDelReceipt"
             }
           }
         ],
@@ -119,12 +124,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SaveClaimRequest"
+                "$ref": "#/components/schemas/SubmitDeliveryReceiptRequest"
               },
               "example": {
                 "dealerAccount": "550012345",
-                "segment": "01",
-                "workOrder": "WO-2026-00012345"
+                "pin": "1XYZ123456",
+                "serialNumber": "SN-2026-889900"
               }
             }
           }
@@ -133,34 +138,34 @@
           {
             "lang": "bash",
             "label": "cURL",
-            "source": "curl --request POST \\\n  --url 'https://jdws-api-sandbox.deere.com/digcust/wy/cert/WtySaveClaim/ClaimCollection' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerAccount\":\"550012345\",\"segment\":\"01\",\"workOrder\":\"WO-2026-00012345\"}'"
+            "source": "curl --request POST \\\n  --url 'https://jdws-api-sandbox.deere.com/digcust/wy/cert/DbsSubmitDelReceipt/DealerInputSet' \\\n  --header 'Authorization: Bearer <access_token>' \\\n  --header 'Accept: application/json' \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"dealerAccount\":\"550012345\",\"pin\":\"1XYZ123456\",\"serialNumber\":\"SN-2026-889900\"}'"
           }
         ],
         "responses": {
           "200": {
-            "description": "Claim created; response includes the claim number and may include additional entity fields.",
+            "description": "Registration processed; response may include confirmation or entity details.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SaveClaimResponse"
+                  "$ref": "#/components/schemas/SubmitDeliveryReceiptResponse"
                 },
                 "example": {
-                  "claimNumber": "CLM-2026-00451234",
-                  "claimStatus": "DRAFT"
+                  "status": "ACCEPTED",
+                  "confirmationId": "SDR-2026-00112233"
                 }
               }
             }
           },
           "201": {
-            "description": "Claim created.",
+            "description": "Entity created in DealerInputSet.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SaveClaimResponse"
+                  "$ref": "#/components/schemas/SubmitDeliveryReceiptResponse"
                 },
                 "example": {
-                  "claimNumber": "CLM-2026-00451234",
-                  "claimStatus": "SUBMITTED"
+                  "status": "CREATED",
+                  "confirmationId": "SDR-2026-00112233"
                 }
               }
             }
