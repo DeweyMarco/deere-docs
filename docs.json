@@ -16,6 +16,16 @@
         "default": "system",
         "strict": false
     },
+    "contextual": {
+        "options": [
+            {
+                "title": "Download LLMs.txt",
+                "description": "Download the LLMs.txt file for this documentation",
+                "icon": "download",
+                "href": "/llms.txt"
+            }
+        ]
+    },
     "api": {
         "openapi": [
             "openapi/dealer-data-feed.json",
@@ -936,6 +946,7 @@
                 "tab": "Precision Tech",
                 "icon": "microchip",
                 "pages": [
+                    "precision_tech/getting-started",
                     {
                         "group": "Application",
                         "pages": [

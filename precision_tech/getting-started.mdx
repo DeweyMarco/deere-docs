@@ -1,0 +1,185 @@
+---
+title: "Getting Started: Precision Tech"
+description: "Create a John Deere user account, set up a developer application, test with Sandbox, and move to Production."
+---
+
+## Create a John Deere User Account
+
+A John Deere user account is required to log into [developer.deere.com](https://developer.deere.com) to create a developer application and connect with our APIs. If you already have a John Deere user account and an Operations Center organization, you may skip to the [Create Developer Application](#create-a-developer-application) steps.
+
+If you do not have a John Deere user account, you may [create one here](https://developer.deere.com).
+
+During the user creation process, you will be required to create an Operations Center organization. This organization can be used to test some Precision Tech APIs directly with your own user API token.
+
+---
+
+## Create a Developer Application
+
+A developer application is required to connect to our John Deere API platform or access our offline ADAPT SDK installation files. Creating a developer application provides you and your development team with an **application ID and secret**, which is required to begin user authentication.
+
+### Who should create this application?
+
+Anyone with a John Deere user account can create an API application. However, before creating the application, check within your own organization if someone else has already created a developer application — multiple users can be added to one application to share credentials for a single integration project.
+
+Business owners and developers should both be part of your application's team. We use Team Member email addresses to communicate updates and changes to our API platform.
+
+### How to create the application
+
+<Steps>
+  <Step title="Sign in to developer.deere.com">
+    Sign into [developer.deere.com](https://developer.deere.com) with your John Deere user account.
+  </Step>
+  <Step title="Navigate to My Applications">
+    Navigate to **My Applications** in the header menu and click the **Create Application** button.
+  </Step>
+  <Step title="Accept the License Agreement">
+    Review and accept the **API Development License Agreement**. This is required to create a developer application. A more formal production contract is signed later when moving to production.
+  </Step>
+  <Step title="Enter your application details">
+    - **Application Name** — Use your company and/or product legal name. Do not use generic names like "test" or "test app."
+    - **Short Description** — Explain the purpose of the application. This is shown to users when they connect their Operations Center organizations.
+    - **Redirect URI** — Required for OAuth 2.0 authorization. You may use the example URI provided during creation as a placeholder until you have your own.
+    - **Application Logo** — Optional at creation, but required before moving to production.
+  </Step>
+  <Step title="Submit and select APIs">
+    Click **Next** to create the application. You will then have the option to request access to specific APIs.
+
+    <Note>
+      It is **not required** to request API access during creation. If you are unsure, select **"Skip this step"** and request access later. Only select the APIs that represent data you actually need — requesting all available APIs is not the intended use of this workflow.
+    </Note>
+  </Step>
+  <Step title="Review your application credentials">
+    After creation, go to **My Applications → View Details → Security** to find your **Application ID and Secret**, which are required for authenticating users.
+  </Step>
+</Steps>
+
+---
+
+## Sandbox and Testing
+
+Once your application is created, the next step is to make test API calls using our Sandbox URLs. You will have **six months** to test and refine your integration.
+
+### Requesting API access
+
+Go to **My Applications → View Details → APIs → Request Access** to select the APIs needed. You may also request access during application creation.
+
+- **Operations Center APIs** — You must be granted access to at least one API before testing. Access to the Organizations API is provided automatically to enable your application to create an organization connection.
+- **ISO 15143-3 API** — Once access is granted, you can call the `/Fleet` API using the Sandbox URL. The Organizations API is not required.
+- **Pro Dispatch API** — Organization connections are not required. Once access is granted, call this API using the Sandbox URL.
+
+### What is Sandbox?
+
+Sandbox is an API URL listed in our public documentation that your application uses to test API interactions with real production data. There is no anonymized sample data environment — connecting to a real John Deere customer organization is the recommended approach for thorough testing.
+
+### Connecting to test customers
+
+Before your application moves to production, you will need to obtain an API token from a real user and maintain it for testing. We suggest:
+
+1. Finding a John Deere dealer or customer interested in your type of application.
+2. Authorizing a staff member of their Operations Center or Pro Dispatch organization to initiate an API connection.
+
+See our **Postman instructions** in the Security section of each API's Dev Docs for an example of how to obtain an OAuth user token.
+
+### Redirect users to Connections before API calls
+
+For Operations Center APIs and the ISO 15143-3 API, you must redirect the API token user to our Connections application to enable organization access. With the first call to `GET /organizations` or `GET /Fleet/1`, a `connections` link will be returned in the response. Redirect the user to this link in a browser to enable their organizations for your application.
+
+### Sample data
+
+If you want to load agronomic test data into your own Operations Center organization, sample files are available for download and can be uploaded via the **Files Manager** tool in Operations Center. Note that machine data cannot be fabricated — connecting to a real customer organization is the best option for testing with machine data.
+
+### Sandbox usage guidelines
+
+While your application is in Sandbox, adhere to the following limits:
+
+| Guideline | Limit |
+|---|---|
+| Test accounts in Operations Center | 1 (not applicable for Pro Dispatch) |
+| Connected organizations | 5 maximum (not applicable for Pro Dispatch) |
+| API calls per month | 150,000 maximum |
+| Time in Sandbox environment | 6 months maximum |
+
+If you need to exceed these limits or have been in Sandbox for over 6 months, request to move your application to production. If your access has been revoked, submit a sandbox exception request to [JohnDeereIntegrations@JohnDeere.com](mailto:JohnDeereIntegrations@JohnDeere.com).
+
+---
+
+## Moving to Production
+
+Once your testing is complete, open a **Support ticket** to request access to the Production URLs. The API Support team will guide you through the following steps:
+
+<Steps>
+  <Step title="Update your application details">
+    Complete all application detail sections so your app can be listed in our [Connections](https://connections.deere.com) application. By default, your details are only shown to connected organizations.
+
+    <Note>
+      Pro Dispatch applications are not shown in connections.deere.com by default, but completing your application details is still important for future use.
+    </Note>
+  </Step>
+  <Step title="Implement OAuth 2.0">
+    Institute an OAuth 2.0 authorization code flow for John Deere customers using the Production URL. See the applicable OAuth 2.0 guide for your API type:
+    - Operations Center APIs
+    - ISO API
+    - Pro Dispatch API
+  </Step>
+  <Step title="Run API call tests">
+    Run a final API call test as would be done in Production. If tests will cause substantial load, notify the Support team in advance.
+  </Step>
+  <Step title="Test validation and approval">
+    Contact Support with the exact start/end date and time of your test. The API Support team will review and validate the test logs and may request further development before production approval.
+  </Step>
+  <Step title="Business validation and approval">
+    After the API test passes, the Support team will involve the API Integrations team for further questions and validation of your application's data usage.
+  </Step>
+  <Step title="Sign the license agreement">
+    An API Agreement will be provided by the API Integrations team via DocuSign.
+  </Step>
+  <Step title="Update your code to Production URLs">
+    Once the agreement is signed, update your API calls to the Production URL.
+  </Step>
+  <Step title="Monitor your application">
+    Basic logging is available in the **Logs** section of your application on [developer.deere.com](https://developer.deere.com). You are also responsible for your own logging for troubleshooting and monitoring.
+  </Step>
+</Steps>
+
+### API calling best practices for production review
+
+**Operations Center APIs:**
+
+- **API Calling Pattern** — All calls should start with the API Catalog (`https://sandboxapi.deere.com/platform/`). Follow the returned HATEOAS links to discover organizations and other resources.
+- **Pagination** — Responses are paginated with a default page size of 10. Follow the `nextPage` link in responses to retrieve full result sets. Page sizes up to 100 are supported.
+- **Avoid redundant calls** — For example, use `GET /organizations/{orgId}/fields?embed=clients,farms` instead of making separate calls to farms and clients.
+- **Follow returned links** — Use HATEOAS links returned in responses rather than hard-coding URLs.
+- **Use eTags** — Process only changes since your last API call using eTags. Consider the **Data Subscription Service** webhook to receive alerts when data changes.
+
+**ISO API:**
+
+- **API Calling Pattern** — Follow the standard AEMP format: `https://sandboxaemp.deere.com/Fleet/{pageNumber}`. If a `connections` link is returned, redirect the user to Connections first.
+- **Pagination** — Default page size is 100. Do not add pagination parameters to AEMP API calls.
+
+---
+
+## Connections Guide
+
+Our [Connections application](https://connections.deere.com) allows John Deere customers and dealers to find and manage software connected to our platform. Complete these three steps for the best experience:
+
+<Steps>
+  <Step title="Complete your application profile">
+    Fill out the **Marketing section** in your application details on [developer.deere.com](https://developer.deere.com). Include a long description, category tags, pricing structure, supported languages and countries, and support contact information.
+
+    The **Connections Link** in the Marketing section configures the **Connect** button that Operations Center users will use to initiate the authorization flow with your application.
+  </Step>
+  <Step title="Confirm your API licenses">
+    Customers see which data your application accesses based on your approved API licenses in Connections. Remove unused licenses and request only the access you need. Use the **Support** button to request license changes.
+  </Step>
+  <Step title="Implement OAuth 2.0 and the organization selection redirect">
+    1. **Obtain a user token** — When a customer grants consent by accepting scopes, an OAuth token is issued to your application.
+    2. **Obtain organization access** — Call `GET /organizations` or `GET /Fleet/1` (ISO API) and parse the `connections` URL in the response. Redirect the user to Connections to grant organization access. You can include a redirect URI back to your application in the same connections URI.
+    3. **Check organization access at any time** — Call `GET /organizations` or `GET /Fleet/1` to check status. If the `connections` link is returned, the organization has not been enabled. If the `manage_connection` link is returned, do not redirect — this link lets users manage existing permissions.
+  </Step>
+</Steps>
+
+<Note>
+  For the ISO API, the `connections` link is only returned if any organization the user has access to has not been enabled for the calling application. If all organizations are already enabled, the `connections` link will not appear in the response.
+</Note>
+
+Have questions? Use the **Support** button on [developer.deere.com](https://developer.deere.com) to send us a message.
