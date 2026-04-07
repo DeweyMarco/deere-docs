@@ -2,10 +2,45 @@
  * Palm theme mounts the light/dark control inside #sidebar-content, which is
  * `display: none` below the lg breakpoint — the toggle never paints on mobile.
  * Move the control to document.body and pin it to the header top-right.
+ *
+ * When the Mintlify AI assistant panel is open its close button occupies the
+ * same top-right corner, so we hide the toggle while the chat is open.
  */
 (function () {
   var SELECTOR = 'button[aria-label="Toggle dark mode"]';
   var debounceTimer;
+
+  // Selectors that indicate the Mintlify AI chat panel is open.
+  // We watch for any of these appearing in the DOM.
+  var CHAT_SELECTORS = [
+    '[data-chat]',
+    '[aria-label="Close chat"]',
+    '[aria-label="Close AI assistant"]',
+    '[aria-label="Close assistant"]',
+    '[data-testid="chat-window"]',
+    '[data-testid="chat-panel"]',
+    '.chat-panel',
+    '#chat-panel',
+    '[class*="chatPanel"]',
+    '[class*="ChatPanel"]',
+    '[class*="aiChat"]',
+    '[class*="AiChat"]',
+    '[class*="chatWindow"]',
+    '[class*="ChatWindow"]',
+  ];
+
+  function isChatOpen() {
+    return CHAT_SELECTORS.some(function (sel) {
+      try {
+        var el = document.querySelector(sel);
+        if (!el) return false;
+        var style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      } catch (e) {
+        return false;
+      }
+    });
+  }
 
   function rightInset() {
     return window.matchMedia('(min-width: 1024px)').matches
@@ -24,6 +59,16 @@
     btn.style.setProperty('z-index', '99999', 'important');
   }
 
+  function syncVisibility() {
+    var btn = document.querySelector(SELECTOR);
+    if (!btn) return;
+    if (isChatOpen()) {
+      btn.style.setProperty('display', 'none', 'important');
+    } else {
+      btn.style.removeProperty('display');
+    }
+  }
+
   function pin() {
     var nodes = document.querySelectorAll(SELECTOR);
     if (!nodes.length) return;
@@ -37,11 +82,17 @@
       document.body.appendChild(btn);
     }
     applyStyles(btn);
+    syncVisibility();
   }
 
   function schedulePin() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(pin, 50);
+  }
+
+  function scheduleSync() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(syncVisibility, 50);
   }
 
   function init() {
@@ -72,11 +123,23 @@
   window.addEventListener('popstate', schedulePin);
 
   function startObserver() {
+    var obs = new MutationObserver(scheduleSync);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+  }
+
+  function startSidebarObserver() {
     var root = document.getElementById('sidebar-content') || document.body;
     var obs = new MutationObserver(schedulePin);
     obs.observe(root, { childList: true, subtree: true });
   }
 
-  if (document.body) startObserver();
-  else document.addEventListener('DOMContentLoaded', startObserver);
+  if (document.body) {
+    startObserver();
+    startSidebarObserver();
+  } else {
+    document.addEventListener('DOMContentLoaded', function () {
+      startObserver();
+      startSidebarObserver();
+    });
+  }
 })();
